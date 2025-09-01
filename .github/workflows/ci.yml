@@ -44,6 +44,7 @@ jobs:
         run: pytest
 
   build:
+    needs: [lint, format, test]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
