@@ -482,3 +482,16 @@ profiles:
 - Interactive and non‑interactive flows both covered by automated tests.
 - Works on macOS, Linux, Windows without additional dependencies.
 
+---
+
+## 20) Continuous Integration
+
+GitHub Actions runs four jobs in parallel:
+
+- **lint** — `ruff check .`
+- **format** — `black --check .`
+- **test** — `pytest`
+- **build** — `python -m build` on macOS, Linux, and Windows
+
+Each job runs independently so a failure in one does not stop the others.
+

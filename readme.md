@@ -24,6 +24,7 @@ This small, dependency‑free Python script:
 - [Examples](#examples)
 - [Environment variables](#environment-variables)
 - [Troubleshooting](#troubleshooting)
+- [CI](#ci)
 - [Development & code map](#development--code-map)
 - [License](#license)
 
@@ -283,8 +284,21 @@ ls ~/.codex/
 - **History & storage**  
   If you’re in a restricted environment, add `--disable-response-storage` and/or `--no-history` when generating the config.
 
-- **Azure/OpenAI compatibility**  
+- **Azure/OpenAI compatibility**
   When talking to Azure‑hosted compatible endpoints, pass `--azure-api-version <YYYY-MM-DD>` to set `query_params.api-version`.
+
+---
+
+## CI
+
+GitHub Actions run four jobs in parallel:
+
+- **lint** — `ruff check .`
+- **format** — `black --check .`
+- **test** — `pytest`
+- **build** — `python -m build` on macOS, Linux, and Windows
+
+Each job is independent, so a failure in one doesn’t block the others.
 
 ---
 
