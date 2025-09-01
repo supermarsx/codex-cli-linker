@@ -63,6 +63,11 @@ python3 codex-cli-linker.py \
 python3 codex-cli-linker.py --json --yaml
 ```
 
+**Show verbose logging for troubleshooting:**
+```bash
+python3 codex-cli-linker.py --verbose --auto
+```
+
 ---
 
 ## Installation
@@ -149,6 +154,9 @@ python3 codex-cli-linker.py [options]
 **Output formats**
 - `--json` — also write `~/.codex/config.json`
 - `--yaml` — also write `~/.codex/config.yaml`
+
+**Diagnostics**
+- `--verbose` — enable INFO/DEBUG logging
 
 > The `--launch` flag is intentionally disabled; the script prints the exact `codex --profile <name>` command instead of auto‑launching.
 

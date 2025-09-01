@@ -33,6 +33,7 @@ Usage examples:
 from __future__ import annotations
 import argparse
 import json
+import logging
 import os
 import shutil
 import subprocess
@@ -158,14 +159,19 @@ def http_get_json(
 
 def detect_base_url(candidates: List[str] = COMMON_BASE_URLS) -> Optional[str]:
     """Probe a few common local servers for an OpenAI‑compatible /models endpoint."""
+    logging.info("Auto-detecting OpenAI-compatible servers")
     info("Auto‑detecting OpenAI‑compatible servers…")
     for base in candidates:
+        logging.debug("Probing %s", base)
         data, err_ = http_get_json(base.rstrip("/") + "/models")
         if data and isinstance(data, dict) and "data" in data:
+            logging.info("Detected server at %s", base)
             ok(f"Detected server: {base}")
             return base
         else:
+            logging.debug("No response from %s: %s", base, err_)
             print(c(f"  • {base} not responding to /models ({err_})", GRAY))
+    logging.warning("No server auto-detected")
     warn("No server auto‑detected.")
     return None
 
@@ -672,6 +678,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--launch", action="store_true", help="(No-op) Auto launch disabled by design"
     )
+    p.add_argument("--verbose", action="store_true", help="Enable INFO/DEBUG logging")
     p.add_argument(
         "--base-url", help="Explicit base URL (e.g., http://localhost:1234/v1)"
     )
@@ -766,6 +773,14 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
+def configure_logging(verbose: bool) -> None:
+    level = logging.DEBUG if verbose else logging.WARNING
+    logging.basicConfig(level=level, format="%(levelname)s: %(message)s")
+    logging.getLogger().setLevel(level)
+    for handler in logging.getLogger().handlers:
+        handler.setLevel(level)
+
+
 # =============== Main flow ===============
 
 
@@ -773,6 +788,7 @@ def main():
     clear_screen()
     banner()
     args = parse_args()
+    configure_logging(args.verbose)
     # Hard-disable auto launch regardless of flags
     args.launch = False
     state = LinkerState.load()
