@@ -129,7 +129,7 @@ save linker state → show next‑step hints
   - `~/.codex/config.toml` (always written unless `--dry-run`)
   - `~/.codex/config.json` (optional)
   - `~/.codex/config.yaml` (optional)
-- **Backups**: When rewriting, existing files are moved to `<name>.<ext>.bak` (single backup slot).
+- **Backups**: When rewriting, existing files are moved to `<name>.<ext>.<YYYYMMDD-HHMM>.bak` allowing multiple versions to accumulate.
 - **Linker state**: `~/.codex/linker_config.json` (stores base URL, provider id, profile name, model id; **no secrets**).
 - **Helper scripts**: `scripts/set_env.sh` and `scripts/set_env.bat` — set `NULLKEY` env var.
 
