@@ -9,6 +9,7 @@ This small, dependency‑free Python script:
 - Emits a modern **`~/.codex/config.toml`** (Codex “# Config” schema) and can optionally emit **JSON** and **YAML** siblings.
 - Backs up any existing config (adds `.bak`).
 - Stores a tiny linker state (`~/.codex/linker_config.json`) to remember your last choices.
+- Preview the would-be files with `--dry-run` (prints to stdout, no writes).
 
 > Works on macOS, Linux, and Windows. No third‑party Python packages required.
 
@@ -97,7 +98,7 @@ Requirements:
    If detection fails, you can select a preset, enter a custom URL, or use your last saved URL.
 2. **Model pick** — Calls `GET <base>/models` and lists `data[*].id` for selection.
 3. **Config synthesis** — Builds a single in‑memory config object that mirrors the TOML schema (root keys + `[model_providers.<id>]` + `[profiles.<name>]`).
-4. **Emission & backup** — Writes `~/.codex/config.toml` (always) and, if requested, `config.json`/`config.yaml`. Any existing file is backed up to `*.bak` first.
+4. **Emission & backup** — Writes `~/.codex/config.toml` (always unless `--dry-run`) and, if requested, `config.json`/`config.yaml`. Any existing file is backed up to `*.bak` first.
 5. **State** — Saves `~/.codex/linker_config.json` so next run can preload your last base URL, provider, profile, and model.
 
 ---
@@ -106,7 +107,7 @@ Requirements:
 
 By default, files live under **`$CODEX_HOME`** (defaults to `~/.codex`).
 
-- `config.toml`  ← always written
+- `config.toml`  ← always written unless `--dry-run`
 - `config.json`  ← when `--json` is passed
 - `config.yaml`  ← when `--yaml` is passed
 - `linker_config.json` ← small helper file this tool uses to remember your last choices
@@ -154,6 +155,7 @@ python3 codex-cli-linker.py [options]
 **Output formats**
 - `--json` — also write `~/.codex/config.json`
 - `--yaml` — also write `~/.codex/config.yaml`
+- `--dry-run` — print configs to stdout without writing files
 
 **Diagnostics**
 - `--verbose` — enable INFO/DEBUG logging
