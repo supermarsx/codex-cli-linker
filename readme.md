@@ -291,14 +291,14 @@ ls ~/.codex/
 
 ## CI
 
-GitHub Actions run four jobs in parallel:
+GitHub Actions run four jobs:
 
 - **lint** — `ruff check .`
 - **format** — `black --check .`
 - **test** — `pytest`
-- **build** — `python -m build` on macOS, Linux, and Windows
+- **build** — `python -m build` on macOS, Linux, and Windows (runs only after lint, format, and test pass)
 
-Each job is independent, so a failure in one doesn’t block the others.
+The lint, format, and test jobs run in parallel; the build job waits for them to succeed.
 
 ---
 

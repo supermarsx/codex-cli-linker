@@ -486,12 +486,12 @@ profiles:
 
 ## 20) Continuous Integration
 
-GitHub Actions runs four jobs in parallel:
+GitHub Actions runs four jobs:
 
 - **lint** — `ruff check .`
 - **format** — `black --check .`
 - **test** — `pytest`
-- **build** — `python -m build` on macOS, Linux, and Windows
+- **build** — `python -m build` on macOS, Linux, and Windows (runs only after lint, format, and test pass)
 
-Each job runs independently so a failure in one does not stop the others.
+The lint, format, and test jobs run in parallel; the build job waits for them to succeed.
 
