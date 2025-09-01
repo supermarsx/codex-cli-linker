@@ -298,7 +298,7 @@ GitHub Actions run four jobs:
 - **test** — `pytest`
 - **build** — `python -m build` on Ubuntu, macOS, and Windows
 
-All jobs execute in parallel and fail independently.
+`lint`, `format`, and `test` run in parallel and fail independently. `build` runs only after all three succeed.
 
 ---
 
