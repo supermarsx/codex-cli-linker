@@ -41,6 +41,7 @@ import sys
 import re
 import urllib.error
 import urllib.request
+from datetime import datetime
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -243,9 +244,10 @@ def try_auto_context_window(base_url: str, model_id: str) -> int:
 
 
 def backup(path: Path):
-    """Keep a single .bak so the user can roll back easily."""
+    """Backup existing file with a timestamped suffix."""
     if path.exists():
-        bak = path.with_suffix(path.suffix + ".bak")
+        stamp = datetime.now().strftime("%Y%m%d-%H%M")
+        bak = path.with_suffix(f"{path.suffix}.{stamp}.bak")
         try:
             path.replace(bak)
             info(f"Backed up existing {path.name} → {bak.name}")
