@@ -200,6 +200,50 @@ At a glance, the script writes:
 
 ## Examples
 
+### Command-line run (dry run)
+
+```bash
+$ python3 codex-cli-linker.py --base-url http://localhost:1234/v1 --model llama3 --provider lmstudio --profile lmstudio --auto --dry-run
+model_supports_reasoning_summaries = false
+experimental_use_exec_command_tool = false
+preferred_auth_method = "apikey"
+profile = "lmstudio"
+disable_response_storage = false
+
+[tools]
+web_search = false
+
+[history]
+persistence = "save-all"
+max_bytes = 0
+
+[sandbox_workspace_write]
+network_access = false
+exclude_tmpdir_env_var = false
+exclude_slash_tmp = false
+
+[model_providers.lmstudio]
+name = "LM Studio"
+base_url = "http://localhost:1234/v1"
+wire_api = "chat"
+request_max_retries = 4
+stream_max_retries = 10
+stream_idle_timeout_ms = 300000
+
+[profiles.lmstudio]
+model = "llama3"
+model_provider = "lmstudio"
+model_context_window = 0
+model_max_output_tokens = 0
+approval_policy = "on-failure"
+ℹ Dry run: no files were written.
+
+✓ Configured profile 'lmstudio' using provider 'lmstudio' → http://localhost:1234/v1 (model: llama3)
+ℹ Run Codex manually with:
+  codex --profile lmstudio
+  npx codex --profile lmstudio
+```
+
 ### Minimal LM Studio profile
 
 ```toml
