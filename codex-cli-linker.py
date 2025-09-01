@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Codex CLI ⇄ LM Studio / Ollama Linker
+Codex CLI Linker
 
 What this script does (quickly):
   • Detect a local OpenAI‑compatible server (LM Studio on :1234 or Ollama on :11434) or use a custom URL
