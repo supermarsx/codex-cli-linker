@@ -116,6 +116,7 @@ save linker state → show next‑step hints
 ### Output toggles
 - `--json` — also write `~/.codex/config.json`
 - `--yaml` — also write `~/.codex/config.yaml`
+- `--dry-run` — print configs to stdout without writing or backing up files
 
 > A `--launch` flag exists but is a no‑op by design (manual Codex launch is recommended). The script can inform how to run: `codex --profile <name>` or `npx codex --profile <name>`.
 
@@ -125,7 +126,7 @@ save linker state → show next‑step hints
 
 - **CODEX_HOME**: `~/.codex` unless overridden by env `CODEX_HOME`.
 - **Config outputs**
-  - `~/.codex/config.toml` (always written)
+  - `~/.codex/config.toml` (always written unless `--dry-run`)
   - `~/.codex/config.json` (optional)
   - `~/.codex/config.yaml` (optional)
 - **Backups**: When rewriting, existing files are moved to `<name>.<ext>.bak` (single backup slot).
@@ -374,14 +375,13 @@ python codex-cli-linker.py \
 
 - **Local server variations**: `/models` may vary across vendors; emitter and model parsing written defensively and tolerate absent fields.
 - **User confusion about API keys**: Provide explicit messaging that local servers usually ignore keys and that the script does **not** store secrets.
-- **Overwriting configs**: Single backup to prevent data loss; consider adding `--dry-run` (future) to preview.
+- **Overwriting configs**: Single backup to prevent data loss; `--dry-run` previews without touching files.
 - **Non‑localhost servers**: Currently allowed; advise caution and consider `https` controls for remote endpoints (future work).
 
 ---
 
 ## 15) Roadmap (Future Enhancements)
 
-- Add `--dry-run` to print would‑be TOML without writing.
 - Add `--allow-remote-http` gate and `--require-https` for non‑localhost URLs.
 - Optional multi‑provider emission (write multiple `[model_providers.*]` entries and multiple named profiles in one run).
 - Model filtering/search in interactive picker (by substring, family, parameter count if available).

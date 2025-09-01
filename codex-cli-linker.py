@@ -766,9 +766,14 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--stream-max-retries", type=int, default=10)
     p.add_argument("--stream-idle-timeout-ms", type=int, default=300_000)
 
-    # Output format toggles (TOML always written; JSON/YAML only if explicitly requested)
+    # Output format toggles (TOML always written unless --dry-run; JSON/YAML only if explicitly requested)
     p.add_argument("--json", action="store_true", help="Also write config.json")
     p.add_argument("--yaml", action="store_true", help="Also write config.yaml")
+    p.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print config(s) to stdout without writing files",
+    )
 
     return p.parse_args()
 
@@ -891,28 +896,38 @@ def main():
     # Build config dict per spec
     cfg = build_config_dict(state, args)
 
-    # Ensure home dir exists
-    CODEX_HOME.mkdir(parents=True, exist_ok=True)
-
-    # Always write TOML; JSON/YAML only if flags requested. Normalize blank lines and ensure trailing newline.
-    backup(CONFIG_TOML)
+    # Prepare TOML output (and optionally JSON/YAML)
     toml_out = to_toml(cfg)
     toml_out = re.sub(r"\n{3,}", "\n\n", toml_out).rstrip() + "\n"
-    CONFIG_TOML.write_text(toml_out, encoding="utf-8")
-    ok(f"Wrote {CONFIG_TOML}")
 
-    if args.json:
-        backup(CONFIG_JSON)
-        CONFIG_JSON.write_text(to_json(cfg), encoding="utf-8")
-        ok(f"Wrote {CONFIG_JSON}")
+    if args.dry_run:
+        print(toml_out, end="")
+        if args.json:
+            print(to_json(cfg))
+        if args.yaml:
+            print(to_yaml(cfg))
+        info("Dry run: no files were written.")
+    else:
+        # Ensure home dir exists
+        CODEX_HOME.mkdir(parents=True, exist_ok=True)
 
-    if args.yaml:
-        backup(CONFIG_YAML)
-        CONFIG_YAML.write_text(to_yaml(cfg), encoding="utf-8")
-        ok(f"Wrote {CONFIG_YAML}")
+        # Always write TOML; JSON/YAML only if flags requested. Normalize blank lines and ensure trailing newline.
+        backup(CONFIG_TOML)
+        CONFIG_TOML.write_text(toml_out, encoding="utf-8")
+        ok(f"Wrote {CONFIG_TOML}")
 
-    # Save linker state for next run (no secrets)
-    state.save()
+        if args.json:
+            backup(CONFIG_JSON)
+            CONFIG_JSON.write_text(to_json(cfg), encoding="utf-8")
+            ok(f"Wrote {CONFIG_JSON}")
+
+        if args.yaml:
+            backup(CONFIG_YAML)
+            CONFIG_YAML.write_text(to_yaml(cfg), encoding="utf-8")
+            ok(f"Wrote {CONFIG_YAML}")
+
+        # Save linker state for next run (no secrets)
+        state.save()
 
     # Friendly summary and manual run hint
     print()
