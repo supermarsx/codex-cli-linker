@@ -70,6 +70,9 @@ save linker state → show next‑step hints
 
 > All flags are provided by `argparse` in `codex-cli-linker.py`.
 
+### General
+- `--verbose` — enable INFO/DEBUG logging output
+
 ### Base selection & model
 - `--auto` — auto‑detect base URL and skip base‑URL prompt
 - `--base-url <URL>` — override base URL (e.g., `http://localhost:1234/v1`)
