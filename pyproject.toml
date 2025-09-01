@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "codex-cli-linker"
+version = "0.1.0"
+description = "Simple CLI that links Codex configuration to local servers"
+readme = "readme.md"
+license = "MIT"
+authors = [{name = "Mariana"}]
+requires-python = ">=3.8"
+
+[tool.setuptools]
+script-files = ["codex-cli-linker.py"]
