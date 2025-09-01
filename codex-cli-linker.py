@@ -19,14 +19,14 @@ Usage examples:
   # NOTE: This tool ALWAYS writes TOML. It writes JSON/YAML only when --json or --yaml flags are provided.
   # Interactivity: When --auto is omitted, you will be asked to choose approval mode, reasoning effort,
   # sandbox mode. Auto-launch is disabled by design (never prompts, never launches).
-  python codex-lmstudio-linker.py                  # interactive (TOML, auto banner+clear)
-  python codex-lmstudio-linker.py --auto           # auto‑detect base URL
-  python codex-lmstudio-linker.py --base-url http://localhost:1234/v1 \
+  python codex-cli-linker.py                  # interactive (TOML, auto banner+clear)
+  python codex-cli-linker.py --auto           # auto‑detect base URL
+  python codex-cli-linker.py --base-url http://localhost:1234/v1 \
       --model llama-3.1-8b --provider lmstudio --profile lmstudio
 
   # Write JSON or YAML in addition to TOML:
-  python codex-lmstudio-linker.py --json
-  python codex-lmstudio-linker.py --yaml
+  python codex-cli-linker.py --json
+  python codex-cli-linker.py --yaml
 
 """
 
