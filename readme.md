@@ -14,7 +14,6 @@ This small, dependency‑free Python script:
 
 > Works on macOS, Linux, and Windows. No third‑party Python packages required.
 
----
 
 ## Contents
 - [Quick start](#quick-start)
@@ -30,7 +29,6 @@ This small, dependency‑free Python script:
 - [Development & code map](#development--code-map)
 - [License](#license)
 
----
 
 ## Quick start
 
@@ -76,7 +74,6 @@ python3 codex-cli-linker.py --verbose --auto
 python3 codex-cli-linker.py --config-url https://example.com/defaults.json --auto
 ```
 
----
 
 ## Installation
 
@@ -95,7 +92,6 @@ Requirements:
 
 > The tool itself does **not** talk to OpenAI; it only queries your local server’s `/v1/models` to list model IDs.
 
----
 
 ## How it works
 
@@ -108,7 +104,6 @@ Requirements:
 4. **Emission & backup** — Writes `~/.codex/config.toml` (always unless `--dry-run`) and, if requested, `config.json`/`config.yaml`. Any existing file is backed up to `*.bak` first.
 5. **State** — Saves `~/.codex/linker_config.json` so next run can preload your last base URL, provider, profile, and model.
 
----
 
 ## Configuration files it writes
 
@@ -121,7 +116,6 @@ By default, files live under **`$CODEX_HOME`** (defaults to `~/.codex`).
 
 > Existing `config.*` are moved to `config.*.bak` before writing.
 
----
 
 ## Command‑line usage
 
@@ -171,7 +165,6 @@ python3 codex-cli-linker.py [options]
 
 > The `--launch` flag is intentionally disabled; the script prints the exact `codex --profile <name>` command instead of auto‑launching.
 
----
 
 ## Config keys written
 
@@ -205,7 +198,6 @@ At a glance, the script writes:
 
 > The tool deliberately **does not store API keys in the file**.
 
----
 
 ## Examples
 
@@ -275,7 +267,6 @@ ls ~/.codex/
 # config.toml  config.toml.bak  config.json  config.yaml  linker_config.json
 ```
 
----
 
 ## Environment variables
 
@@ -287,7 +278,6 @@ ls ~/.codex/
 
 > If your provider requires a key, prefer exporting it in your shell and letting Codex read it from the environment rather than writing it to disk.
 
----
 
 ## Troubleshooting
 
@@ -306,7 +296,6 @@ ls ~/.codex/
 - **Azure/OpenAI compatibility**
   When talking to Azure‑hosted compatible endpoints, pass `--azure-api-version <YYYY-MM-DD>` to set `query_params.api-version`.
 
----
 
 ## CI
 
@@ -319,7 +308,6 @@ GitHub Actions run four jobs:
 
 `lint`, `format`, and `test` run in parallel and fail independently. `build` runs only after all three succeed.
 
----
 
 ## Development & code map
 
@@ -340,7 +328,6 @@ python3 codex-cli-linker.py --auto
 
 Contributions welcome! Please open issues/PRs with logs (`-v` output where relevant) and a description of your environment.
 
----
 
 ## License
 
