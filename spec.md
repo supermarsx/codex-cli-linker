@@ -39,10 +39,11 @@
 - **New user:** Wants interactive prompts to choose base URL, model, and sane defaults.
 
 **Stories**
-1. As a user, I can run `python codex-cli-linker.py --auto` to detect LM Studio/Ollama and generate `~/.codex/config.toml`.
-2. As a user, I can run with `--base-url http://host:port/v1 --model <id>` to skip prompts and produce config directly.
-3. As a user, I can opt into JSON/YAML mirrors via `--json` and/or `--yaml`.
-4. As a user, my previous choices are remembered across runs.
+1. As a user, I can run `python codex-cli-linker.py --full-auto` to configure using the first available model with no prompts.
+2. As a user, I can run `python codex-cli-linker.py --auto` to detect LM Studio/Ollama and generate `~/.codex/config.toml`.
+3. As a user, I can run with `--base-url http://host:port/v1 --model <id>` to skip prompts and produce config directly.
+4. As a user, I can opt into JSON/YAML mirrors via `--json` and/or `--yaml`.
+5. As a user, my previous choices are remembered across runs.
 
 ---
 
@@ -56,7 +57,7 @@ save linker state → show next‑step hints
 ```
 
 **Server detection**
-- Probes in order: `http://localhost:1234/v1` (LM Studio), `http://localhost:11434/v1` (Ollama)
+- Probes `http://localhost:1234/v1` (LM Studio) and `http://localhost:11434/v1` (Ollama) concurrently; first responder wins.
 - Success when `/models` returns JSON with a `data` list.
 
 **Model listing**
@@ -77,8 +78,10 @@ save linker state → show next‑step hints
 
 ### Base selection & model
 - `--auto` — auto‑detect base URL and skip base‑URL prompt
+- `--full-auto` — imply `--auto` and pick the first available model with no prompts
 - `--base-url <URL>` — override base URL (e.g., `http://localhost:1234/v1`)
 - `--model <id>` — skip model picker (use the given id)
+- `--model-index <int>` — when auto-selecting, choose model by list index (default 0)
 - `--provider <id>` — provider id for `[model_providers.<id>]` (default inferred: `lmstudio`/`ollama`/`custom`)
 - `--profile <name>` — profile name (default deduced from provider)
 - `--api-key <val>` — dummy key to place in env var (local servers typically ignore)
