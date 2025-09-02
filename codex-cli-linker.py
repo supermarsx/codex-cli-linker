@@ -670,7 +670,7 @@ def pick_model_interactive(base_url: str, last: Optional[str]) -> str:
 # =============== Arg parsing ===============
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Codex ⇄ LM Studio / Ollama Linker (Config‑spec compliant)"
     )
@@ -690,6 +690,7 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument("--profile", help="Profile name, default deduced")
     p.add_argument("--api-key", help="API key to stash in env (dummy is fine)")
+    p.add_argument("--config-url", help="URL to JSON file with default args")
 
     # Config tuning per # Config (choices restricted to spec)
     p.add_argument(
@@ -777,7 +778,7 @@ def parse_args() -> argparse.Namespace:
         help="Print config(s) to stdout without writing files",
     )
 
-    return p.parse_args()
+    return p.parse_args(argv)
 
 
 def configure_logging(verbose: bool) -> None:
@@ -788,6 +789,20 @@ def configure_logging(verbose: bool) -> None:
         handler.setLevel(level)
 
 
+def merge_config_defaults(
+    args: argparse.Namespace, defaults: argparse.Namespace
+) -> None:
+    if not getattr(args, "config_url", None):
+        return
+    data, err = http_get_json(args.config_url)
+    if not data or not isinstance(data, dict):
+        warn(f"Failed to fetch config defaults from {args.config_url}: {err}")
+        return
+    for k, v in data.items():
+        if hasattr(args, k) and getattr(args, k) == getattr(defaults, k):
+            setattr(args, k, v)
+
+
 # =============== Main flow ===============
 
 
@@ -796,6 +811,8 @@ def main():
     banner()
     args = parse_args()
     configure_logging(args.verbose)
+    defaults = parse_args([])
+    merge_config_defaults(args, defaults)
     # Hard-disable auto launch regardless of flags
     args.launch = False
     state = LinkerState.load()
