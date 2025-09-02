@@ -412,7 +412,7 @@ python codex-cli-linker.py \
 
 ```
 codex-cli-linker.py           # main tool
-config.toml.example          # (placeholder)
+config.toml.example           # (placeholder)
 readme.md                    # short project description
 license.md                   # MIT
 scripts/
@@ -494,12 +494,13 @@ profiles:
 
 ## 20) Continuous Integration
 
-GitHub Actions runs four jobs:
+GitHub Actions runs five jobs:
 
 - **lint** — `ruff check .`
 - **format** — `black --check .`
 - **test** — `pytest`
 - **build** — `python -m build` on Ubuntu, macOS, and Windows
+- **publish** — uploads build artifacts to PyPI
 
-`lint`, `format`, and `test` execute in parallel and fail independently. `build` runs only after those three succeed.
+`lint`, `format`, and `test` execute in parallel and fail independently. `build` runs only after those three succeed, and `publish` depends on the successful completion of `build`.
 
