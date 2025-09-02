@@ -22,6 +22,7 @@
 - Optionally emit `config.json` and `config.yaml` siblings
 - Back up existing config files before writing
 - Persist lightweight linker state (no secrets) to `~/.codex/linker_config.json`
+- Merge remote default values via `--config-url` before prompting
 - Offer helpful, colorized, cross‑platform UX
 
 ### Non‑Goals
@@ -72,6 +73,7 @@ save linker state → show next‑step hints
 
 ### General
 - `--verbose` — enable INFO/DEBUG logging output
+- `--config-url <URL>` — preload defaults from a JSON config before prompts
 
 ### Base selection & model
 - `--auto` — auto‑detect base URL and skip base‑URL prompt
