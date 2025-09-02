@@ -41,7 +41,7 @@ cd codex-cli-linker
 python3 codex-cli-linker.py
 
 # 3) Launch Codex with the generated profile (shown at the end of the run)
-codex --profile lmstudio      # or: npx codex --profile lmstudio
+npx codex --profile lmstudio      # or: codex --profile lmstudio
 ```
 
 **Non‑interactive:**
@@ -163,7 +163,7 @@ python3 codex-cli-linker.py [options]
 **Diagnostics**
 - `--verbose` — enable INFO/DEBUG logging
 
-> The `--launch` flag is intentionally disabled; the script prints the exact `codex --profile <name>` command instead of auto‑launching.
+> The `--launch` flag is intentionally disabled; the script prints the exact `npx codex --profile <name>` command (or `codex --profile <name>` if installed) instead of auto‑launching.
 
 
 ## Config keys written
@@ -318,7 +318,9 @@ Key modules & functions:
 - **Detection** — `detect_base_url()`, `list_models()`
 - **Pickers** — `pick_base_url()`, `pick_model_interactive()`
 - **Config build** — `build_config_dict()` (single source of truth), emitters: `to_toml()`, `to_json()`, `to_yaml()`
-- **Codex CLI integration** — `find_codex_cmd()`, `ensure_codex_cli()`
+- **Codex CLI integration** — `find_codex_cmd()`, `ensure_codex_cli()`, `launch_codex()` for cross-platform (cmd, PowerShell, POSIX) launching with exit-code logging
+
+`launch_codex()` chooses the appropriate shell for the host OS and reports the Codex CLI's success or failure via exit codes.
 
 Run locally:
 ```bash
