@@ -128,6 +128,14 @@ class LinkerState:
     api_key: str = "sk-local"  # dummy value; local servers typically ignore
     env_key: str = "NULLKEY"  # DUMMY KEY; never store real secrets here
     model: str = ""  # chosen from /v1/models
+    approval_policy: str = "on-failure"
+    sandbox_mode: str = "workspace-write"
+    reasoning_effort: str = "low"
+    reasoning_summary: str = "auto"
+    verbosity: str = "medium"
+    disable_response_storage: bool = False
+    no_history: bool = False
+    history_max_bytes: int = 0
 
     def save(self, path: Path = LINKER_JSON):
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -138,7 +146,11 @@ class LinkerState:
     def load(path: Path = LINKER_JSON) -> "LinkerState":
         try:
             if path.exists():
-                return LinkerState(**json.loads(path.read_text(encoding="utf-8")))
+                data = json.loads(path.read_text(encoding="utf-8"))
+                allowed = {
+                    k: v for k, v in data.items() if k in LinkerState.__annotations__
+                }
+                return LinkerState(**allowed)
         except Exception as e:
             warn(f"Could not load {path}: {e}")
         return LinkerState()
@@ -878,6 +890,18 @@ def main():
     # Hard-disable auto launch regardless of flags
     args.launch = False
     state = LinkerState.load()
+    for fld in (
+        "approval_policy",
+        "sandbox_mode",
+        "reasoning_effort",
+        "reasoning_summary",
+        "verbosity",
+        "disable_response_storage",
+        "no_history",
+        "history_max_bytes",
+    ):
+        if getattr(args, fld) == getattr(defaults, fld):
+            setattr(args, fld, getattr(state, fld))
 
     # Base URL: auto-detect or prompt
     base = args.base_url or pick_base_url(state, args.auto)
@@ -972,6 +996,15 @@ def main():
         show = prompt_yes_no("Show raw agent reasoning?", default=True)
         args.show_raw_agent_reasoning = show
         args.hide_agent_reasoning = not show
+
+    state.approval_policy = args.approval_policy
+    state.sandbox_mode = args.sandbox_mode
+    state.reasoning_effort = args.reasoning_effort
+    state.reasoning_summary = args.reasoning_summary
+    state.verbosity = args.verbosity
+    state.disable_response_storage = args.disable_response_storage
+    state.no_history = args.no_history
+    state.history_max_bytes = args.history_max_bytes
 
     # Auto-detect context window if not provided
     if (args.model_context_window or 0) <= 0:

@@ -135,7 +135,7 @@ save linker state → show next‑step hints
   - `~/.codex/config.json` (optional)
   - `~/.codex/config.yaml` (optional)
 - **Backups**: When rewriting, existing files are moved to `<name>.<ext>.<YYYYMMDD-HHMM>.bak` allowing multiple versions to accumulate.
-- **Linker state**: `~/.codex/linker_config.json` (stores base URL, provider id, profile name, model id; **no secrets**).
+- **Linker state**: `~/.codex/linker_config.json` (stores base URL, provider id, profile name, model id, approval policy, sandbox mode, reasoning defaults, verbosity, and history toggles; **no secrets**).
 - **Helper scripts**: `scripts/set_env.sh` and `scripts/set_env.bat` — set `NULLKEY` env var.
 
 ---
