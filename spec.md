@@ -123,7 +123,7 @@ save linker state → show next‑step hints
 - `--yaml` — also write `~/.codex/config.yaml`
 - `--dry-run` — print configs to stdout without writing or backing up files
 
-> A `--launch` flag exists but is a no‑op by design (manual Codex launch is recommended). The script can inform how to run: `codex --profile <name>` or `npx codex --profile <name>`.
+> A `--launch` flag exists but is a no‑op by design (manual Codex launch is recommended). The script can inform how to run: `npx codex --profile <name>` or `codex --profile <name>`. A helper `launch_codex(profile)` is available for cross‑platform execution (cmd, PowerShell, POSIX shells) and returns the CLI's exit code while logging the command.
 
 ---
 
@@ -260,7 +260,7 @@ approval_policy = "on-failure"
 - Colorized output with symbols (`✓`, `ℹ`, `!`, `✗`) when terminal supports color.
 - Numbered pick‑lists for base URL choice and model selection.
 - Graceful clamping of out‑of‑spec choices (e.g., `--reasoning-effort medium` → `low`).
-- Friendly post‑run summary with explicit `codex --profile …` hints.
+- Friendly post‑run summary with explicit `npx codex --profile …` (or `codex --profile …`) hints.
 
 ---
 
@@ -310,7 +310,7 @@ approval_policy = "on-failure"
   - **State:** `LinkerState` dataclass with `save`/`load` to `~/.codex/linker_config.json`
   - **Config:** `build_config_dict(state, args)` → dict; `to_toml`, `to_json`, `to_yaml` emitters
   - **I/O:** `backup(path)`; writing to `CONFIG_TOML|JSON|YAML`
-  - **Codex CLI detection:** `find_codex_cmd()`, `ensure_codex_cli()`, `launch_codex(profile)` (launch is user‑driven)
+  - **Codex CLI detection:** `find_codex_cmd()`, `ensure_codex_cli()`, `launch_codex(profile)` for cross‑platform launching (cmd, PowerShell, POSIX shells) with exit codes and logs
   - **Interaction:** `prompt_choice`, `prompt_yes_no`, `pick_base_url`, `pick_model_interactive`
   - **Entrypoint:** `main()` with `argparse` → flow orchestration
 
@@ -364,7 +364,7 @@ python codex-cli-linker.py \
 - Windows (PowerShell + `cmd`) & `.bat` helper; macOS/Linux with `.sh` helper; UTF‑8 output and color support checks.
 
 ### Manual Acceptance
-- With LM Studio running at `:1234`, run `--auto` and pick a model; inspect generated TOML; run `codex --profile <name>`.
+- With LM Studio running at `:1234`, run `--auto` and pick a model; inspect generated TOML; run `npx codex --profile <name>` (or `codex --profile <name>`).
 - With Ollama at `:11434`, repeat with an Ollama model id.
 
 ---

@@ -39,6 +39,7 @@ import shutil
 import subprocess
 import sys
 import re
+import shlex
 import urllib.error
 import urllib.request
 import concurrent.futures
@@ -604,15 +605,50 @@ def ensure_codex_cli() -> List[str]:
     raise SystemExit("Codex CLI is required. Please install @openai/codex-cli.")
 
 
-def launch_codex(profile: str):
-    """Launch Codex with the given profile. We do not inject secrets via env by design."""
+def launch_codex(profile: str) -> int:
+    """Launch Codex with the given profile.
+
+    Returns the Codex CLI's exit code and logs the command being executed. The
+    function prefers PowerShell on Windows but falls back to ``cmd`` if it's not
+    available. On POSIX systems the command is executed directly. ``shlex`` and
+    ``subprocess.list2cmdline`` are used to provide accurate shell quoting in
+    logs across platforms.
+    """
+
     cmd = ensure_codex_cli()
+    full_cmd = cmd + ["--profile", profile]
     info("Launching Codex…")
+
+    if os.name == "nt":
+        if shutil.which("powershell"):
+            shell_cmd = [
+                "powershell",
+                "-NoLogo",
+                "-NoProfile",
+                "-Command",
+                subprocess.list2cmdline(full_cmd),
+            ]
+            logging.debug("PowerShell command: %s", " ".join(shell_cmd))
+        else:
+            shell_cmd = ["cmd", "/c", subprocess.list2cmdline(full_cmd)]
+            logging.debug("cmd.exe command: %s", " ".join(shell_cmd))
+    else:
+        shell_cmd = full_cmd
+        logging.debug("POSIX command: %s", shlex.join(full_cmd))
+
     try:
-        subprocess.call(cmd + ["--profile", profile])
+        result = subprocess.run(shell_cmd)
     except KeyboardInterrupt:
         print()
         warn("Codex terminated by user.")
+        return 130
+
+    code = result.returncode
+    if code == 0:
+        ok(f"Codex exited successfully (code {code}).")
+    else:
+        err(f"Codex failed with code {code}.")
+    return code
 
 
 # =============== Interactive pickers ===============
@@ -991,8 +1027,8 @@ def main():
         f"Configured profile '{state.profile}' using provider '{state.provider}' → {state.base_url} (model: {state.model})"
     )
     info("Run Codex manually with:")
-    print(c(f"  codex --profile {state.profile}", CYAN))
     print(c(f"  npx codex --profile {state.profile}", CYAN))
+    print(c(f"  codex --profile {state.profile}", CYAN))
 
 
 if __name__ == "__main__":
