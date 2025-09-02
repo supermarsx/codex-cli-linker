@@ -41,6 +41,7 @@ import sys
 import re
 import urllib.error
 import urllib.request
+import concurrent.futures
 from datetime import datetime
 from dataclasses import dataclass, asdict
 from pathlib import Path
@@ -162,16 +163,27 @@ def detect_base_url(candidates: List[str] = COMMON_BASE_URLS) -> Optional[str]:
     """Probe a few common local servers for an OpenAI‑compatible /models endpoint."""
     logging.info("Auto-detecting OpenAI-compatible servers")
     info("Auto‑detecting OpenAI‑compatible servers…")
-    for base in candidates:
+
+    def probe(base: str):
         logging.debug("Probing %s", base)
-        data, err_ = http_get_json(base.rstrip("/") + "/models")
-        if data and isinstance(data, dict) and "data" in data:
-            logging.info("Detected server at %s", base)
-            ok(f"Detected server: {base}")
-            return base
-        else:
-            logging.debug("No response from %s: %s", base, err_)
-            print(c(f"  • {base} not responding to /models ({err_})", GRAY))
+        return base, http_get_json(base.rstrip("/") + "/models")
+
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=len(candidates))
+    futures = [executor.submit(probe, base) for base in candidates]
+    try:
+        for fut in concurrent.futures.as_completed(futures):
+            base, (data, err_) = fut.result()
+            if data and isinstance(data, dict) and "data" in data:
+                logging.info("Detected server at %s", base)
+                ok(f"Detected server: {base}")
+                executor.shutdown(wait=False, cancel_futures=True)
+                return base
+            else:
+                logging.debug("No response from %s: %s", base, err_)
+                print(c(f"  • {base} not responding to /models ({err_})", GRAY))
+    finally:
+        executor.shutdown(wait=False, cancel_futures=True)
+
     logging.warning("No server auto-detected")
     warn("No server auto‑detected.")
     return None
@@ -678,6 +690,11 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         "--auto", action="store_true", help="Auto‑detect base URL and skip that prompt"
     )
     p.add_argument(
+        "--full-auto",
+        action="store_true",
+        help="Imply --auto and pick the first model with no prompts",
+    )
+    p.add_argument(
         "--launch", action="store_true", help="(No-op) Auto launch disabled by design"
     )
     p.add_argument("--verbose", action="store_true", help="Enable INFO/DEBUG logging")
@@ -691,6 +708,11 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p.add_argument("--profile", help="Profile name, default deduced")
     p.add_argument("--api-key", help="API key to stash in env (dummy is fine)")
     p.add_argument("--config-url", help="URL to JSON file with default args")
+    p.add_argument(
+        "--model-index",
+        type=int,
+        help="When auto-selecting, index into the models list (default 0)",
+    )
 
     # Config tuning per # Config (choices restricted to spec)
     p.add_argument(
@@ -810,6 +832,10 @@ def main():
     clear_screen()
     banner()
     args = parse_args()
+    if args.full_auto:
+        args.auto = True
+        if args.model_index is None:
+            args.model_index = 0
     configure_logging(args.verbose)
     defaults = parse_args([])
     merge_config_defaults(args, defaults)
@@ -840,6 +866,17 @@ def main():
     # Model selection: interactive unless provided
     if args.model:
         state.model = args.model
+    elif args.auto and args.model_index is not None:
+        try:
+            models = list_models(state.base_url)
+            idx = args.model_index if args.model_index >= 0 else 0
+            if idx >= len(models):
+                idx = 0
+            state.model = models[idx]
+            ok(f"Auto-selected model: {state.model}")
+        except Exception as e:
+            err(str(e))
+            sys.exit(2)
     else:
         try:
             state.model = pick_model_interactive(state.base_url, state.model or None)

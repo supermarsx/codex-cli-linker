@@ -46,9 +46,10 @@ python3 codex-cli-linker.py
 codex --profile lmstudio      # or: npx codex --profile lmstudio
 ```
 
-**Non‑interactive / auto‑detect:**
+**Non‑interactive:**
 ```bash
-python3 codex-cli-linker.py --auto
+python3 codex-cli-linker.py --auto        # detect server, still prompts for model
+python3 codex-cli-linker.py --full-auto   # detect server and first model (no prompts)
 ```
 
 **Target a specific server/model:**
@@ -130,6 +131,8 @@ python3 codex-cli-linker.py [options]
 
 **Connection & selection**
 - `--auto` — skip base‑URL prompt and auto‑detect a server
+- `--full-auto` — imply `--auto` and pick the first model with no prompts
+- `--model-index <N>` — with `--auto`/`--full-auto`, pick model by list index (default 0)
 - `--base-url <URL>` — explicit OpenAI‑compatible base URL (e.g., `http://localhost:1234/v1`)
 - `--model <ID>` — model id to use (skips interactive model picker)
 - `--provider <ID>` — provider key for `[model_providers.<id>]` (e.g., `lmstudio`, `ollama`, `custom`)
