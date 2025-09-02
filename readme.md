@@ -9,6 +9,7 @@ This small, dependency‑free Python script:
 - Emits a modern **`~/.codex/config.toml`** (Codex “# Config” schema) and can optionally emit **JSON** and **YAML** siblings.
 - Backs up any existing config (adds `.bak`).
 - Stores a tiny linker state (`~/.codex/linker_config.json`) to remember your last choices.
+- Can preload defaults from a remote JSON via `--config-url`.
 - Preview the would-be files with `--dry-run` (prints to stdout, no writes).
 
 > Works on macOS, Linux, and Windows. No third‑party Python packages required.
@@ -67,6 +68,11 @@ python3 codex-cli-linker.py --json --yaml
 **Show verbose logging for troubleshooting:**
 ```bash
 python3 codex-cli-linker.py --verbose --auto
+```
+
+**Preload defaults from a remote JSON:**
+```bash
+python3 codex-cli-linker.py --config-url https://example.com/defaults.json --auto
 ```
 
 ---
