@@ -85,6 +85,7 @@ save linker state → show next‑step hints
 - `--provider <id>` — provider id for `[model_providers.<id>]` (default inferred: `lmstudio`/`ollama`/`custom`)
 - `--profile <name>` — profile name (default deduced from provider)
 - `--api-key <val>` — dummy key to place in env var (local servers typically ignore)
+- `--env-key-name <name>` — env var to read API key from (default `NULLKEY`)
 
 ### Core config knobs (Codex config spec)
 - `--approval-policy` — default `on-failure` (allowed: `untrusted`, `on-failure`)
@@ -136,7 +137,7 @@ save linker state → show next‑step hints
   - `~/.codex/config.yaml` (optional)
 - **Backups**: When rewriting, existing files are moved to `<name>.<ext>.<YYYYMMDD-HHMM>.bak` allowing multiple versions to accumulate.
 - **Linker state**: `~/.codex/linker_config.json` (stores base URL, provider id, profile name, model id, approval policy, sandbox mode, reasoning defaults, verbosity, and history toggles; **no secrets**).
-- **Helper scripts**: `scripts/set_env.sh` and `scripts/set_env.bat` — set `NULLKEY` env var.
+- **Helper scripts**: `scripts/set_env.sh` and `scripts/set_env.bat` — set `NULLKEY` env var (customizable via `--env-key-name`).
 
 ---
 
@@ -177,6 +178,7 @@ save linker state → show next‑step hints
 name = "LM Studio" | "Ollama" | <Capitalized custom>
 base_url = "http://localhost:1234/v1"  # or custom
 wire_api = "chat"
+api_key_env_var = "NULLKEY"
 request_max_retries = 4
 stream_max_retries = 10
 stream_idle_timeout_ms = 300000
@@ -268,7 +270,8 @@ approval_policy = "on-failure"
 
 - **No secrets persisted:**
   - Linker state (`linker_config.json`) stores only non‑sensitive selections.
-  - Default env var name for API key is `NULLKEY`; helper scripts set it to `"nullkey"`.
+  - Default env var name for API key is `NULLKEY`; override with `--env-key-name`.
+    Helper scripts set the variable to `"nullkey"` by default.
   - Do **not** prompt for or store real API keys; local servers typically ignore keys.
 - **Backups:** Single `.bak` rotation on config files to avoid accidental loss.
 - **Network:**
