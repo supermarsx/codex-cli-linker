@@ -131,6 +131,8 @@ python3 codex-cli-linker.py [options]
 - `--model <ID>` — model id to use (skips interactive model picker)
 - `--provider <ID>` — provider key for `[model_providers.<id>]` (e.g., `lmstudio`, `ollama`, `custom`)
 - `--profile <NAME>` — profile name for `[profiles.<name>]` (default deduced from provider)
+- `--api-key <VAL>` — dummy key to place in an env var
+- `--env-key-name <NAME>` — env var name that holds the API key (default `NULLKEY`)
 
 **Behavior & UX**
 - `--approval-policy {untrusted,on-failure}` (default: `on-failure`)
@@ -188,6 +190,7 @@ At a glance, the script writes:
   - `name` — human label (e.g., "LM Studio", "Ollama")
   - `base_url` — your selected base URL, normalized
   - `wire_api = "chat"` — wire protocol used by Codex
+  - `api_key_env_var` — environment variable holding the API key
   - `request_max_retries`, `stream_max_retries`, `stream_idle_timeout_ms`
   - `query_params.api-version` *(when `--azure-api-version` is provided)*
 
@@ -271,7 +274,7 @@ ls ~/.codex/
 ## Environment variables
 
 - `CODEX_HOME` — overrides the config directory (default: `~/.codex`).
-- `NULLKEY` — a placeholder env var this tool initializes to `"nullkey"` so configs never need to include secrets.
+- `NULLKEY` — default env var this tool initializes to `"nullkey"` so configs never need to include secrets; change with `--env-key-name`.
   - Optional helper scripts:
     - macOS/Linux: `source scripts/set_env.sh`
     - Windows: `scripts\set_env.bat`
