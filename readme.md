@@ -311,6 +311,18 @@ GitHub Actions run four jobs:
 
 `lint`, `format`, and `test` run in parallel and fail independently. `build` runs only after all three succeed.
 
+### Run tests locally
+
+Install the test dependencies and run the formatter, linter, and test suite:
+
+```
+python3 -m pip install --upgrade pip
+python3 -m pip install pytest pytest-cov ruff black
+black .
+ruff check .
+pytest --cov=codex_cli_linker --cov-report=term-missing
+```
+
 
 ## Development & code map
 
