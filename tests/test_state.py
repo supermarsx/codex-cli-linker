@@ -35,3 +35,39 @@ def test_state_round_trip(tmp_path):
     state_in.save(path)
     state_out = cli.LinkerState.load(path)
     assert state_out == state_in
+
+
+def test_explicit_defaults_override_saved_state():
+    cli = load_cli()
+    defaults = cli.parse_args([])
+    state = cli.LinkerState(
+        approval_policy="untrusted",
+        disable_response_storage=True,
+        no_history=True,
+        history_max_bytes=42,
+    )
+
+    # Omitted args pick up saved state
+    args = cli.parse_args([])
+    cli.apply_saved_state(args, defaults, state)
+    assert args.approval_policy == "untrusted"
+    assert args.disable_response_storage is True
+    assert args.no_history is True
+    assert args.history_max_bytes == 42
+
+    # Explicit defaults override saved state
+    args = cli.parse_args(
+        [
+            "--approval-policy",
+            "on-failure",
+            "--enable-response-storage",
+            "--history",
+            "--history-max-bytes",
+            "0",
+        ]
+    )
+    cli.apply_saved_state(args, defaults, state)
+    assert args.approval_policy == "on-failure"
+    assert args.disable_response_storage is False
+    assert args.no_history is False
+    assert args.history_max_bytes == 0
