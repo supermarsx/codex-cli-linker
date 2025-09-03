@@ -339,6 +339,7 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
                 ),
                 "base_url": state.base_url.rstrip("/"),
                 "wire_api": "chat",
+                "api_key_env_var": state.env_key,
                 # Per-provider network tuning
                 "request_max_retries": args.request_max_retries,
                 "stream_max_retries": args.stream_max_retries,
@@ -489,7 +490,7 @@ def to_toml(cfg: Dict) -> str:
             continue
         # Don't emit a section if nothing non-empty remains
         section_lines = []
-        for k in ("name", "base_url", "wire_api"):
+        for k in ("name", "base_url", "wire_api", "api_key_env_var"):
             if k in pf:
                 section_lines.append(f"{k} = {json.dumps(pf[k])}")
         for k in (
@@ -755,6 +756,11 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     )
     p.add_argument("--profile", help="Profile name, default deduced")
     p.add_argument("--api-key", help="API key to stash in env (dummy is fine)")
+    p.add_argument(
+        "--env-key-name",
+        default="NULLKEY",
+        help="Env var name that holds the API key (default: NULLKEY)",
+    )
     p.add_argument("--config-url", help="URL to JSON file with default args")
     p.add_argument(
         "--model-index",
@@ -955,6 +961,10 @@ def main():
 
     state.profile = args.profile or state.profile or state.provider
     state.api_key = args.api_key or state.api_key or "sk-local"
+    if "env_key_name" in getattr(args, "_explicit", set()):
+        state.env_key = args.env_key_name
+    else:
+        state.env_key = state.env_key or "NULLKEY"
 
     # Model selection: interactive unless provided
     if args.model:
