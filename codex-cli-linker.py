@@ -128,6 +128,14 @@ class LinkerState:
     api_key: str = "sk-local"  # dummy value; local servers typically ignore
     env_key: str = "NULLKEY"  # DUMMY KEY; never store real secrets here
     model: str = ""  # chosen from /v1/models
+    approval_policy: str = "on-failure"
+    sandbox_mode: str = "workspace-write"
+    reasoning_effort: str = "low"
+    reasoning_summary: str = "auto"
+    verbosity: str = "medium"
+    disable_response_storage: bool = False
+    no_history: bool = False
+    history_max_bytes: int = 0
 
     def save(self, path: Path = LINKER_JSON):
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -138,7 +146,11 @@ class LinkerState:
     def load(path: Path = LINKER_JSON) -> "LinkerState":
         try:
             if path.exists():
-                return LinkerState(**json.loads(path.read_text(encoding="utf-8")))
+                data = json.loads(path.read_text(encoding="utf-8"))
+                allowed = {
+                    k: v for k, v in data.items() if k in LinkerState.__annotations__
+                }
+                return LinkerState(**allowed)
         except Exception as e:
             warn(f"Could not load {path}: {e}")
         return LinkerState()
@@ -790,10 +802,23 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p.add_argument(
         "--disable-response-storage",
         action="store_true",
+        dest="disable_response_storage",
         help="Set disable_response_storage=true (e.g., ZDR orgs)",
     )
     p.add_argument(
-        "--no-history", action="store_true", help="Set history.persistence=none"
+        "--enable-response-storage",
+        action="store_false",
+        dest="disable_response_storage",
+        help=argparse.SUPPRESS,
+    )
+    p.add_argument(
+        "--no-history",
+        action="store_true",
+        dest="no_history",
+        help="Set history.persistence=none",
+    )
+    p.add_argument(
+        "--history", action="store_false", dest="no_history", help=argparse.SUPPRESS
     )
     p.add_argument(
         "--azure-api-version", help="If targeting Azure, set query_params.api-version"
@@ -836,7 +861,18 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Print config(s) to stdout without writing files",
     )
 
-    return p.parse_args(argv)
+    if argv is None:
+        argv = sys.argv[1:]
+    ns = p.parse_args(argv)
+    ns._explicit = {
+        a.dest
+        for a in p._actions
+        if any(
+            opt in argv or any(arg.startswith(opt + "=") for arg in argv)
+            for opt in a.option_strings
+        )
+    }
+    return ns
 
 
 def configure_logging(verbose: bool) -> None:
@@ -859,6 +895,26 @@ def merge_config_defaults(
     for k, v in data.items():
         if hasattr(args, k) and getattr(args, k) == getattr(defaults, k):
             setattr(args, k, v)
+            if hasattr(args, "_explicit"):
+                args._explicit.add(k)
+
+
+def apply_saved_state(
+    args: argparse.Namespace, defaults: argparse.Namespace, state: LinkerState
+) -> None:
+    specified = getattr(args, "_explicit", set())
+    for fld in (
+        "approval_policy",
+        "sandbox_mode",
+        "reasoning_effort",
+        "reasoning_summary",
+        "verbosity",
+        "disable_response_storage",
+        "no_history",
+        "history_max_bytes",
+    ):
+        if fld not in specified and getattr(args, fld) == getattr(defaults, fld):
+            setattr(args, fld, getattr(state, fld))
 
 
 # =============== Main flow ===============
@@ -878,6 +934,7 @@ def main():
     # Hard-disable auto launch regardless of flags
     args.launch = False
     state = LinkerState.load()
+    apply_saved_state(args, defaults, state)
 
     # Base URL: auto-detect or prompt
     base = args.base_url or pick_base_url(state, args.auto)
@@ -972,6 +1029,15 @@ def main():
         show = prompt_yes_no("Show raw agent reasoning?", default=True)
         args.show_raw_agent_reasoning = show
         args.hide_agent_reasoning = not show
+
+    state.approval_policy = args.approval_policy
+    state.sandbox_mode = args.sandbox_mode
+    state.reasoning_effort = args.reasoning_effort
+    state.reasoning_summary = args.reasoning_summary
+    state.verbosity = args.verbosity
+    state.disable_response_storage = args.disable_response_storage
+    state.no_history = args.no_history
+    state.history_max_bytes = args.history_max_bytes
 
     # Auto-detect context window if not provided
     if (args.model_context_window or 0) <= 0:
