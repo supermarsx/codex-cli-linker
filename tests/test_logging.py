@@ -1,5 +1,6 @@
 import importlib.util
 import logging
+import logging.handlers
 import sys
 from pathlib import Path
 
@@ -14,7 +15,7 @@ spec.loader.exec_module(cli)
 def test_logging_default_level(monkeypatch, caplog):
     monkeypatch.setattr(sys, "argv", ["codex-cli-linker.py"])
     args = cli.parse_args()
-    cli.configure_logging(args.verbose)
+    cli.configure_logging(args.verbose, args.log_file, args.log_json, args.log_remote)
     logging.debug("debug")
     logging.info("info")
     logging.warning("warn")
@@ -24,8 +25,43 @@ def test_logging_default_level(monkeypatch, caplog):
 def test_logging_verbose_level(monkeypatch, caplog):
     monkeypatch.setattr(sys, "argv", ["codex-cli-linker.py", "--verbose"])
     args = cli.parse_args()
-    cli.configure_logging(args.verbose)
+    cli.configure_logging(args.verbose, args.log_file, args.log_json, args.log_remote)
     logging.debug("debug")
     logging.info("info")
     logging.warning("warn")
     assert [r.getMessage() for r in caplog.records] == ["debug", "info", "warn"]
+
+
+def test_log_file_handler(monkeypatch, tmp_path):
+    log_path = tmp_path / "test.log"
+    monkeypatch.setattr(
+        sys, "argv", ["codex-cli-linker.py", "--log-file", str(log_path), "--verbose"]
+    )
+    args = cli.parse_args()
+    cli.configure_logging(args.verbose, args.log_file, args.log_json, args.log_remote)
+    logging.info("file-log")
+    assert "file-log" in log_path.read_text(encoding="utf-8")
+
+
+def test_log_remote_handler(monkeypatch):
+    captured = {}
+
+    def fake_emit(self, record):
+        captured["host"] = self.host
+        captured["url"] = self.url
+        captured["msg"] = record.getMessage()
+
+    monkeypatch.setattr(logging.handlers.HTTPHandler, "emit", fake_emit)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["codex-cli-linker.py", "--log-remote", "http://example.com/log", "--verbose"],
+    )
+    args = cli.parse_args()
+    cli.configure_logging(args.verbose, args.log_file, args.log_json, args.log_remote)
+    logging.warning("remote-log")
+    assert captured == {
+        "host": "example.com",
+        "url": "/log",
+        "msg": "remote-log",
+    }

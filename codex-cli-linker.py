@@ -42,6 +42,7 @@ import re
 import shlex
 import urllib.error
 import urllib.request
+import urllib.parse
 import concurrent.futures
 from datetime import datetime
 from dataclasses import dataclass, asdict
@@ -747,6 +748,9 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         "--launch", action="store_true", help="(No-op) Auto launch disabled by design"
     )
     p.add_argument("--verbose", action="store_true", help="Enable INFO/DEBUG logging")
+    p.add_argument("--log-file", help="Write logs to a file")
+    p.add_argument("--log-json", action="store_true", help="Also log JSON to stdout")
+    p.add_argument("--log-remote", help="POST logs to this HTTP URL")
     p.add_argument(
         "--base-url", help="Explicit base URL (e.g., http://localhost:1234/v1)"
     )
@@ -881,11 +885,52 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     return ns
 
 
-def configure_logging(verbose: bool) -> None:
+def configure_logging(
+    verbose: bool,
+    log_file: Optional[str] = None,
+    log_json: bool = False,
+    log_remote: Optional[str] = None,
+) -> None:
     level = logging.DEBUG if verbose else logging.WARNING
-    logging.basicConfig(level=level, format="%(levelname)s: %(message)s")
-    logging.getLogger().setLevel(level)
-    for handler in logging.getLogger().handlers:
+
+    logger = logging.getLogger()
+    logger.setLevel(level)
+    existing_handlers = list(logger.handlers)
+    logger.handlers.clear()
+
+    fmt = "%(levelname)s: %(message)s"
+    stream = logging.StreamHandler()
+    stream.setFormatter(logging.Formatter(fmt))
+    logger.addHandler(stream)
+
+    if log_json:
+        json_handler = logging.StreamHandler(sys.stdout)
+        json_handler.setFormatter(
+            logging.Formatter('{"level": "%(levelname)s", "message": "%(message)s"}')
+        )
+        logger.addHandler(json_handler)
+
+    if log_file:
+        fh = logging.FileHandler(log_file)
+        fh.setFormatter(logging.Formatter(fmt))
+        logger.addHandler(fh)
+
+    if log_remote:
+        parsed = urllib.parse.urlparse(log_remote)
+        host = parsed.netloc
+        url = parsed.path or "/"
+        if parsed.query:
+            url += "?" + parsed.query
+        secure = parsed.scheme == "https"
+        http_handler = logging.handlers.HTTPHandler(
+            host, url, method="POST", secure=secure
+        )
+        logger.addHandler(http_handler)
+
+    for h in existing_handlers:
+        logger.addHandler(h)
+
+    for handler in logger.handlers:
         handler.setLevel(level)
 
 
@@ -934,7 +979,7 @@ def main():
         args.auto = True
         if args.model_index is None:
             args.model_index = 0
-    configure_logging(args.verbose)
+    configure_logging(args.verbose, args.log_file, args.log_json, args.log_remote)
     defaults = parse_args([])
     merge_config_defaults(args, defaults)
     # Hard-disable auto launch regardless of flags

@@ -69,6 +69,21 @@ python3 codex-cli-linker.py --json --yaml
 python3 codex-cli-linker.py --verbose --auto
 ```
 
+**Log to a file:**
+```bash
+python3 codex-cli-linker.py --log-file linker.log
+```
+
+**Emit logs as JSON:**
+```bash
+python3 codex-cli-linker.py --log-json
+```
+
+**Send logs to a remote HTTP endpoint:**
+```bash
+python3 codex-cli-linker.py --log-remote http://example.com/log
+```
+
 **Preload defaults from a remote JSON:**
 ```bash
 python3 codex-cli-linker.py --config-url https://example.com/defaults.json --auto
@@ -164,6 +179,9 @@ python3 codex-cli-linker.py [options]
 
 **Diagnostics**
 - `--verbose` — enable INFO/DEBUG logging
+- `--log-file <PATH>` — append logs to a file
+- `--log-json` — also emit logs as JSON to stdout
+- `--log-remote <URL>` — POST log records to an HTTP endpoint
 
 > The `--launch` flag is intentionally disabled; the script prints the exact `npx codex --profile <name>` command (or `codex --profile <name>` if installed) instead of auto‑launching.
 
