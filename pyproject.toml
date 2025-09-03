@@ -11,5 +11,17 @@ license = "MIT"
 authors = [{name = "Mariana"}]
 requires-python = ">=3.8"
 
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "pytest-cov",
+  "ruff",
+  "black",
+]
+
 [tool.setuptools]
 script-files = ["codex-cli-linker.py"]
+
+[tool.pytest.ini_options]
+addopts = "--cov=codex_cli_linker --cov-report=term-missing"
+testpaths = ["tests"]
