@@ -1,6 +1,5 @@
 import importlib.util
 import logging
-import logging.handlers
 import sys
 from pathlib import Path
 
