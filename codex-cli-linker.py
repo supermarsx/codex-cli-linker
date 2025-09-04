@@ -901,6 +901,7 @@ def configure_logging(
     for h in list(logger.handlers):
         if getattr(h, "_added_by_configure_logging", False):
             logger.removeHandler(h)
+            h.close()
 
     fmt = "%(levelname)s: %(message)s"
     stream = logging.StreamHandler()

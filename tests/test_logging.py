@@ -97,3 +97,24 @@ def test_reconfigure_logging_replaces_handlers(monkeypatch):
     cli.configure_logging(args.verbose, args.log_file, args.log_json, args.log_remote)
     logging.warning("remote-log")
     assert calls == ["remote-log"]
+
+
+def test_reconfigure_logging_closes_file_handlers(monkeypatch, tmp_path):
+    log1 = tmp_path / "one.log"
+    monkeypatch.setattr(sys, "argv", ["codex-cli-linker.py", "--log-file", str(log1)])
+    args = cli.parse_args()
+    cli.configure_logging(args.verbose, args.log_file, args.log_json, args.log_remote)
+    logger = logging.getLogger()
+    old = next(
+        h
+        for h in logger.handlers
+        if isinstance(h, logging.FileHandler)
+        and getattr(h, "_added_by_configure_logging", False)
+    )
+
+    log2 = tmp_path / "two.log"
+    monkeypatch.setattr(sys, "argv", ["codex-cli-linker.py", "--log-file", str(log2)])
+    args = cli.parse_args()
+    cli.configure_logging(args.verbose, args.log_file, args.log_json, args.log_remote)
+
+    assert old.stream is None or old.stream.closed
