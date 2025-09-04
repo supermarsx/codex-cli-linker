@@ -905,10 +905,15 @@ def configure_logging(
     logger.addHandler(stream)
 
     if log_json:
+
+        class JSONFormatter(logging.Formatter):
+            def format(self, record):
+                return json.dumps(
+                    {"level": record.levelname, "message": record.getMessage()}
+                )
+
         json_handler = logging.StreamHandler(sys.stdout)
-        json_handler.setFormatter(
-            logging.Formatter('{"level": "%(levelname)s", "message": "%(message)s"}')
-        )
+        json_handler.setFormatter(JSONFormatter())
         logger.addHandler(json_handler)
 
     if log_file:
