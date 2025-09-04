@@ -76,6 +76,11 @@ save linker state → show next‑step hints
 - `--verbose` — enable INFO/DEBUG logging output
 - `--config-url <URL>` — preload defaults from a JSON config before prompts
 
+### Logging
+- `--log-file <PATH>` — append logs to a file
+- `--log-json` — also emit logs as JSON to stdout
+- `--log-remote <URL>` — POST log records to an HTTP endpoint
+
 ### Base selection & model
 - `--auto` — auto‑detect base URL and skip base‑URL prompt
 - `--full-auto` — imply `--auto` and pick the first available model with no prompts
