@@ -78,3 +78,22 @@ def test_log_json_handler(monkeypatch):
     logging.warning(msg)
     json_output = buf.getvalue().strip().splitlines()[-1]
     assert json.loads(json_output) == {"level": "WARNING", "message": msg}
+
+
+def test_reconfigure_logging_replaces_handlers(monkeypatch):
+    calls = []
+
+    def fake_emit(self, record):
+        calls.append(record.getMessage())
+
+    monkeypatch.setattr(logging.handlers.HTTPHandler, "emit", fake_emit)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["codex-cli-linker.py", "--log-remote", "http://example.com/log"],
+    )
+    args = cli.parse_args()
+    cli.configure_logging(args.verbose, args.log_file, args.log_json, args.log_remote)
+    cli.configure_logging(args.verbose, args.log_file, args.log_json, args.log_remote)
+    logging.warning("remote-log")
+    assert calls == ["remote-log"]
