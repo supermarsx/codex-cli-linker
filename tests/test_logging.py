@@ -1,4 +1,6 @@
 import importlib.util
+import io
+import json
 import logging
 import sys
 from pathlib import Path
@@ -64,3 +66,15 @@ def test_log_remote_handler(monkeypatch):
         "url": "/log",
         "msg": "remote-log",
     }
+
+
+def test_log_json_handler(monkeypatch):
+    buf = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", buf)
+    monkeypatch.setattr(sys, "argv", ["codex-cli-linker.py", "--log-json"])
+    args = cli.parse_args()
+    cli.configure_logging(args.verbose, args.log_file, args.log_json, args.log_remote)
+    msg = 'bad "quote" \\ newline\nhere'
+    logging.warning(msg)
+    json_output = buf.getvalue().strip().splitlines()[-1]
+    assert json.loads(json_output) == {"level": "WARNING", "message": msg}
