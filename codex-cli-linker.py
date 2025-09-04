@@ -896,12 +896,16 @@ def configure_logging(
 
     logger = logging.getLogger()
     logger.setLevel(level)
-    existing_handlers = list(logger.handlers)
-    logger.handlers.clear()
+
+    # Remove handlers added by previous configure_logging calls
+    for h in list(logger.handlers):
+        if getattr(h, "_added_by_configure_logging", False):
+            logger.removeHandler(h)
 
     fmt = "%(levelname)s: %(message)s"
     stream = logging.StreamHandler()
     stream.setFormatter(logging.Formatter(fmt))
+    stream._added_by_configure_logging = True
     logger.addHandler(stream)
 
     if log_json:
@@ -914,11 +918,13 @@ def configure_logging(
 
         json_handler = logging.StreamHandler(sys.stdout)
         json_handler.setFormatter(JSONFormatter())
+        json_handler._added_by_configure_logging = True
         logger.addHandler(json_handler)
 
     if log_file:
         fh = logging.FileHandler(log_file)
         fh.setFormatter(logging.Formatter(fmt))
+        fh._added_by_configure_logging = True
         logger.addHandler(fh)
 
     if log_remote:
@@ -931,10 +937,8 @@ def configure_logging(
         http_handler = logging.handlers.HTTPHandler(
             host, url, method="POST", secure=secure
         )
+        http_handler._added_by_configure_logging = True
         logger.addHandler(http_handler)
-
-    for h in existing_handlers:
-        logger.addHandler(h)
 
     for handler in logger.handlers:
         handler.setLevel(level)
