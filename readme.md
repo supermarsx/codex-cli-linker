@@ -64,6 +64,11 @@ python3 codex-cli-linker.py \
 python3 codex-cli-linker.py --json --yaml
 ```
 
+**Preview config without writing files:**
+```bash
+python3 codex-cli-linker.py --dry-run --auto
+```
+
 **Show verbose logging for troubleshooting:**
 ```bash
 python3 codex-cli-linker.py --verbose --auto
@@ -148,6 +153,7 @@ python3 codex-cli-linker.py [options]
 - `--profile <NAME>` — profile name for `[profiles.<name>]` (default deduced from provider)
 - `--api-key <VAL>` — dummy key to place in an env var
 - `--env-key-name <NAME>` — env var name that holds the API key (default `NULLKEY`)
+- `--config-url <URL>` — preload flag defaults from a remote JSON before prompting
 
 **Behavior & UX**
 - `--approval-policy {untrusted,on-failure}` (default: `on-failure`)
