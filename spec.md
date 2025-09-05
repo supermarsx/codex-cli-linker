@@ -21,8 +21,10 @@
   - A profile under `[profiles.<name>]` pinning provider + model
 - Optionally emit `config.json` and `config.yaml` siblings
 - Back up existing config files before writing
+- Preview configs without writing files via `--dry-run`
 - Persist lightweight linker state (no secrets) to `~/.codex/linker_config.json`
 - Merge remote default values via `--config-url` before prompting
+- Expose verbose and remote logging controls (`--verbose`, `--log-file`, `--log-json`, `--log-remote`)
 - Offer helpful, colorized, cross‑platform UX
 
 ### Non‑Goals
@@ -73,10 +75,10 @@ save linker state → show next‑step hints
 > All flags are provided by `argparse` in `codex-cli-linker.py`.
 
 ### General
-- `--verbose` — enable INFO/DEBUG logging output
 - `--config-url <URL>` — preload defaults from a JSON config before prompts
 
 ### Logging
+- `--verbose` — enable INFO/DEBUG logging output
 - `--log-file <PATH>` — append logs to a file
 - `--log-json` — also emit logs as JSON to stdout
 - `--log-remote <URL>` — POST log records to an HTTP endpoint
@@ -140,6 +142,8 @@ save linker state → show next‑step hints
   - `~/.codex/config.toml` (always written unless `--dry-run`)
   - `~/.codex/config.json` (optional)
   - `~/.codex/config.yaml` (optional)
+- **Log file**: when `--log-file` is supplied, logs append to the given path.
+- **Remote defaults**: `--config-url` fetches a JSON file whose values are merged in-memory and not persisted.
 - **Backups**: When rewriting, existing files are moved to `<name>.<ext>.<YYYYMMDD-HHMM>.bak` allowing multiple versions to accumulate.
 - **Linker state**: `~/.codex/linker_config.json` (stores base URL, provider id, profile name, model id, approval policy, sandbox mode, reasoning defaults, verbosity, and history toggles; **no secrets**).
 - **Helper scripts**: `scripts/set_env.sh` and `scripts/set_env.bat` — set `NULLKEY` env var (customizable via `--env-key-name`).
