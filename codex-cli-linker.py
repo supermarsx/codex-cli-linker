@@ -67,14 +67,17 @@ GRAY = "[90m"
 
 
 def supports_color() -> bool:
+    """Return True if the terminal likely supports ANSI colors."""
     return sys.stdout.isatty() or os.name == "nt"
 
 
 def c(s: str, color: str) -> str:
+    """Apply a color code when the terminal supports it."""
     return f"{color}{s}{RESET}" if supports_color() else s
 
 
 def clear_screen():
+    """Best effort attempt to clear the terminal, ignoring failures."""
     try:
         os.system("cls" if os.name == "nt" else "clear")
     except Exception:
@@ -82,10 +85,11 @@ def clear_screen():
 
 
 def banner():
+    """Display the startup ASCII art banner."""
     art = r"""
-                           _      _                  
-          /               //     //         /        
- _. __ __/ _  _., --- _. // o   // o ____  /_  _  __ 
+                           _      _
+          /               //     //         /
+ _. __ __/ _  _., --- _. // o   // o ____  /_  _  __
 (__(_)(_/_</_/ /\_   (__</_<_  </_<_/ / <_/ <_</_/ (_
                                                      
                                                     
@@ -94,18 +98,22 @@ def banner():
 
 
 def info(msg: str):
+    """Print an informational message prefixed with ℹ."""
     print(c("ℹ ", BLUE) + msg)
 
 
 def ok(msg: str):
+    """Print a success message prefixed with a check mark."""
     print(c("✓ ", GREEN) + msg)
 
 
 def warn(msg: str):
+    """Print a warning message prefixed with an exclamation mark."""
     print(c("! ", YELLOW) + msg)
 
 
 def err(msg: str):
+    """Print an error message prefixed with a cross."""
     print(c("✗ ", RED) + msg)
 
 
@@ -124,6 +132,8 @@ LINKER_JSON = CODEX_HOME / "linker_config.json"
 # =============== Data ===============
 @dataclass
 class LinkerState:
+    """Persisted settings between runs to provide sensible defaults."""
+
     base_url: str = DEFAULT_LMSTUDIO
     provider: str = "lmstudio"  # provider id in [model_providers.<id>]
     profile: str = "lmstudio"  # profile name in [profiles.<name>]
@@ -140,12 +150,14 @@ class LinkerState:
     history_max_bytes: int = 0
 
     def save(self, path: Path = LINKER_JSON):
+        """Persist state to ``path`` in JSON format."""
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(asdict(self), indent=2), encoding="utf-8")
         ok(f"Saved linker config: {path}")
 
     @staticmethod
     def load(path: Path = LINKER_JSON) -> "LinkerState":
+        """Load previously saved state, ignoring unexpected fields."""
         try:
             if path.exists():
                 data = json.loads(path.read_text(encoding="utf-8"))
@@ -183,6 +195,9 @@ def detect_base_url(candidates: List[str] = COMMON_BASE_URLS) -> Optional[str]:
         logging.debug("Probing %s", base)
         return base, http_get_json(base.rstrip("/") + "/models")
 
+    # Probe all candidates in parallel to reduce overall detection time. As soon
+    # as one server responds, the remaining futures are cancelled to avoid
+    # unnecessary network chatter.
     executor = concurrent.futures.ThreadPoolExecutor(max_workers=len(candidates))
     futures = [executor.submit(probe, base) for base in candidates]
     try:
@@ -205,6 +220,7 @@ def detect_base_url(candidates: List[str] = COMMON_BASE_URLS) -> Optional[str]:
 
 
 def list_models(base_url: str) -> List[str]:
+    """Return the list of model IDs advertised by the server."""
     data, err_ = http_get_json(base_url.rstrip("/") + "/models")
     if not data:
         raise RuntimeError(f"Failed to fetch models from {base_url}/models: {err_}")
@@ -273,6 +289,9 @@ def try_auto_context_window(base_url: str, model_id: str) -> int:
 def backup(path: Path):
     """Backup existing file with a timestamped suffix."""
     if path.exists():
+        # Use a timestamped rename so previous configs remain recoverable. This
+        # is fast (rename vs copy) and avoids accidental data loss if a new
+        # configuration turns out to be broken.
         stamp = datetime.now().strftime("%Y%m%d-%H%M")
         bak = path.with_suffix(f"{path.suffix}.{stamp}.bak")
         try:
@@ -552,6 +571,7 @@ def to_toml(cfg: Dict) -> str:
 
 
 def to_json(cfg: Dict) -> str:
+    """Serialize ``cfg`` to a pretty-printed JSON string."""
     return json.dumps(cfg, indent=2)
 
 
@@ -697,6 +717,7 @@ def prompt_yes_no(question: str, default: bool = True) -> bool:
 
 
 def pick_base_url(state: LinkerState, auto: bool) -> str:
+    """Interactively choose or auto-detect the server base URL."""
     if auto:
         return detect_base_url() or state.base_url or DEFAULT_LMSTUDIO
     print()
@@ -722,6 +743,7 @@ def pick_base_url(state: LinkerState, auto: bool) -> str:
 
 
 def pick_model_interactive(base_url: str, last: Optional[str]) -> str:
+    """Prompt the user to choose a model from those available on the server."""
     info(f"Querying models from {base_url} …")
     models = list_models(base_url)
     print(c("Available models:", BOLD))
@@ -734,6 +756,7 @@ def pick_model_interactive(base_url: str, last: Optional[str]) -> str:
 
 
 def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
+    """Parse command-line arguments, tracking which were explicitly provided."""
     p = argparse.ArgumentParser(
         description="Codex ⇄ LM Studio / Ollama Linker (Config‑spec compliant)"
     )
@@ -892,6 +915,12 @@ def configure_logging(
     log_json: bool = False,
     log_remote: Optional[str] = None,
 ) -> None:
+    """Configure root logger according to CLI flags.
+
+    Existing handlers installed by earlier calls are removed so repeated
+    invocations (e.g., tests) do not duplicate log output.
+    """
+
     level = logging.DEBUG if verbose else logging.WARNING
 
     logger = logging.getLogger()
@@ -948,6 +977,7 @@ def configure_logging(
 def merge_config_defaults(
     args: argparse.Namespace, defaults: argparse.Namespace
 ) -> None:
+    """Merge values from a remote JSON file into ``args`` when unspecified."""
     if not getattr(args, "config_url", None):
         return
     data, err = http_get_json(args.config_url)
@@ -964,6 +994,7 @@ def merge_config_defaults(
 def apply_saved_state(
     args: argparse.Namespace, defaults: argparse.Namespace, state: LinkerState
 ) -> None:
+    """Apply saved preferences unless the user explicitly provided overrides."""
     specified = getattr(args, "_explicit", set())
     for fld in (
         "approval_policy",
@@ -983,6 +1014,7 @@ def apply_saved_state(
 
 
 def main():
+    """Entry point for the CLI tool."""
     clear_screen()
     banner()
     args = parse_args()
