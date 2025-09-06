@@ -13,10 +13,10 @@ requires-python = ">=3.8"
 
 [project.optional-dependencies]
 dev = [
+  "black",
   "pytest",
   "pytest-cov",
   "ruff",
-  "black",
 ]
 
 [tool.setuptools]
