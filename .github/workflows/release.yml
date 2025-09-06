@@ -71,10 +71,10 @@ jobs:
         run: python -m pip install --upgrade pip pyinstaller
 
       - name: Build binary
-        run: pyinstaller codex-cli-linker.py --onefile
+        run: pyinstaller codex-cli-linker.py --onefile --name codex-cli-linker-${{ matrix.os }}
 
       - name: Upload binary release asset
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.sha }}
-          files: dist/codex-cli-linker*
+          files: dist/codex-cli-linker-${{ matrix.os }}*
