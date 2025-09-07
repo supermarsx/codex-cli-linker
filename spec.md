@@ -21,7 +21,10 @@
   - A profile under `[profiles.<name>]` pinning provider + model
 - Optionally emit `config.json` and `config.yaml` siblings
 - Back up existing config files before writing
+- Preview configs without writing files via `--dry-run`
 - Persist lightweight linker state (no secrets) to `~/.codex/linker_config.json`
+- Merge remote default values via `--config-url` before prompting
+- Expose verbose and remote logging controls (`--verbose`, `--log-file`, `--log-json`, `--log-remote`)
 - Offer helpful, colorized, cross‑platform UX
 
 ### Non‑Goals
@@ -38,10 +41,11 @@
 - **New user:** Wants interactive prompts to choose base URL, model, and sane defaults.
 
 **Stories**
-1. As a user, I can run `python codex-cli-linker.py --auto` to detect LM Studio/Ollama and generate `~/.codex/config.toml`.
-2. As a user, I can run with `--base-url http://host:port/v1 --model <id>` to skip prompts and produce config directly.
-3. As a user, I can opt into JSON/YAML mirrors via `--json` and/or `--yaml`.
-4. As a user, my previous choices are remembered across runs.
+1. As a user, I can run `python codex-cli-linker.py --full-auto` to configure using the first available model with no prompts.
+2. As a user, I can run `python codex-cli-linker.py --auto` to detect LM Studio/Ollama and generate `~/.codex/config.toml`.
+3. As a user, I can run with `--base-url http://host:port/v1 --model <id>` to skip prompts and produce config directly.
+4. As a user, I can opt into JSON/YAML mirrors via `--json` and/or `--yaml`.
+5. As a user, my previous choices are remembered across runs.
 
 ---
 
@@ -55,7 +59,7 @@ save linker state → show next‑step hints
 ```
 
 **Server detection**
-- Probes in order: `http://localhost:1234/v1` (LM Studio), `http://localhost:11434/v1` (Ollama)
+- Probes `http://localhost:1234/v1` (LM Studio) and `http://localhost:11434/v1` (Ollama) concurrently; first responder wins.
 - Success when `/models` returns JSON with a `data` list.
 
 **Model listing**
@@ -70,13 +74,25 @@ save linker state → show next‑step hints
 
 > All flags are provided by `argparse` in `codex-cli-linker.py`.
 
+### General
+- `--config-url <URL>` — preload defaults from a JSON config before prompts
+
+### Logging
+- `--verbose` — enable INFO/DEBUG logging output
+- `--log-file <PATH>` — append logs to a file
+- `--log-json` — also emit logs as JSON to stdout
+- `--log-remote <URL>` — POST log records to an HTTP endpoint
+
 ### Base selection & model
 - `--auto` — auto‑detect base URL and skip base‑URL prompt
+- `--full-auto` — imply `--auto` and pick the first available model with no prompts
 - `--base-url <URL>` — override base URL (e.g., `http://localhost:1234/v1`)
 - `--model <id>` — skip model picker (use the given id)
+- `--model-index <int>` — when auto-selecting, choose model by list index (default 0)
 - `--provider <id>` — provider id for `[model_providers.<id>]` (default inferred: `lmstudio`/`ollama`/`custom`)
 - `--profile <name>` — profile name (default deduced from provider)
 - `--api-key <val>` — dummy key to place in env var (local servers typically ignore)
+- `--env-key-name <name>` — env var to read API key from (default `NULLKEY`)
 
 ### Core config knobs (Codex config spec)
 - `--approval-policy` — default `on-failure` (allowed: `untrusted`, `on-failure`)
@@ -113,8 +129,9 @@ save linker state → show next‑step hints
 ### Output toggles
 - `--json` — also write `~/.codex/config.json`
 - `--yaml` — also write `~/.codex/config.yaml`
+- `--dry-run` — print configs to stdout without writing or backing up files
 
-> A `--launch` flag exists but is a no‑op by design (manual Codex launch is recommended). The script can inform how to run: `codex --profile <name>` or `npx codex --profile <name>`.
+> A `--launch` flag exists but is a no‑op by design (manual Codex launch is recommended). The script can inform how to run: `npx codex --profile <name>` or `codex --profile <name>`. A helper `launch_codex(profile)` is available for cross‑platform execution (cmd, PowerShell, POSIX shells) and returns the CLI's exit code while logging the command.
 
 ---
 
@@ -122,12 +139,14 @@ save linker state → show next‑step hints
 
 - **CODEX_HOME**: `~/.codex` unless overridden by env `CODEX_HOME`.
 - **Config outputs**
-  - `~/.codex/config.toml` (always written)
+  - `~/.codex/config.toml` (always written unless `--dry-run`)
   - `~/.codex/config.json` (optional)
   - `~/.codex/config.yaml` (optional)
-- **Backups**: When rewriting, existing files are moved to `<name>.<ext>.bak` (single backup slot).
-- **Linker state**: `~/.codex/linker_config.json` (stores base URL, provider id, profile name, model id; **no secrets**).
-- **Helper scripts**: `scripts/set_env.sh` and `scripts/set_env.bat` — set `NULLKEY` env var.
+- **Log file**: when `--log-file` is supplied, logs append to the given path.
+- **Remote defaults**: `--config-url` fetches a JSON file whose values are merged in-memory and not persisted.
+- **Backups**: When rewriting, existing files are moved to `<name>.<ext>.<YYYYMMDD-HHMM>.bak` allowing multiple versions to accumulate.
+- **Linker state**: `~/.codex/linker_config.json` (stores base URL, provider id, profile name, model id, approval policy, sandbox mode, reasoning defaults, verbosity, and history toggles; **no secrets**).
+- **Helper scripts**: `scripts/set_env.sh` and `scripts/set_env.bat` — set `NULLKEY` env var (customizable via `--env-key-name`).
 
 ---
 
@@ -168,6 +187,7 @@ save linker state → show next‑step hints
 name = "LM Studio" | "Ollama" | <Capitalized custom>
 base_url = "http://localhost:1234/v1"  # or custom
 wire_api = "chat"
+api_key_env_var = "NULLKEY"
 request_max_retries = 4
 stream_max_retries = 10
 stream_idle_timeout_ms = 300000
@@ -251,7 +271,7 @@ approval_policy = "on-failure"
 - Colorized output with symbols (`✓`, `ℹ`, `!`, `✗`) when terminal supports color.
 - Numbered pick‑lists for base URL choice and model selection.
 - Graceful clamping of out‑of‑spec choices (e.g., `--reasoning-effort medium` → `low`).
-- Friendly post‑run summary with explicit `codex --profile …` hints.
+- Friendly post‑run summary with explicit `npx codex --profile …` (or `codex --profile …`) hints.
 
 ---
 
@@ -259,7 +279,8 @@ approval_policy = "on-failure"
 
 - **No secrets persisted:**
   - Linker state (`linker_config.json`) stores only non‑sensitive selections.
-  - Default env var name for API key is `NULLKEY`; helper scripts set it to `"nullkey"`.
+  - Default env var name for API key is `NULLKEY`; override with `--env-key-name`.
+    Helper scripts set the variable to `"nullkey"` by default.
   - Do **not** prompt for or store real API keys; local servers typically ignore keys.
 - **Backups:** Single `.bak` rotation on config files to avoid accidental loss.
 - **Network:**
@@ -301,7 +322,7 @@ approval_policy = "on-failure"
   - **State:** `LinkerState` dataclass with `save`/`load` to `~/.codex/linker_config.json`
   - **Config:** `build_config_dict(state, args)` → dict; `to_toml`, `to_json`, `to_yaml` emitters
   - **I/O:** `backup(path)`; writing to `CONFIG_TOML|JSON|YAML`
-  - **Codex CLI detection:** `find_codex_cmd()`, `ensure_codex_cli()`, `launch_codex(profile)` (launch is user‑driven)
+  - **Codex CLI detection:** `find_codex_cmd()`, `ensure_codex_cli()`, `launch_codex(profile)` for cross‑platform launching (cmd, PowerShell, POSIX shells) with exit codes and logs
   - **Interaction:** `prompt_choice`, `prompt_yes_no`, `pick_base_url`, `pick_model_interactive`
   - **Entrypoint:** `main()` with `argparse` → flow orchestration
 
@@ -355,7 +376,7 @@ python codex-cli-linker.py \
 - Windows (PowerShell + `cmd`) & `.bat` helper; macOS/Linux with `.sh` helper; UTF‑8 output and color support checks.
 
 ### Manual Acceptance
-- With LM Studio running at `:1234`, run `--auto` and pick a model; inspect generated TOML; run `codex --profile <name>`.
+- With LM Studio running at `:1234`, run `--auto` and pick a model; inspect generated TOML; run `npx codex --profile <name>` (or `codex --profile <name>`).
 - With Ollama at `:11434`, repeat with an Ollama model id.
 
 ---
@@ -371,14 +392,13 @@ python codex-cli-linker.py \
 
 - **Local server variations**: `/models` may vary across vendors; emitter and model parsing written defensively and tolerate absent fields.
 - **User confusion about API keys**: Provide explicit messaging that local servers usually ignore keys and that the script does **not** store secrets.
-- **Overwriting configs**: Single backup to prevent data loss; consider adding `--dry-run` (future) to preview.
+- **Overwriting configs**: Single backup to prevent data loss; `--dry-run` previews without touching files.
 - **Non‑localhost servers**: Currently allowed; advise caution and consider `https` controls for remote endpoints (future work).
 
 ---
 
 ## 15) Roadmap (Future Enhancements)
 
-- Add `--dry-run` to print would‑be TOML without writing.
 - Add `--allow-remote-http` gate and `--require-https` for non‑localhost URLs.
 - Optional multi‑provider emission (write multiple `[model_providers.*]` entries and multiple named profiles in one run).
 - Model filtering/search in interactive picker (by substring, family, parameter count if available).
@@ -404,7 +424,7 @@ python codex-cli-linker.py \
 
 ```
 codex-cli-linker.py           # main tool
-config.toml.example          # (placeholder)
+config.toml.example           # (placeholder)
 readme.md                    # short project description
 license.md                   # MIT
 scripts/
@@ -481,4 +501,18 @@ profiles:
 - JSON/YAML mirror generation guarded by flags.
 - Interactive and non‑interactive flows both covered by automated tests.
 - Works on macOS, Linux, Windows without additional dependencies.
+
+---
+
+## 20) Continuous Integration
+
+GitHub Actions runs five jobs:
+
+- **lint** — `ruff check .`
+- **format** — `black --check .`
+- **test** — `pytest`
+- **build** — `python -m build` on Ubuntu, macOS, and Windows
+- **publish** — uploads build artifacts to PyPI
+
+`lint`, `format`, and `test` execute in parallel and fail independently. `build` runs only after those three succeed, and `publish` depends on the successful completion of `build`.
 
