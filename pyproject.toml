@@ -21,8 +21,7 @@ dev = [
 ]
 
 [tool.setuptools]
-# Install the script as a console script-like entry (no importable package)
-scripts = ["codex-cli-linker.py"]
+script-files = ["codex-cli-linker.py"]
 
 [tool.pytest.ini_options]
 addopts = "--cov=codex_cli_linker --cov-report=term-missing --timeout=20 --timeout-method=thread"
