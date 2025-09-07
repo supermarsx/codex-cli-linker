@@ -1,0 +1,13 @@
+[run]
+branch = True
+source = .
+omit =
+    tests/*
+    .venv/*
+
+[report]
+skip_empty = True
+show_missing = True
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.
