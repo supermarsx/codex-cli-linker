@@ -25,7 +25,7 @@ def test_to_json_yaml_emit():
     ya = cli.to_yaml(cfg)
     assert '"a": 1' in js and '"b": true' in js
     # YAML is simplistic but should include keys and structure
-    assert "a: 1" in ya and "b: true" in ya and "- 1" in ya and "x: \"y\"" in ya
+    assert "a: 1" in ya and "b: true" in ya and "- 1" in ya and 'x: "y"' in ya
 
 
 def test_prompt_choice_and_yes_no(monkeypatch, capsys):
@@ -128,7 +128,9 @@ def test_ensure_codex_cli_fail_paths(monkeypatch):
         assert "Codex CLI is required" in str(e)
 
     # npm present but install fails
-    monkeypatch.setattr(cli.shutil, "which", lambda name: "+npm+" if name == "npm" else None)
+    monkeypatch.setattr(
+        cli.shutil, "which", lambda name: "+npm+" if name == "npm" else None
+    )
     called = {"cmd": None}
 
     def fake_check_call(cmd):
@@ -165,7 +167,10 @@ def test_ui_helpers_no_crash(monkeypatch, capsys):
     monkeypatch.setattr(sys.stdout, "isatty", lambda: False)
     s = cli.c("X", cli.GREEN)
     assert s == "X"  # no color applied when not tty
-    cli.info("i"); cli.ok("o"); cli.warn("w"); cli.err("e")
+    cli.info("i")
+    cli.ok("o")
+    cli.warn("w")
+    cli.err("e")
     # clear_screen and banner shouldn't raise
     cli.clear_screen()
     cli.banner()

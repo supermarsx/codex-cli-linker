@@ -32,13 +32,17 @@ Usage examples:
 
 from __future__ import annotations
 import argparse
+
 try:
     # Python 3.8+: stdlib importlib.metadata
     from importlib.metadata import PackageNotFoundError, version as pkg_version
 except Exception:  # pragma: no cover
     PackageNotFoundError = Exception  # type: ignore
+
     def pkg_version(_: str) -> str:  # type: ignore
         raise PackageNotFoundError
+
+
 import json
 import logging
 import logging.handlers
@@ -152,7 +156,7 @@ def get_version() -> str:
     # 2) Running from source: parse pyproject.toml next to this file
     try:
         root = Path(__file__).resolve().parent
-        py = (root / "pyproject.toml")
+        py = root / "pyproject.toml"
         if py.exists():
             txt = py.read_text(encoding="utf-8")
             import re as _re
@@ -524,7 +528,9 @@ def to_toml(cfg: Dict) -> str:
         lines.append("[sandbox_workspace_write]")
         for k, val in sww_filtered.items():
             if isinstance(val, list):
-                if not val:  # empty list already filtered, but keep safe  # pragma: no cover
+                if (
+                    not val
+                ):  # empty list already filtered, but keep safe  # pragma: no cover
                     continue
                 arr = ", ".join(json.dumps(x) for x in val if not is_empty(x))
                 if arr.strip():
@@ -594,7 +600,9 @@ def to_toml(cfg: Dict) -> str:
                 val = prf[k]
                 if isinstance(val, (int, float)):
                     section_lines.append(f"{k} = {val}")
-                elif isinstance(val, bool):  # pragma: no cover (bool is int; unreachable)
+                elif isinstance(
+                    val, bool
+                ):  # pragma: no cover (bool is int; unreachable)
                     section_lines.append(f"{k} = {'true' if val else 'false'}")
                 else:
                     section_lines.append(f"{k} = {json.dumps(val)}")
@@ -1099,7 +1107,9 @@ def main():
     if "env_key_name" in getattr(args, "_explicit", set()):
         state.env_key = args.env_key_name
     else:
-        state.env_key = state.env_key or "NULLKEY"  # pragma: no cover (default path exercised via state)
+        state.env_key = (
+            state.env_key or "NULLKEY"
+        )  # pragma: no cover (default path exercised via state)
 
     # Model selection: interactive unless provided
     if args.model:
