@@ -1,4 +1,6 @@
 name: Release
+permissions:
+  contents: read
 
 on:
   push:
@@ -52,6 +54,8 @@ jobs:
           if-no-files-found: error
 
   release:
+    permissions:
+      contents: write
     name: Publish GitHub Release
     needs: build
     runs-on: ubuntu-latest
