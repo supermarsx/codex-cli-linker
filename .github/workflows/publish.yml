@@ -31,6 +31,10 @@ jobs:
       id-token: write
       contents: write
 
+    env:
+      HAS_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+      HAS_TEST_PYPI_TOKEN: ${{ secrets.TEST_PYPI_API_TOKEN }}
+
     steps:
       - name: Check out
         uses: actions/checkout@v4
@@ -112,14 +116,14 @@ jobs:
           packages-dir: dist
 
       - name: Publish to PyPI (Trusted Publisher via OIDC)
-        if: ${{ inputs.target != 'testpypi' && secrets.PYPI_API_TOKEN == '' }}
+        if: ${{ inputs.target != 'testpypi' && env.HAS_PYPI_TOKEN == '' }}
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           skip-existing: true
           packages-dir: dist
 
       - name: Publish to PyPI (API token)
-        if: ${{ inputs.target != 'testpypi' && secrets.PYPI_API_TOKEN != '' }}
+        if: ${{ inputs.target != 'testpypi' && env.HAS_PYPI_TOKEN != '' }}
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
