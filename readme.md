@@ -1,5 +1,17 @@
 # codex-cli-linker
 
+![CI](https://github.com/supermarsx/codex-cli-linker/actions/workflows/ci.yml/badge.svg)
+![PyPI](https://img.shields.io/pypi/v/codex-cli-linker)
+![Coverage](./coverage.svg)
+![Downloads](https://img.shields.io/github/downloads/supermarsx/codex-cli-linker/total?logo=github)
+![Stars](https://img.shields.io/github/stars/supermarsx/codex-cli-linker)
+![Forks](https://img.shields.io/github/forks/supermarsx/codex-cli-linker)
+![Watchers](https://img.shields.io/github/watchers/supermarsx/codex-cli-linker)
+![Issues](https://img.shields.io/github/issues/supermarsx/codex-cli-linker)
+![Commit Activity](https://img.shields.io/github/commit-activity/m/supermarsx/codex-cli-linker)
+![Made with Python](https://img.shields.io/badge/Made%20with-Python%203.8%2B-3776AB?logo=python&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-green)
+
 Generate a ready‑to‑run **Codex CLI** configuration for local OpenAI‑compatible servers like **LM Studio** and **Ollama**.
 
 This small, dependency‑free Python script:
@@ -11,6 +23,21 @@ This small, dependency‑free Python script:
 - Stores a tiny linker state (`~/.codex/linker_config.json`) to remember your last choices.
 - Can preload defaults from a remote JSON via `--config-url`.
 - Preview the would-be files with `--dry-run` (prints to stdout, no writes).
+
+## Features
+
+- Auto-detects local OpenAI-compatible servers (LM Studio, Ollama) and normalizes base URLs.
+- Interactive and non-interactive flows: `--auto`, `--full-auto`, or fully manual.
+- Model discovery from `/v1/models` with a simple picker or direct `--model`/`--model-index`.
+- Produces TOML by default and optional JSON/YAML mirrors to keep schema parity.
+- Centralized schema shaping via a single `build_config_dict()`—no duplicated logic.
+- Creates safe backups (`*.bak`) before overwriting existing configs.
+- Remembers last choices in `~/.codex/linker_config.json` for faster repeat runs.
+- First-class cross‑platform UX: clean colors, concise messages, no auto‑launch side effects.
+- Diagnostic tooling: verbose logging, file logging, JSON logs, and remote HTTP log export.
+- Tunable retry/timeout parameters for flaky networks; Azure-style `api-version` support.
+- Security‑aware: never writes API keys to disk; favors env vars (`NULLKEY` placeholder by default).
+- Compatible with Codex CLI approvals, sandbox, and history controls without post-editing.
 
 > Works on macOS, Linux, and Windows. No third‑party Python packages required.
 
@@ -115,6 +142,25 @@ Requirements:
 - A local **OpenAI‑compatible server** (LM Studio or Ollama) if you want auto‑detection.
 
 > The tool itself does **not** talk to OpenAI; it only queries your local server’s `/v1/models` to list model IDs.
+
+### Install from PyPI
+
+If you prefer a package install (no cloning needed):
+
+```bash
+# Recommended: isolated install via pipx
+pipx install codex-cli-linker
+
+# Or user install via pip
+python3 -m pip install --user codex-cli-linker
+
+# Then run (the script is installed on your PATH)
+codex-cli-linker.py --auto            # or just: codex-cli-linker.py
+```
+
+Notes:
+- The package installs the single script; there is no Python package import. Run the script by name.
+- On Windows PowerShell, use `py -m pip install codex-cli-linker` then run `codex-cli-linker.py`.
 
 
 ## How it works
@@ -344,6 +390,8 @@ Tests have a global timeout (20s) to prevent hangers.
 
 `lint`, `format`, and `test` run in parallel and fail independently. `build` runs only after all three succeed.
 
+Coverage reporting is generated in CI and a badge (`coverage.svg`) is committed to the repo root on successful test runs.
+
 ### Run tests locally
 
 Install the test dependencies and run the formatter, linter, and test suite:
@@ -405,9 +453,17 @@ scripts\tag_release.ps1 v0.2.1
 
 The script verifies a clean working tree, validates `vX.Y.Z` format, creates an annotated tag, and pushes it to `origin`. Publishing the GitHub Release for that tag triggers binaries + PyPI publish.
 
+### Releases & Downloads
+
+- Latest: https://github.com/supermarsx/codex-cli-linker/releases/latest
+- All releases: https://github.com/supermarsx/codex-cli-linker/releases
+
+<a href="https://github.com/supermarsx/codex-cli-linker/releases/latest"><img alt="Download latest" src="https://img.shields.io/badge/⬇%20Download-Latest%20Release-0b5fff" /></a>
+<a href="https://github.com/supermarsx/codex-cli-linker/releases"><img alt="All releases" src="https://img.shields.io/badge/Releases-All-555" /></a>
+
 ## Changelog
 
-See `CHANGELOG.md` for a summary of notable changes by version.
+See `changelog.md` for a summary of notable changes by version.
 
 
 ## Development & code map
@@ -430,6 +486,12 @@ python3 codex-cli-linker.py --auto
 ```
 
 Contributions welcome! Please open issues/PRs with logs (`-v` output where relevant) and a description of your environment.
+
+## References
+
+- Codex CLI: https://github.com/openai/openai-codex-cli
+- LM Studio: https://lmstudio.ai/
+- Ollama: https://ollama.com/
 
 
 ## License
