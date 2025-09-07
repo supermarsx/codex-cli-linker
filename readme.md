@@ -26,6 +26,9 @@ This small, dependency‑free Python script:
 - [Environment variables](#environment-variables)
 - [Troubleshooting](#troubleshooting)
 - [CI](#ci)
+- [Releasing](#releasing)
+  - [Conventional Commits & Versioning](#conventional-commits--versioning)
+  - [Helper: Create a Tag](#helper-create-a-tag)
 - [Development & code map](#development--code-map)
 - [License](#license)
 
@@ -154,6 +157,7 @@ python3 codex-cli-linker.py [options]
 - `--api-key <VAL>` — dummy key to place in an env var
 - `--env-key-name <NAME>` — env var name that holds the API key (default `NULLKEY`)
 - `--config-url <URL>` — preload flag defaults from a remote JSON before prompting
+- `-V, --version` — print the tool version and exit
 
 **Behavior & UX**
 - `--approval-policy {untrusted,on-failure}` (default: `on-failure`)
@@ -332,6 +336,10 @@ GitHub Actions run four jobs:
 - **format** — `black --check .`
 - **test** — `pytest`
 - **build** — `python -m build` on Ubuntu, macOS, and Windows
+- **version** — validates `pyproject.toml` SemVer and not lower than latest tag
+- On PRs: **Conventional Commits** title check and a **version bump guard** (blocks version changes unless it’s a release PR)
+  
+Tests have a global timeout (20s) to prevent hangers.
 
 `lint`, `format`, and `test` run in parallel and fail independently. `build` runs only after all three succeed.
 
@@ -346,6 +354,55 @@ black .
 ruff check .
 pytest --cov=codex_cli_linker --cov-report=term-missing
 ```
+
+
+## Releasing
+
+Create a GitHub Release with a semantic tag, and automation handles the rest.
+
+- Tag format: `vX.Y.Z` (for example, `v0.2.1`).
+- On publish, two workflows run:
+  - `Release Binaries` — builds PyInstaller binaries for Linux, macOS, and Windows and uploads them to the same release.
+  - `Publish to PyPI` — syncs `pyproject.toml` version from the tag, commits it back to the default branch, runs lint/format/tests, builds artifacts, and publishes to PyPI.
+
+### PyPI setup (Trusted Publishing)
+
+- Preferred: use PyPI Trusted Publishing (OIDC); no API token is required.
+  - Create the project on PyPI if it doesn’t exist.
+  - In the project’s settings on PyPI, add a Trusted Publisher targeting this repository and the `publish.yml` workflow.
+  - Ensure the GitHub repo has permission to request OIDC tokens (the workflow already sets `id-token: write`).
+- Alternative: API token
+  - Add a `PYPI_API_TOKEN` repository secret.
+  - In `.github/workflows/publish.yml`, set the action with `password: ${{ secrets.PYPI_API_TOKEN }}` (and remove OIDC permissions) if you prefer token-based publishing.
+
+### Release steps
+
+- Draft a new GitHub Release with tag `vX.Y.Z` and publish it.
+- The publish workflow updates `pyproject.toml` to `X.Y.Z` and pushes the commit to the default branch.
+- Binaries for all three platforms are attached to the release.
+- The package is uploaded to PyPI (skip-existing enabled).
+
+### Conventional Commits & Versioning
+
+- Recommended commit style: Conventional Commits (e.g., `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`).
+- Follow Semantic Versioning:
+  - `MAJOR` for breaking changes,
+  - `MINOR` for backwards‑compatible features,
+  - `PATCH` for backwards‑compatible fixes.
+- Release tags must be `vX.Y.Z` (pre‑releases like `v1.2.0-rc.1` are allowed; they publish as such to PyPI).
+
+### Helper: Create a Tag
+
+Use the helper script to create and push a properly formatted tag:
+
+```
+chmod +x scripts/tag_release.sh
+scripts/tag_release.sh v0.2.1
+# On Windows PowerShell
+scripts\tag_release.ps1 v0.2.1
+```
+
+The script verifies a clean working tree, validates `vX.Y.Z` format, creates an annotated tag, and pushes it to `origin`. Publishing the GitHub Release for that tag triggers binaries + PyPI publish.
 
 
 ## Development & code map
@@ -374,4 +431,3 @@ Contributions welcome! Please open issues/PRs with logs (`-v` output where relev
 
 MIT © 2025 Mariana  
 See [`license.md`](license.md).
-
