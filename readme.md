@@ -29,6 +29,7 @@ This small, dependency‑free Python script:
 - [Releasing](#releasing)
   - [Conventional Commits & Versioning](#conventional-commits--versioning)
   - [Helper: Create a Tag](#helper-create-a-tag)
+- [Changelog](#changelog)
 - [Development & code map](#development--code-map)
 - [License](#license)
 
@@ -403,6 +404,10 @@ scripts\tag_release.ps1 v0.2.1
 ```
 
 The script verifies a clean working tree, validates `vX.Y.Z` format, creates an annotated tag, and pushes it to `origin`. Publishing the GitHub Release for that tag triggers binaries + PyPI publish.
+
+## Changelog
+
+See `CHANGELOG.md` for a summary of notable changes by version.
 
 
 ## Development & code map
