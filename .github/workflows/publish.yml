@@ -9,6 +9,14 @@ on:
         description: "Tag (vX.Y.Z) to publish; optional"
         required: false
         type: string
+      target:
+        description: "Publish destination: pypi or testpypi"
+        required: false
+        default: pypi
+        type: choice
+        options:
+          - pypi
+          - testpypi
 
 # Ensure the job can request an OIDC token and write to the repo
 permissions:
@@ -94,16 +102,24 @@ jobs:
         run: |
           test -d dist && [ -n "$(ls -A dist)" ] || { echo "dist/ is empty"; ls -la; exit 1; }
 
+      - name: Publish to TestPyPI (token)
+        if: ${{ inputs.target == 'testpypi' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
+          packages-dir: dist
+
       - name: Publish to PyPI (Trusted Publisher via OIDC)
-        if: ${{ secrets.PYPI_API_TOKEN == '' }}
+        if: ${{ inputs.target != 'testpypi' && secrets.PYPI_API_TOKEN == '' }}
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           skip-existing: true
           packages-dir: dist
-        # If using TestPyPI, set repository-url: https://test.pypi.org/legacy/
 
-      - name: Publish to PyPI (API token fallback)
-        if: ${{ secrets.PYPI_API_TOKEN != '' }}
+      - name: Publish to PyPI (API token)
+        if: ${{ inputs.target != 'testpypi' && secrets.PYPI_API_TOKEN != '' }}
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
