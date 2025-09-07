@@ -4,6 +4,11 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag (vX.Y.Z) to publish; optional"
+        required: false
+        type: string
 
 # Ensure the job can request an OIDC token and write to the repo
 permissions:
@@ -36,12 +41,23 @@ jobs:
       - name: Sync version from tag and commit
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-          TAG_NAME="${RELEASE_TAG:-${GITHUB_REF_NAME:-}}"
+          TAG_NAME="${RELEASE_TAG:-}"; [ -z "$TAG_NAME" ] && TAG_NAME="${INPUT_TAG:-}"
+          # If still empty, accept GITHUB_REF_NAME when it looks like a tag (refs/tags or value starts with v)
           if [ -z "$TAG_NAME" ]; then
-            echo "Unable to detect tag name" >&2
-            exit 1
+            case "${GITHUB_REF:-}" in
+              refs/tags/*) TAG_NAME="${GITHUB_REF#refs/tags/}" ;;
+              *)
+                case "${GITHUB_REF_NAME:-}" in
+                  v*) TAG_NAME="$GITHUB_REF_NAME" ;;
+                esac ;;
+            esac
+          fi
+          if [ -z "$TAG_NAME" ]; then
+            echo "No release tag detected; skipping version sync (using pyproject version)."
+            exit 0
           fi
           VERSION="${TAG_NAME#v}"
           echo "Release tag: $TAG_NAME => Version: $VERSION"
