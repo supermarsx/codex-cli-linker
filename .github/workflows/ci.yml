@@ -7,6 +7,141 @@ on:
     branches: [main]
 
 jobs:
+  semantic:
+    name: Conventional Commits
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+          requireScope: false
+          wip: false
+
+  version_bump_guard:
+    name: Guard Version Bump
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Prevent unintended version bumps
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os, subprocess, sys, re, tomllib
+
+          base_ref = os.environ.get('GITHUB_BASE_REF')
+          if not base_ref:
+              print('Not a pull_request event. Skipping.')
+              sys.exit(0)
+
+          def sh(*args):
+              r = subprocess.run(list(args), capture_output=True, text=True)
+              return r.returncode, r.stdout.strip(), r.stderr.strip()
+
+          # Ensure base is fetched
+          sh('git','fetch','origin',base_ref,'--depth','1')
+
+          # See if pyproject.toml changed
+          rc, out, err = sh('git','diff','--name-only',f'origin/{base_ref}...HEAD')
+          if rc != 0:
+              print(err)
+              sys.exit(1)
+          if 'pyproject.toml' not in out.splitlines():
+              print('pyproject.toml not changed. OK.')
+              sys.exit(0)
+
+          # Extract versions
+          rc, base_py, err = sh('git','show',f'origin/{base_ref}:pyproject.toml')
+          if rc != 0:
+              print('Failed to read base pyproject.toml:', err)
+              sys.exit(1)
+          with open('pyproject.toml','rb') as f:
+              head_data = f.read()
+
+          base_ver = tomllib.loads(base_py.encode() if isinstance(base_py,str) else base_py).get('project',{}).get('version')
+          head_ver = tomllib.loads(head_data).get('project',{}).get('version')
+
+          if base_ver == head_ver:
+              print('pyproject.toml changed but version unchanged. OK.')
+              sys.exit(0)
+
+          # Version changed, verify PR intent
+          ev_path = os.environ.get('GITHUB_EVENT_PATH')
+          with open(ev_path,'r',encoding='utf-8') as f:
+              ev = json.load(f)
+
+          title = ev.get('pull_request',{}).get('title','')
+          labels = [ (l.get('name') or '').lower() for l in ev.get('pull_request',{}).get('labels',[]) ]
+          head_ref = ev.get('pull_request',{}).get('head',{}).get('ref','')
+
+          allowed = (
+              'release' in labels or
+              head_ref.startswith(('release/','hotfix/')) or
+              re.match(r'^(chore\(release\)|release)(:|\s)', title, re.IGNORECASE)
+          )
+
+          if allowed:
+              print(f'Version bump from {base_ver} -> {head_ver} allowed for PR "{title}".')
+              sys.exit(0)
+          else:
+              print(f'Blocking version bump {base_ver} -> {head_ver}. Add label "release", use a release/hotfix branch, or title starting with "chore(release):".')
+              sys.exit(1)
+          PY
+  version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Verify pyproject version against tags
+        shell: bash
+        run: |
+          python - <<'PY'
+          import re, subprocess, sys, tomllib, pathlib
+          data = tomllib.loads(pathlib.Path('pyproject.toml').read_text(encoding='utf-8'))
+          version = data.get('project', {}).get('version')
+          if not version:
+              sys.exit('Missing [project].version in pyproject.toml')
+          if not re.fullmatch(r'\d+\.\d+\.\d+(?:[-+][0-9A-Za-z\.-]+)?', version):
+              sys.exit(f'Version {version!r} must match SemVer X.Y.Z (optionally with -prerelease/+build)')
+          res = subprocess.run(['git','tag','--list','v[0-9]*'], capture_output=True, text=True, check=True)
+          tags = [t.strip() for t in res.stdout.splitlines() if t.strip()]
+          def parse_num(v: str):
+              m = re.match(r'^v?(\d+)\.(\d+)\.(\d+)', v)
+              return tuple(map(int, m.groups())) if m else None
+          latest = None
+          for t in tags:
+              p = parse_num(t)
+              if p and (latest is None or p > latest):
+                  latest = p
+          if latest is not None:
+              cur = parse_num('v' + version)
+              if cur < latest:
+                  a='.'.join(map(str, latest))
+                  sys.exit(f'pyproject version {version} is lower than latest tag v{a}')
+          print('Version check passed. pyproject version is SemVer and >= latest tag.')
+          PY
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -39,12 +174,12 @@ jobs:
         with:
           python-version: '3.x'
       - name: Install dependencies
-        run: python -m pip install pytest pytest-cov
+        run: python -m pip install pytest pytest-cov pytest-timeout
       - name: Run tests
         run: pytest
 
   build:
-    needs: [lint, format, test]
+    needs: [lint, format, test, version]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
