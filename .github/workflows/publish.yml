@@ -79,8 +79,17 @@ jobs:
           test -d dist && [ -n "$(ls -A dist)" ] || { echo "dist/ is empty"; ls -la; exit 1; }
 
       - name: Publish to PyPI (Trusted Publisher via OIDC)
+        if: ${{ secrets.PYPI_API_TOKEN == '' }}
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           skip-existing: true
           packages-dir: dist
         # If using TestPyPI, set repository-url: https://test.pypi.org/legacy/
+
+      - name: Publish to PyPI (API token fallback)
+        if: ${{ secrets.PYPI_API_TOKEN != '' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          skip-existing: true
+          packages-dir: dist
