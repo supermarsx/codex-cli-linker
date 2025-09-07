@@ -1,3 +1,4 @@
+
 # Repository Guidelines
 
 These guidelines keep contributions consistent, safe, and easy to review for the codex-cli-linker project.
@@ -39,4 +40,3 @@ These guidelines keep contributions consistent, safe, and easy to review for the
 ## Agent‑Specific Notes
 - Follow this AGENTS.md. Maintain no‑deps policy, schema parity in TOML/JSON/YAML emitters, and consistent prompts.
 - When expanding features, thread them via existing pickers and emitters; prefer minimal, reversible changes.
-
