@@ -25,6 +25,7 @@ def read_pyproject_version() -> str:
 
 def test_version_from_pyproject(monkeypatch, capsys):
     cli = load_cli()
+
     # Ensure distribution lookup fails so fallback to pyproject is used
     def boom(_name: str):
         raise Exception("not installed")
@@ -43,10 +44,7 @@ def test_version_from_distribution(monkeypatch, capsys):
     cli = load_cli()
 
     monkeypatch.setattr(cli, "pkg_version", lambda name: "9.9.9")
-    monkeypatch.setattr(
-        sys, "argv", ["codex-cli-linker.py", "-V"], raising=False
-    )
+    monkeypatch.setattr(sys, "argv", ["codex-cli-linker.py", "-V"], raising=False)
     cli.main()
     out = capsys.readouterr().out.strip()
     assert out == "9.9.9"
-
