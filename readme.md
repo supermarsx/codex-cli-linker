@@ -235,6 +235,26 @@ Tip: All options have short aliases (e.g., `-a` for `--auto`). Run `-h` to see t
 - `--disable-response-storage` - do not store responses
 - `--state-file <PATH>` - use a custom linker state JSON path (default `$CODEX_HOME/linker_config.json`)
 
+**Multiple providers & profiles**
+- `--providers lmstudio,ollama` - add predefined routes for both providers and create matching profiles.
+
+**Dry-run diffs**
+- `--dry-run --diff` - show unified diffs versus existing `config.*` files instead of writing.
+
+**Non-interactive**
+- `--yes` - suppress prompts when inputs are fully specified (implies `--auto` and defaults `--model-index 0` when `--model` is not provided).
+- Honors `NO_COLOR` and non‑TTY: disables ANSI; banners are omitted to keep logs clean.
+
+### Short flag map (high‑use)
+- `-a` `--auto` • `-A` `--full-auto` • `-Q` `--yes` • `-n` `--dry-run` • `-Z` `--diff`
+- `-b` `--base-url` • `-m` `--model` • `-i` `--model-index` • `-l` `--providers` • `-p` `--profile`
+- `-P` `--provider` • `-w` `--model-context-window` • `-t` `--model-max-output-tokens`
+- `-j` `--json` • `-y` `--yaml` • `-f` `--log-file` • `-J` `--log-json` • `-R` `--log-remote` • `-v` `--verbose`
+- `-q` `--approval-policy` • `-s` `--sandbox-mode` • `-o` `--file-opener`
+- `-E` `--env-key-name` • `-c` `--config-url` • `-x` `--state-file` • `-V` `--version`
+
+Post‑run report includes: target file path, backup path (if created), profile, provider, model, context window, and max tokens.
+
 ## Docker
 
 Build the image locally (includes Codex CLI and this tool):

@@ -60,6 +60,7 @@ from datetime import datetime
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+import difflib
 
 # Ensure default env for provider key if not set by the OS
 os.environ.setdefault("NULLKEY", "nullkey")
@@ -85,6 +86,8 @@ def supports_color() -> bool:
     in redirected output.
     """
     try:
+        if os.environ.get("NO_COLOR"):
+            return False
         return bool(getattr(sys.stdout, "isatty", lambda: False)())
     except Exception:
         return False
@@ -242,7 +245,11 @@ def detect_base_url(candidates: List[str] = COMMON_BASE_URLS) -> Optional[str]:
 
     def probe(base: str):
         logging.debug("Probing %s", base)
-        return base, http_get_json(base.rstrip("/") + "/models")
+        url = base.rstrip("/") + "/models"
+        try:
+            return base, http_get_json(url, timeout=1.5)
+        except TypeError:  # tests may stub without timeout kw
+            return base, http_get_json(url)
 
     # Probe all candidates in parallel to reduce overall detection time. As soon
     # as one server responds, the remaining futures are cancelled to avoid
@@ -348,7 +355,19 @@ def backup(path: Path):
             info(f"Backed up existing {path.name} → {bak.name}")
         except Exception as e:
             warn(f"Backup failed: {e}")
-
+    
+def do_backup(path: Path) -> Optional[Path]:
+    """Perform and announce a backup; returns the backup path if created."""
+    try:
+        if path.exists():
+            stamp = datetime.now().strftime("%Y%m%d-%H%M")
+            bak = path.with_suffix(f"{path.suffix}.{stamp}.bak")
+            path.replace(bak)
+            info(f"Backed up existing {path.name} -> {bak.name}")
+            return bak
+    except Exception as e:  # pragma: no cover
+        warn(f"Backup failed: {e}")
+    return None
 
 def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
     """Translate runtime selections into a single dict that mirrors the TOML spec.
@@ -395,7 +414,7 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
             "persistence": "save-all" if not args.no_history else "none",
             "max_bytes": args.history_max_bytes,
         },
-        # --- Model providers (only the chosen one is required here) ---
+        # --- Model providers (seeded with the active one) ---
         "model_providers": {
             state.provider: {
                 "name": (
@@ -430,6 +449,40 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
     if args.azure_api_version:
         cfg["model_providers"][state.provider]["query_params"] = {
             "api-version": args.azure_api_version
+        }
+    # Add any extra providers/profiles requested via --providers
+    extra = getattr(args, "providers_list", []) or []
+    for pid in [p for p in extra if p and p != state.provider]:
+        # Predefined routes
+        if pid.lower() == "lmstudio":
+            base_u = DEFAULT_LMSTUDIO
+            name = "LM Studio"
+        elif pid.lower() == "ollama":
+            base_u = DEFAULT_OLLAMA
+            name = "Ollama"
+        else:
+            base_u = (args.base_url or state.base_url or DEFAULT_LMSTUDIO)
+            name = pid.capitalize()
+        cfg["model_providers"][pid] = {
+            "name": name,
+            "base_url": base_u.rstrip("/"),
+            "wire_api": "chat",
+            "api_key_env_var": state.env_key,
+            "request_max_retries": args.request_max_retries,
+            "stream_max_retries": args.stream_max_retries,
+            "stream_idle_timeout_ms": args.stream_idle_timeout_ms,
+        }
+        if args.azure_api_version and pid not in ("lmstudio", "ollama"):
+            cfg["model_providers"][pid]["query_params"] = {
+                "api-version": args.azure_api_version
+            }
+        # Add a profile for the extra provider
+        cfg["profiles"][pid] = {
+            "model": args.model or state.model or "gpt-5",
+            "model_provider": pid,
+            "model_context_window": args.model_context_window or 0,
+            "model_max_output_tokens": args.model_max_output_tokens or 0,
+            "approval_policy": args.approval_policy,
         }
     return cfg
 
@@ -833,6 +886,18 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         action="store_true",
         help="(No-op) Auto launch disabled by design",
     )
+    p.add_argument(
+        "-Z",
+        "--diff",
+        action="store_true",
+        help="With --dry-run, show a unified diff vs existing files",
+    )
+    p.add_argument(
+        "-Q",
+        "--yes",
+        action="store_true",
+        help="Assume defaults and suppress prompts when inputs are sufficient",
+    )
     p.add_argument("-v", "--verbose", action="store_true", help="Enable INFO/DEBUG logging")
     p.add_argument("-f", "--log-file", help="Write logs to a file")
     p.add_argument("-J", "--log-json", action="store_true", help="Also log JSON to stdout")
@@ -843,6 +908,11 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p.add_argument("-m", "--model", help="Model id to use (skip model picker)")
     p.add_argument(
         "-P", "--provider", help="Provider id (model_providers.<id>), default deduced"
+    )
+    p.add_argument(
+        "-l",
+        "--providers",
+        help="Comma-separated provider ids to add (e.g., lmstudio,ollama)",
     )
     p.add_argument("-p", "--profile", help="Profile name, default deduced")
     p.add_argument("-k", "--api-key", help="API key to stash in env (dummy is fine)")
@@ -988,6 +1058,11 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     if argv is None:
         argv = sys.argv[1:]
     ns = p.parse_args(argv)
+    # Normalize providers list
+    provs = []
+    if getattr(ns, "providers", None):
+        provs = [p.strip() for p in str(ns.providers).split(",") if p.strip()]
+    ns.providers_list = provs
     ns._explicit = {
         a.dest
         for a in p._actions
@@ -1109,8 +1184,17 @@ def main():
     if getattr(args, "version", False):
         print(get_version())
         return
-    clear_screen()
-    banner()
+    # Trim banners on non-TTY or when NO_COLOR is set
+    is_tty = bool(getattr(sys.stdout, "isatty", lambda: False)())
+    if is_tty and not os.environ.get("NO_COLOR"):
+        clear_screen()
+        banner()
+    # --yes implies non-interactive where possible
+    if getattr(args, "yes", False):
+        if not args.auto:
+            args.auto = True
+        if args.model_index is None and not args.model:
+            args.model_index = 0
     if args.full_auto:
         args.auto = True
         if args.model_index is None:
@@ -1126,7 +1210,13 @@ def main():
     apply_saved_state(args, defaults, state)
 
     # Base URL: auto-detect or prompt
-    base = args.base_url or pick_base_url(state, args.auto)
+    if args.auto:
+        base = args.base_url or pick_base_url(state, True)
+    else:
+        if getattr(args, "yes", False) and not args.base_url:
+            err("--yes provided but no --base-url; refusing to prompt.")
+            sys.exit(2)
+        base = args.base_url or pick_base_url(state, False)
     state.base_url = base
 
     # Infer a safe default provider from the base URL (localhost:1234 → lmstudio, 11434 → ollama, otherwise 'custom').
@@ -1166,6 +1256,9 @@ def main():
             err(str(e))
             sys.exit(2)
     else:
+        if getattr(args, "yes", False):
+            err("--yes provided but no model specified; use --model or --model-index with --auto.")
+            sys.exit(2)
         try:
             state.model = pick_model_interactive(state.base_url, state.model or None)
         except Exception as e:
@@ -1254,11 +1347,32 @@ def main():
     toml_out = re.sub(r"\n{3,}", "\n\n", toml_out).rstrip() + "\n"
 
     if args.dry_run:
-        print(toml_out, end="")
-        if args.json:
-            print(to_json(cfg))
-        if args.yaml:
-            print(to_yaml(cfg))
+        if getattr(args, "diff", False):
+            # Show diffs versus existing files
+            def show_diff(path: Path, new_text: str, label: str):
+                try:
+                    old_text = path.read_text(encoding="utf-8") if path.exists() else ""
+                except Exception:
+                    old_text = ""
+                diff = difflib.unified_diff(
+                    old_text.splitlines(keepends=True),
+                    new_text.splitlines(keepends=True),
+                    fromfile=str(path),
+                    tofile=f"{label} (proposed)",
+                )
+                sys.stdout.writelines(diff)
+
+            show_diff(CONFIG_TOML, toml_out, "config.toml")
+            if args.json:
+                show_diff(CONFIG_JSON, to_json(cfg), "config.json")
+            if args.yaml:
+                show_diff(CONFIG_YAML, to_yaml(cfg), "config.yaml")
+        else:
+            print(toml_out, end="")
+            if args.json:
+                print(to_json(cfg))
+            if args.yaml:
+                print(to_yaml(cfg))
         info("Dry run: no files were written.")
     else:
         # Ensure home dir exists
@@ -1287,6 +1401,20 @@ def main():
     ok(
         f"Configured profile '{state.profile}' using provider '{state.provider}' → {state.base_url} (model: {state.model})"
     )
+    # Post-run report
+    info("Summary:")
+    print(c(f"  target: {CONFIG_TOML}", CYAN))
+    try:
+        last_bak = max(CONFIG_TOML.parent.glob("config.toml.*.bak"), default=None)
+    except Exception:
+        last_bak = None
+    if last_bak:
+        print(c(f"  backup: {last_bak}", CYAN))
+    print(c(f"  profile: {state.profile}", CYAN))
+    print(c(f"  provider: {state.provider}", CYAN))
+    print(c(f"  model: {state.model}", CYAN))
+    print(c(f"  context_window: {args.model_context_window or 0}", CYAN))
+    print(c(f"  max_output_tokens: {args.model_max_output_tokens or 0}", CYAN))
     info("Run Codex manually with:")
     print(c(f"  npx codex --profile {state.profile}", CYAN))
     print(c(f"  codex --profile {state.profile}", CYAN))
