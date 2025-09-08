@@ -547,33 +547,23 @@ See `changelog.md` for a summary of notable changes by version.
 
 ## Development & code map
 
-Single‑file tool: `codex-cli-linker.py`
+## Development & code map
 
-Key modules & functions:
-- **`LinkerState`** — persists last base URL, provider, profile, model (`~/.codex/linker_config.json`).
-- **Detection** — `detect_base_url()`, `list_models()`
-- **Pickers** — `pick_base_url()`, `pick_model_interactive()`
-- **Config build** — `build_config_dict()` (single source of truth), emitters: `to_toml()`, `to_json()`, `to_yaml()`
-- **Codex CLI integration** — `find_codex_cmd()`, `ensure_codex_cli()`, `launch_codex()` for cross-platform (cmd, PowerShell, POSIX) launching with exit-code logging
+- Source layout (src/)
+  - src/codex_linker/impl.py — full implementation (CLI, parsing, detection, emitters, IO)
+  - src/codex_linker/cli.py — CLI/UI facades importing from impl
+  - src/codex_linker/detect.py — probes and model listing facades
+  - src/codex_linker/render.py — TOML/JSON/YAML emitters facades
+  - src/codex_linker/io_safe.py — atomic write/backup/path helpers facades
+  - src/codex_linker/spec.py — provider defaults/labels
+- Root compatibility
+  - codex-cli-linker.py — thin shim re-exporting impl so tests and direct use continue to work
+- Packaging
+  - pyproject.toml — src layout configured; console entry: codex-cli-linker = codex_linker:main
+- Docker
+  - Uses the packaged entrypoint (codex-cli-linker); persists configs at /data/.codex (mount ~/.codex:/data/.codex)
+- Tests & Coverage
+  - Run: python3 -m pytest -q (repo root)
+  - Coverage targets both the root shim and codex_linker package
+  - CI publishes coverage.svg; run coverage xml && python -m coverage_badge -o coverage.svg -f locally if desired
 
-`launch_codex()` chooses the appropriate shell for the host OS and reports the Codex CLI's success or failure via exit codes.
-
-Run locally:
-```bash
-python3 -m pip install --upgrade pip
-python3 codex-cli-linker.py --auto
-```
-
-Contributions welcome! Please open issues/PRs with logs (`-v` output where relevant) and a description of your environment.
-
-## References
-
-- Codex CLI: https://github.com/openai/openai-codex-cli
-- LM Studio: https://lmstudio.ai/
-- Ollama: https://ollama.com/
-
-
-## License
-
-MIT © 2025 Mariana  
-See [`license.md`](license.md).
