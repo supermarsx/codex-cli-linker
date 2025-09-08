@@ -999,7 +999,12 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Assume defaults and suppress prompts when inputs are sufficient",
     )
     p.add_argument("-v", "--verbose", action="store_true", help="Enable INFO/DEBUG logging")
-    p.add_argument("--log-level", choices=["debug", "info", "warning", "error"], help="Explicit log level (overrides --verbose)")
+    p.add_argument(
+        "--log-level",
+        "--level",
+        choices=["debug", "info", "warning", "error"],
+        help="Explicit log level (overrides --verbose)",
+    )
     p.add_argument("-f", "--log-file", help="Write logs to a file")
     p.add_argument("-J", "--log-json", action="store_true", help="Also log JSON to stdout")
     p.add_argument("-R", "--log-remote", help="POST logs to this HTTP URL")
