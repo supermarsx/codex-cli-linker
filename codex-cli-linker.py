@@ -1260,7 +1260,8 @@ def configure_logging(
         class BufferedAsyncHandler(logging.Handler):
             def __init__(self, inner_handler: logging.Handler, maxsize: int = 256):
                 super().__init__()
-                import threading, queue
+                import threading
+                import queue
 
                 self.inner = inner_handler
                 self.q: "queue.Queue[logging.LogRecord]" = queue.Queue(maxsize=maxsize)
