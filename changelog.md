@@ -3,7 +3,7 @@
 ## v0.1.2
 
 Highlights
-- Add ARM builds for Linux, macOS, and Windows in Release workflow
+- Add ARM builds for Linux and macOS in Release workflow
 - Optional keychain backend via `--keychain` (macOS Keychain, Windows DPAPI, Linux Secret Service when available)
 - Structured logging fields + `--log-level`/`--level`, `--log-remote` buffered async sink with drop-oldest policy
 - Safer I/O: atomic writes with fsync + `os.replace`; `.bak` only when target existed
