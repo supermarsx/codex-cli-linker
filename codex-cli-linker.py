@@ -160,6 +160,20 @@ COMMON_BASE_URLS = [
     DEFAULT_OPENROUTER_LOCAL,
 ]
 
+# Friendly labels for known provider ids
+PROVIDER_LABELS: Dict[str, str] = {
+    "lmstudio": "LM Studio",
+    "ollama": "Ollama",
+    "vllm": "vLLM",
+    "tgwui": "Text-Gen-WebUI",
+    "tgi": "TGI",
+    "openrouter": "OpenRouter Local",
+    "jan": "Jan",
+    "llamafile": "Llamafile",
+    "gpt4all": "GPT4All",
+    "local": "Local LLM",
+}
+
 CODEX_HOME = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex")))
 CONFIG_TOML = CODEX_HOME / "config.toml"
 CONFIG_JSON = CODEX_HOME / "config.json"
@@ -488,7 +502,7 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
                                     else (
                                         "OpenRouter Local"
                                         if state.base_url.startswith("http://localhost:7000")
-                                        else state.provider.capitalize()
+                                        else PROVIDER_LABELS.get(state.provider, state.provider.capitalize())
                                     )
                                 )
                             )
@@ -529,6 +543,23 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
         elif pid.lower() == "ollama":
             base_u = DEFAULT_OLLAMA
             name = "Ollama"
+        elif pid.lower() == "vllm":
+            base_u = DEFAULT_VLLM
+            name = PROVIDER_LABELS.get("vllm", "vLLM")
+        elif pid.lower() == "tgwui":
+            base_u = DEFAULT_TGWUI
+            name = PROVIDER_LABELS.get("tgwui", "Text-Gen-WebUI")
+        elif pid.lower() == "tgi":
+            # Prefer 8080, fall back to 3000
+            base_u = DEFAULT_TGI_8080
+            name = PROVIDER_LABELS.get("tgi", "TGI")
+        elif pid.lower() == "openrouter":
+            base_u = DEFAULT_OPENROUTER_LOCAL
+            name = PROVIDER_LABELS.get("openrouter", "OpenRouter Local")
+        elif pid.lower() in ("jan", "llamafile", "gpt4all", "local"):
+            # Use provided base-url or current state base-url as a template
+            base_u = (args.base_url or state.base_url or DEFAULT_LMSTUDIO)
+            name = PROVIDER_LABELS.get(pid.lower(), pid.capitalize())
         else:
             base_u = (args.base_url or state.base_url or DEFAULT_LMSTUDIO)
             name = pid.capitalize()
