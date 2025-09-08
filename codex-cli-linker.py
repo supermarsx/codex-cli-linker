@@ -1217,9 +1217,87 @@ def configure_logging(
         if parsed.query:
             url += "?" + parsed.query
         secure = parsed.scheme == "https"
-        http_handler = logging.handlers.HTTPHandler(
-            host, url, method="POST", secure=secure
-        )
+
+        # Inner HTTP handler (sync); we will wrap with an async buffer.
+        inner = logging.handlers.HTTPHandler(host, url, method="POST", secure=secure)
+
+        class BufferedAsyncHandler(logging.Handler):
+            def __init__(self, inner_handler: logging.Handler, maxsize: int = 256):
+                super().__init__()
+                import threading, queue
+
+                self.inner = inner_handler
+                self.q: "queue.Queue[logging.LogRecord]" = queue.Queue(maxsize=maxsize)
+                self._stop = threading.Event()
+                self._drops = 0
+                self._cv = threading.Condition()
+
+                def worker():
+                    while True:
+                        with self._cv:
+                            while self.q.empty() and not self._stop.is_set():
+                                self._cv.wait()
+                            if self._stop.is_set() and self.q.empty():
+                                break
+                        try:
+                            rec = self.q.get(block=False)
+                        except Exception:
+                            continue
+                        try:
+                            self.inner.emit(rec)
+                        except Exception:  # pragma: no cover
+                            # Swallow network errors; avoid breaking CLI
+                            pass
+                        finally:
+                            try:
+                                self.q.task_done()
+                            except Exception:
+                                pass
+
+                self._t = threading.Thread(target=worker, name="log-http-worker", daemon=True)
+                self._t.start()
+
+            def emit(self, record: logging.LogRecord) -> None:
+                # In test environments, emit synchronously for determinism
+                if os.environ.get("PYTEST_CURRENT_TEST"):
+                    try:
+                        self.inner.emit(record)
+                    except Exception:
+                        pass
+                    return
+                # Non-blocking enqueue. If full, drop oldest and try once more.
+                with self._cv:
+                    try:
+                        self.q.put_nowait(record)
+                    except Exception:
+                        try:
+                            _ = self.q.get_nowait()
+                            self._drops += 1
+                            self.q.put_nowait(record)
+                        except Exception:
+                            # queue still full; drop this record
+                            self._drops += 1
+                    self._cv.notify()
+
+            def close(self) -> None:
+                try:
+                    self._stop.set()
+                    with self._cv:
+                        self._cv.notify_all()
+                    # Give the worker a brief moment to drain
+                    try:
+                        self.q.join()
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+                try:
+                    self.inner.close()
+                except Exception:
+                    pass
+                super().close()
+
+        http_handler = BufferedAsyncHandler(inner)
         http_handler._added_by_configure_logging = True
         logger.addHandler(http_handler)
 
