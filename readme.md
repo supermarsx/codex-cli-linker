@@ -567,3 +567,11 @@ See `changelog.md` for a summary of notable changes by version.
   - Coverage targets both the root shim and codex_linker package
   - CI publishes coverage.svg; run coverage xml && python -m coverage_badge -o coverage.svg -f locally if desired
 
+- Windows Defender false positive (PyInstaller)
+  - The single-file binaries are built with PyInstaller, which can occasionally trigger false-positive warnings from Windows Defender or other AV engines.
+  - Options if you encounter a warning:
+    - Prefer the source or PyPI install: `pipx install codex-cli-linker` (or `pip install --user codex-cli-linker`) and run `codex-cli-linker`.
+    - Build locally from source: `python -m pip install build pyinstaller && pyinstaller -F -n codex-cli-linker codex-cli-linker.py`.
+    - Verify checksum against the GitHub Release artifact SHA shown in the release details.
+    - Upload the binary to VirusTotal to confirm multi‑engine status.
+  - We do not include third‑party code in the binary; it is produced directly from this repository’s source. If warnings persist, prefer the PyPI or source-based install method.
