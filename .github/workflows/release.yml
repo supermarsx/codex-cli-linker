@@ -10,32 +10,14 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  build:
-    name: Build binaries (${{ matrix.artifact }})
-    runs-on: ${{ matrix.runner }}
-    continue-on-error: ${{ matrix.allow_failure || false }}
+  build_x64:
+    name: Build x64 (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, macos-13, windows-latest]
         py: ["3.11"]
-        include:
-          - runner: ubuntu-latest
-            artifact: linux-x64
-            ext: ""
-          - runner: ubuntu-24.04-arm64
-            artifact: linux-arm64
-            ext: ""
-          - runner: macos-13
-            artifact: macos-x64
-            ext: ""
-          - runner: macos-14
-            artifact: macos-arm64
-            ext: ""
-          - runner: windows-latest
-            artifact: windows-x64.exe
-            ext: ".exe"
-          # Windows ARM64 runner availability may vary; allow failure if unsupported
-          # Windows ARM64 not currently available in GitHub-hosted runners
 
     steps:
       - name: Checkout
@@ -51,21 +33,64 @@ jobs:
           python -m pip install --upgrade pip wheel
           python -m pip install pyinstaller
 
-      - name: Build single-file binary
+      - name: Build single-file binary (x64)
         shell: bash
         run: |
           pyinstaller -F -n codex-cli-linker codex-cli-linker.py
           mkdir -p release
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            cp dist/codex-cli-linker.exe "release/codex-cli-linker-${{ matrix.artifact }}"
+            cp dist/codex-cli-linker.exe "release/codex-cli-linker-windows-x64.exe"
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            cp dist/codex-cli-linker "release/codex-cli-linker-macos-x64"
           else
-            cp dist/codex-cli-linker "release/codex-cli-linker-${{ matrix.artifact }}"
+            cp dist/codex-cli-linker "release/codex-cli-linker-linux-x64"
           fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ matrix.artifact }}
+          name: release-${{ runner.os }}-x64
+          path: release/*
+          if-no-files-found: error
+
+  build_arm:
+    name: Build arm64 (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04-arm, macos-14]
+        py: ["3.11"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+
+      - name: Install build deps
+        run: |
+          python -m pip install --upgrade pip wheel
+          python -m pip install pyinstaller
+
+      - name: Build single-file binary (arm64)
+        shell: bash
+        run: |
+          pyinstaller -F -n codex-cli-linker codex-cli-linker.py
+          mkdir -p release
+          if [[ "${{ runner.os }}" == "macOS" ]]; then
+            cp dist/codex-cli-linker "release/codex-cli-linker-macos-arm64"
+          else
+            cp dist/codex-cli-linker "release/codex-cli-linker-linux-arm64"
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ runner.os }}-arm64
           path: release/*
           if-no-files-found: error
 
@@ -73,7 +98,7 @@ jobs:
     permissions:
       contents: write
     name: Publish GitHub Release
-    needs: build
+    needs: [build_x64, build_arm]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
