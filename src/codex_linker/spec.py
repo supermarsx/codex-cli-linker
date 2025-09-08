@@ -1,6 +1,6 @@
 """Spec choices and defaults (provider ids, ports, labels)."""
 
-from codex_cli_linker import (  # type: ignore
+from .impl import (
     DEFAULT_LMSTUDIO,
     DEFAULT_OLLAMA,
     DEFAULT_VLLM,

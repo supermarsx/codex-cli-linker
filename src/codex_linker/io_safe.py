@@ -1,6 +1,6 @@
 """Safe IO helpers (atomic writes, backups, paths)."""
 
-from codex_cli_linker import (  # type: ignore
+from .impl import (
     CODEX_HOME,
     CONFIG_TOML,
     CONFIG_JSON,

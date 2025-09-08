@@ -1,6 +1,6 @@
 """Config rendering utilities (TOML/JSON/YAML) and shaping."""
 
-from codex_cli_linker import (  # type: ignore
+from .impl import (
     build_config_dict,
     to_toml,
     to_json,
