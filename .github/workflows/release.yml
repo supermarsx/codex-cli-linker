@@ -35,10 +35,7 @@ jobs:
             artifact: windows-x64.exe
             ext: ".exe"
           # Windows ARM64 runner availability may vary; allow failure if unsupported
-          - runner: windows-2022-arm
-            artifact: windows-arm64.exe
-            ext: ".exe"
-            allow_failure: true
+          # Windows ARM64 not currently available in GitHub-hosted runners
 
     steps:
       - name: Checkout
