@@ -26,7 +26,7 @@ This small, dependency‑free Python script:
 
 ## Features
 
-- Auto-detects local OpenAI-compatible servers (LM Studio, Ollama) and normalizes base URLs.
+- Auto-detects local OpenAI-compatible servers (LM Studio, Ollama, vLLM, Text‑Gen‑WebUI OpenAI plugin, TGI shim, OpenRouter local) and normalizes base URLs.
 - Interactive and non-interactive flows: `--auto`, `--full-auto`, or fully manual.
 - Model discovery from `/v1/models` with a simple picker or direct `--model`/`--model-index`.
 - Produces TOML by default and optional JSON/YAML mirrors to keep schema parity.
@@ -117,7 +117,7 @@ python3 codex-cli-linker.py \
   --base-url http://localhost:1234/v1 \
   --provider lmstudio \
   --profile  lmstudio \
-  --model    llama-3.1-8b
+  --model    llama-3.1-8b         # or: a substring like --model llama-3.1
 
 # Also write JSON and/or YAML alongside TOML
 python3 codex-cli-linker.py --json --yaml
@@ -212,7 +212,7 @@ Tip: All options have short aliases (e.g., `-a` for `--auto`). Run `-h` to see t
 - `--full-auto` — imply `--auto` and pick the first model with no prompts
 - `--model-index <N>` — with `--auto`/`--full-auto`, pick model by list index (default 0)
 - `--base-url <URL>` — explicit OpenAI‑compatible base URL (e.g., `http://localhost:1234/v1`)
-- `--model <ID>` — model id to use (skips interactive model picker)
+- `--model <ID|substring>` - exact model id or a case-insensitive substring; ties break deterministically (alphabetical)
 - `--provider <ID>` — provider key for `[model_providers.<id>]` (e.g., `lmstudio`, `ollama`, `custom`)
 - `--profile <NAME>` — profile name for `[profiles.<name>]` (default deduced from provider)
 - `--api-key <VAL>` — dummy key to place in an env var
@@ -237,6 +237,7 @@ Tip: All options have short aliases (e.g., `-a` for `--auto`). Run `-h` to see t
 
 **Multiple providers & profiles**
 - `--providers lmstudio,ollama` - add predefined routes for both providers and create matching profiles.
+   - Also supports: `vllm`, `tgwui`, `tgi`, `openrouter` (common local ports are probed automatically).
 
 **Dry-run diffs**
 - `--dry-run --diff` - show unified diffs versus existing `config.*` files instead of writing.

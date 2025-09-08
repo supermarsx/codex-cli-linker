@@ -143,7 +143,21 @@ def err(msg: str):
 # =============== Defaults/paths ===============
 DEFAULT_LMSTUDIO = "http://localhost:1234/v1"
 DEFAULT_OLLAMA = "http://localhost:11434/v1"
-COMMON_BASE_URLS = [DEFAULT_LMSTUDIO, DEFAULT_OLLAMA]
+# Additional OpenAI-compatible local servers/shims
+DEFAULT_VLLM = "http://localhost:8000/v1"
+DEFAULT_TGWUI = "http://localhost:5000/v1"  # Text-Gen-WebUI OpenAI plugin
+DEFAULT_TGI_8080 = "http://localhost:8080/v1"  # HF TGI shim
+DEFAULT_TGI_3000 = "http://localhost:3000/v1"
+DEFAULT_OPENROUTER_LOCAL = "http://localhost:7000/v1"
+COMMON_BASE_URLS = [
+    DEFAULT_LMSTUDIO,
+    DEFAULT_OLLAMA,
+    DEFAULT_VLLM,
+    DEFAULT_TGWUI,
+    DEFAULT_TGI_8080,
+    DEFAULT_TGI_3000,
+    DEFAULT_OPENROUTER_LOCAL,
+]
 
 CODEX_HOME = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex")))
 CONFIG_TOML = CODEX_HOME / "config.toml"
@@ -454,7 +468,26 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
                     else (
                         "Ollama"
                         if state.base_url.startswith("http://localhost:11434")
-                        else state.provider.capitalize()
+                        else (
+                            "vLLM"
+                            if state.base_url.startswith("http://localhost:8000")
+                            else (
+                                "Text-Gen-WebUI"
+                                if state.base_url.startswith("http://localhost:5000")
+                                else (
+                                    "TGI"
+                                    if (
+                                        state.base_url.startswith("http://localhost:8080")
+                                        or state.base_url.startswith("http://localhost:3000")
+                                    )
+                                    else (
+                                        "OpenRouter Local"
+                                        if state.base_url.startswith("http://localhost:7000")
+                                        else state.provider.capitalize()
+                                    )
+                                )
+                            )
+                        )
                     )
                 ),
                 "base_url": state.base_url.rstrip("/"),
@@ -1254,7 +1287,28 @@ def main():
     default_provider = (
         "lmstudio"
         if base.startswith("http://localhost:1234")
-        else "ollama" if base.startswith("http://localhost:11434") else "custom"
+        else (
+            "ollama"
+            if base.startswith("http://localhost:11434")
+            else (
+                "vllm"
+                if base.startswith("http://localhost:8000")
+                else (
+                    "tgwui"
+                    if base.startswith("http://localhost:5000")
+                    else (
+                        "tgi"
+                        if (
+                            base.startswith("http://localhost:8080")
+                            or base.startswith("http://localhost:3000")
+                        )
+                        else (
+                            "openrouter" if base.startswith("http://localhost:7000") else "custom"
+                        )
+                    )
+                )
+            )
+        )
     )
     state.provider = args.provider or default_provider
     if state.provider == "custom":
