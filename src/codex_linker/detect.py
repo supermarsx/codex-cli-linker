@@ -3,7 +3,7 @@
 Thin wrapper around the monolithic implementation to enable incremental split.
 """
 
-from codex_cli_linker import (  # type: ignore
+from .impl import (
     detect_base_url,
     list_models,
     try_auto_context_window,

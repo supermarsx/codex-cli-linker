@@ -15,14 +15,16 @@ RUN apt-get update \
  && apt-get purge -y --auto-remove \
  && rm -rf /var/lib/apt/lists/*
 
-# Add the single-file tool
-COPY codex-cli-linker.py ./
+# Install package (src layout) for stable entrypoint
+COPY pyproject.toml readme.md ./
+COPY src ./src
+RUN python -m pip install --upgrade pip \
+ && python -m pip install .
 
 # Prepare data directory for configs
 RUN mkdir -p /data/.codex
 VOLUME ["/data"]
 
 # Default command: interactive run; override with args in docker run/compose
-ENTRYPOINT ["python", "./codex-cli-linker.py"]
+ENTRYPOINT ["codex-cli-linker"]
 CMD ["--help"]
-

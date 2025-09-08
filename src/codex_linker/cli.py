@@ -5,7 +5,7 @@ argparse/UI helpers from a dedicated module.
 """
 
 # Re-export selected UI + CLI functions from the monolith for now
-from codex_cli_linker import (  # type: ignore
+from .impl import (
     parse_args,
     configure_logging,
     merge_config_defaults,
