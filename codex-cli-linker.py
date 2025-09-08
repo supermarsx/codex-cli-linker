@@ -78,8 +78,16 @@ GRAY = "[90m"
 
 
 def supports_color() -> bool:
-    """Return True if the terminal likely supports ANSI colors."""
-    return sys.stdout.isatty() or os.name == "nt"
+    """Return True if the terminal likely supports ANSI colors.
+
+    Honor the actual TTY status; do not force color on Windows when stdout
+    is not a TTY. This keeps tests predictable and avoids stray ANSI codes
+    in redirected output.
+    """
+    try:
+        return bool(getattr(sys.stdout, "isatty", lambda: False)())
+    except Exception:
+        return False
 
 
 def c(s: str, color: str) -> str:
@@ -806,6 +814,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Codex ⇄ LM Studio / Ollama Linker (Config‑spec compliant)"
     )
+    p.formatter_class = argparse.ArgumentDefaultsHelpFormatter
     p.add_argument(
         "-a",
         "--auto",

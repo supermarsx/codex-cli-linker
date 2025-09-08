@@ -47,7 +47,8 @@ This small, dependency‑free Python script:
 - [Installation](#installation)
 - [How it works](#how-it-works)
 - [Configuration files it writes](#configuration-files-it-writes)
-- [Command‑line usage](#command-line-usage)
+- [Command-line usage](#command-line-usage)
+- [Docker](#docker)
 - [Config keys written](#config-keys-written)
 - [Examples](#examples)
 - [Environment variables](#environment-variables)
@@ -198,7 +199,7 @@ By default, files live under **`$CODEX_HOME`** (defaults to `~/.codex`).
 > Existing `config.*` are moved to `config.*.bak` before writing.
 
 
-## Command‑line usage
+## Command-line usage
 
 ```
 python3 codex-cli-linker.py [options]
@@ -233,6 +234,30 @@ Tip: All options have short aliases (e.g., `-a` for `--auto`). Run `-h` to see t
 - `--history-max-bytes <N>` - limit history size
 - `--disable-response-storage` - do not store responses
 - `--state-file <PATH>` - use a custom linker state JSON path (default `$CODEX_HOME/linker_config.json`)
+
+## Docker
+
+Build the image locally (includes Codex CLI and this tool):
+```bash
+docker build -t codex-cli-linker:local .
+```
+
+Run with your `~/.codex` mounted so configs persist on the host:
+```bash
+docker run --rm -it \
+  -e CODEX_HOME=/data/.codex \
+  -v "$HOME/.codex:/data/.codex" \
+  codex-cli-linker:local --auto
+```
+
+Compose option (uses `docker-compose.yml`):
+```bash
+docker compose up --build codex-linker
+```
+
+Notes:
+- To target a local server on the host, use `--base-url http://host.docker.internal:1234/v1` on macOS/Windows. On Linux, consider `network_mode: host` in compose.
+- The container never auto-launches external apps; it only prints suggested commands.
 - `--history-max-bytes <N>` — sets `history.max_bytes`
 - `--disable-response-storage` — sets `disable_response_storage=true`
 

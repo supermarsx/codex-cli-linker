@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  codex-linker:
+    build: .
+    image: codex-cli-linker:local
+    container_name: codex-linker
+    environment:
+      # Mount location inside the container is /data/.codex
+      - CODEX_HOME=/data/.codex
+    volumes:
+      # Persist generated configs to your host home directory
+      - ${HOME}/.codex:/data/.codex
+    command: ["--auto"]
+    # Optionally, forward host network to reach local servers on 127.0.0.1
+    # On Linux, host networking allows access to host ports (e.g., 1234/11434).
+    # On macOS/Windows, use host.docker.internal instead.
+    # network_mode: host
+
