@@ -90,6 +90,23 @@ jobs:
           mkdir -p dist_flat
           find dist -type f -maxdepth 3 -print -exec cp {} dist_flat/ \;
 
+      - name: Read release notes (if present)
+        id: notes
+        shell: bash
+        run: |
+          NOTES_PATH="docs/release-notes/${GITHUB_REF_NAME}.md"
+          if [ -f "$NOTES_PATH" ]; then
+            {
+              echo 'RELEASE_BODY<<EOF'
+              cat "$NOTES_PATH"
+              echo 'EOF'
+            } >> "$GITHUB_ENV"
+            echo "notes=present" >> "$GITHUB_OUTPUT"
+          else
+            echo "No release notes at $NOTES_PATH"
+            echo "notes=missing" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
@@ -97,5 +114,6 @@ jobs:
           tag_name: ${{ github.ref_name }}
           files: dist_flat/*
           generate_release_notes: true
+          body: ${{ env.RELEASE_BODY }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
