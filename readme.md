@@ -63,65 +63,76 @@ This small, dependency‑free Python script:
 
 ## Quick start
 
+Pick one of the three options below.
+
+### A) Clone and run
 ```bash
-# 1) Clone
-git clone https://github.com/<you>/codex-cli-linker
+git clone https://github.com/supermarsx/codex-cli-linker
 cd codex-cli-linker
-
-# 2) Run interactively (detects server, picks model, writes ~/.codex/config.toml)
-python3 codex-cli-linker.py
-
-# 3) Launch Codex with the generated profile (shown at the end of the run)
-npx codex --profile lmstudio      # or: codex --profile lmstudio
+python3 codex-cli-linker.py           # interactive
 ```
-
-**Non‑interactive:**
+Non‑interactive examples:
 ```bash
 python3 codex-cli-linker.py --auto        # detect server, still prompts for model
 python3 codex-cli-linker.py --full-auto   # detect server and first model (no prompts)
 ```
 
-**Target a specific server/model:**
+### B) Standalone executable
+Download from Releases:
+- Windows: codex-cli-linker-windows-x64.exe
+- macOS:   codex-cli-linker-macos-x64
+- Linux:   codex-cli-linker-linux-x64
+
+Then run it (example):
 ```bash
+# macOS/Linux once after download
+chmod +x ./codex-cli-linker-*-x64
+./codex-cli-linker-*-x64 --auto
+
+# Windows
+./codex-cli-linker-windows-x64.exe --auto
+```
+
+### C) PyPI (pipx or pip)
+```bash
+# Recommended: isolated install
+pipx install codex-cli-linker
+codex-cli-linker.py --auto
+
+# Or user install via pip
+python3 -m pip install --user codex-cli-linker
+codex-cli-linker.py --auto
+```
+
+After generating files, launch Codex with the printed profile:
+```bash
+npx codex --profile lmstudio   # or: codex --profile lmstudio
+```
+
+More examples:
+```bash
+# Target a specific server/model
 python3 codex-cli-linker.py \
   --base-url http://localhost:1234/v1 \
   --provider lmstudio \
   --profile  lmstudio \
   --model    llama-3.1-8b
-```
 
-**Also write JSON and/or YAML alongside TOML:**
-```bash
+# Also write JSON and/or YAML alongside TOML
 python3 codex-cli-linker.py --json --yaml
-```
 
-**Preview config without writing files:**
-```bash
+# Preview config without writing files
 python3 codex-cli-linker.py --dry-run --auto
-```
 
-**Show verbose logging for troubleshooting:**
-```bash
+# Troubleshooting verbosity
 python3 codex-cli-linker.py --verbose --auto
-```
 
-**Log to a file:**
-```bash
+# Log to a file / emit JSON logs / send logs remotely
 python3 codex-cli-linker.py --log-file linker.log
-```
-
-**Emit logs as JSON:**
-```bash
 python3 codex-cli-linker.py --log-json
-```
-
-**Send logs to a remote HTTP endpoint:**
-```bash
 python3 codex-cli-linker.py --log-remote http://example.com/log
-```
 
-**Preload defaults from a remote JSON:**
-```bash
+# Preload defaults from a remote JSON
 python3 codex-cli-linker.py --config-url https://example.com/defaults.json --auto
 ```
 
