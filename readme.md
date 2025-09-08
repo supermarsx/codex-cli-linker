@@ -204,6 +204,8 @@ By default, files live under **`$CODEX_HOME`** (defaults to `~/.codex`).
 python3 codex-cli-linker.py [options]
 ```
 
+Tip: All options have short aliases (e.g., `-a` for `--auto`). Run `-h` to see the full list.
+
 **Connection & selection**
 - `--auto` — skip base‑URL prompt and auto‑detect a server
 - `--full-auto` — imply `--auto` and pick the first model with no prompts
@@ -227,7 +229,10 @@ python3 codex-cli-linker.py [options]
 - `--hide-agent-reasoning` / `--show-raw-agent-reasoning`
 
 **History & storage**
-- `--no-history` — sets `history.persistence=none` (otherwise `save-all`)
+- `--no-history` - sets `history.persistence=none` (otherwise `save-all`)
+- `--history-max-bytes <N>` - limit history size
+- `--disable-response-storage` - do not store responses
+- `--state-file <PATH>` - use a custom linker state JSON path (default `$CODEX_HOME/linker_config.json`)
 - `--history-max-bytes <N>` — sets `history.max_bytes`
 - `--disable-response-storage` — sets `disable_response_storage=true`
 
