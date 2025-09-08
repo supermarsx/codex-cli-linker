@@ -61,6 +61,7 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import difflib
+import tempfile
 
 # Ensure default env for provider key if not set by the OS
 os.environ.setdefault("NULLKEY", "nullkey")
@@ -342,8 +343,8 @@ def try_auto_context_window(base_url: str, model_id: str) -> int:
 # =============== Emitters (TOML/JSON/YAML) ===============
 
 
-def backup(path: Path):
-    """Backup existing file with a timestamped suffix."""
+def backup(path: Path) -> Optional[Path]:
+    """Backup existing file with a timestamped suffix. Returns backup path if created."""
     if path.exists():
         # Use a timestamped rename so previous configs remain recoverable. This
         # is fast (rename vs copy) and avoids accidental data loss if a new
@@ -368,6 +369,36 @@ def do_backup(path: Path) -> Optional[Path]:
     except Exception as e:  # pragma: no cover
         warn(f"Backup failed: {e}")
     return None
+
+
+def atomic_write_with_backup(path: Path, text: str) -> Optional[Path]:
+    """Atomically write UTF-8 text to `path` with fsync and optional .bak.
+
+    - Writes to a temp file in the same directory
+    - flushes and fsyncs the temp file
+    - moves any existing target to a timestamped .bak
+    - atomically replaces the target via os.replace
+    Returns the backup path if created.
+    """
+    # Create temp file in same directory for atomic replace
+    fd, tmppath = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except Exception:
+                pass
+        bak = do_backup(path)
+        os.replace(tmppath, path)
+        return bak
+    except Exception:
+        try:
+            os.remove(tmppath)
+        except Exception:
+            pass
+        raise
 
 def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
     """Translate runtime selections into a single dict that mirrors the TOML spec.
@@ -1379,18 +1410,15 @@ def main():
         CODEX_HOME.mkdir(parents=True, exist_ok=True)
 
         # Always write TOML; JSON/YAML only if flags requested. Normalize blank lines and ensure trailing newline.
-        backup(CONFIG_TOML)
-        CONFIG_TOML.write_text(toml_out, encoding="utf-8")
+        atomic_write_with_backup(CONFIG_TOML, toml_out)
         ok(f"Wrote {CONFIG_TOML}")
 
         if args.json:
-            backup(CONFIG_JSON)
-            CONFIG_JSON.write_text(to_json(cfg), encoding="utf-8")
+            atomic_write_with_backup(CONFIG_JSON, to_json(cfg))
             ok(f"Wrote {CONFIG_JSON}")
 
         if args.yaml:
-            backup(CONFIG_YAML)
-            CONFIG_YAML.write_text(to_yaml(cfg), encoding="utf-8")
+            atomic_write_with_backup(CONFIG_YAML, to_yaml(cfg))
             ok(f"Wrote {CONFIG_YAML}")
 
         # Save linker state for next run (no secrets)
