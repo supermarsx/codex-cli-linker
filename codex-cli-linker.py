@@ -62,6 +62,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import difflib
 import tempfile
+import time
 
 # Ensure default env for provider key if not set by the OS
 os.environ.setdefault("NULLKEY", "nullkey")
@@ -277,6 +278,10 @@ def detect_base_url(candidates: List[str] = COMMON_BASE_URLS) -> Optional[str]:
             if data and isinstance(data, dict) and "data" in data:
                 logging.info("Detected server at %s", base)
                 ok(f"Detected server: {base}")
+                try:
+                    log_event("probe_success", path=base)
+                except Exception:
+                    pass
                 executor.shutdown(wait=False, cancel_futures=True)
                 return base
             else:
@@ -963,6 +968,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Assume defaults and suppress prompts when inputs are sufficient",
     )
     p.add_argument("-v", "--verbose", action="store_true", help="Enable INFO/DEBUG logging")
+    p.add_argument("--log-level", choices=["debug", "info", "warning", "error"], help="Explicit log level (overrides --verbose)")
     p.add_argument("-f", "--log-file", help="Write logs to a file")
     p.add_argument("-J", "--log-json", action="store_true", help="Also log JSON to stdout")
     p.add_argument("-R", "--log-remote", help="POST logs to this HTTP URL")
@@ -1106,6 +1112,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     # Output format toggles (TOML always written unless --dry-run; JSON/YAML only if explicitly requested)
     p.add_argument("-j", "--json", action="store_true", help="Also write config.json")
     p.add_argument("-y", "--yaml", action="store_true", help="Also write config.yaml")
+    p.add_argument("-F", "--clear", action="store_true", help="Force clear screen and show banner on start (Windows default is off)")
     p.add_argument(
         "-n",
         "--dry-run",
@@ -1143,6 +1150,7 @@ def configure_logging(
     log_file: Optional[str] = None,
     log_json: bool = False,
     log_remote: Optional[str] = None,
+    log_level: Optional[str] = None,
 ) -> None:
     """Configure root logger according to CLI flags.
 
@@ -1150,7 +1158,17 @@ def configure_logging(
     invocations (e.g., tests) do not duplicate log output.
     """
 
-    level = logging.DEBUG if verbose else logging.WARNING
+    # Determine base level
+    if log_level:
+        ll = log_level.lower()
+        level = {
+            "debug": logging.DEBUG,
+            "info": logging.INFO,
+            "warning": logging.WARNING,
+            "error": logging.ERROR,
+        }.get(ll, logging.WARNING)
+    else:
+        level = logging.DEBUG if verbose else logging.WARNING
 
     logger = logging.getLogger()
     logger.setLevel(level)
@@ -1171,9 +1189,15 @@ def configure_logging(
 
         class JSONFormatter(logging.Formatter):
             def format(self, record):
-                return json.dumps(
-                    {"level": record.levelname, "message": record.getMessage()}
-                )
+                payload = {
+                    "level": record.levelname,
+                    "message": record.getMessage(),
+                }
+                # Include structured fields when provided
+                for k in ("event", "provider", "model", "path", "duration_ms", "error_type"):
+                    if hasattr(record, k):
+                        payload[k] = getattr(record, k)
+                return json.dumps(payload)
 
         json_handler = logging.StreamHandler(sys.stdout)
         json_handler.setFormatter(JSONFormatter())
@@ -1201,6 +1225,15 @@ def configure_logging(
 
     for handler in logger.handlers:
         handler.setLevel(level)
+
+
+def log_event(event: str, level: int = logging.INFO, **fields) -> None:
+    """Structured log helper. Fields may include provider, model, path, duration_ms, error_type."""
+    try:
+        logging.getLogger().log(level, event, extra={"event": event, **fields})
+    except Exception:
+        # Never let logging break CLI flow
+        pass
 
 
 def merge_config_defaults(
@@ -1250,7 +1283,10 @@ def main():
         return
     # Trim banners on non-TTY or when NO_COLOR is set
     is_tty = bool(getattr(sys.stdout, "isatty", lambda: False)())
-    if is_tty and not os.environ.get("NO_COLOR"):
+    should_clear = is_tty and not os.environ.get("NO_COLOR") and (
+        os.name != "nt" or getattr(args, "clear", False)
+    )
+    if should_clear:
         clear_screen()
         banner()
     # --yes implies non-interactive where possible
@@ -1263,7 +1299,7 @@ def main():
         args.auto = True
         if args.model_index is None:
             args.model_index = 0
-    configure_logging(args.verbose, args.log_file, args.log_json, args.log_remote)
+    configure_logging(args.verbose, args.log_file, args.log_json, args.log_remote, args.log_level)
     defaults = parse_args([])
     merge_config_defaults(args, defaults)
     # Hard-disable auto launch regardless of flags
@@ -1328,7 +1364,24 @@ def main():
 
     # Model selection: interactive unless provided
     if args.model:
-        state.model = args.model
+        # Accept exact id or a case-insensitive substring with deterministic tie-break
+        target = args.model
+        chosen = target
+        try:
+            models = list_models(state.base_url)
+            if target in models:
+                chosen = target
+            else:
+                t = target.lower()
+                matches = sorted([m for m in models if t in m.lower()])
+                if matches:
+                    chosen = matches[0]
+                    ok(f"Selected model by substring match: {chosen}")
+        except Exception:
+            # server may be unreachable; fall back to provided value
+            pass
+        state.model = chosen
+        log_event("model_selected", provider=state.provider, model=state.model)
     elif args.auto and args.model_index is not None:
         try:
             models = list_models(state.base_url)
@@ -1337,6 +1390,7 @@ def main():
                 idx = 0
             state.model = models[idx]
             ok(f"Auto-selected model: {state.model}")
+            log_event("model_selected", provider=state.provider, model=state.model)
         except Exception as e:
             err(str(e))
             sys.exit(2)
@@ -1464,15 +1518,39 @@ def main():
         CODEX_HOME.mkdir(parents=True, exist_ok=True)
 
         # Always write TOML; JSON/YAML only if flags requested. Normalize blank lines and ensure trailing newline.
+        t0 = time.time()
         atomic_write_with_backup(CONFIG_TOML, toml_out)
+        log_event(
+            "write_config",
+            provider=state.provider,
+            model=state.model,
+            path=str(CONFIG_TOML),
+            duration_ms=int((time.time() - t0) * 1000),
+        )
         ok(f"Wrote {CONFIG_TOML}")
 
         if args.json:
+            t1 = time.time()
             atomic_write_with_backup(CONFIG_JSON, to_json(cfg))
+            log_event(
+                "write_config",
+                provider=state.provider,
+                model=state.model,
+                path=str(CONFIG_JSON),
+                duration_ms=int((time.time() - t1) * 1000),
+            )
             ok(f"Wrote {CONFIG_JSON}")
 
         if args.yaml:
+            t2 = time.time()
             atomic_write_with_backup(CONFIG_YAML, to_yaml(cfg))
+            log_event(
+                "write_config",
+                provider=state.provider,
+                model=state.model,
+                path=str(CONFIG_YAML),
+                duration_ms=int((time.time() - t2) * 1000),
+            )
             ok(f"Wrote {CONFIG_YAML}")
 
         # Save linker state for next run (no secrets)
