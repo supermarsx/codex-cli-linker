@@ -22,10 +22,10 @@ jobs:
           - runner: ubuntu-latest
             artifact: linux-x64
             ext: ""
-          - runner: ubuntu-24.04-arm
+          - runner: ubuntu-22.04-arm64
             artifact: linux-arm64
             ext: ""
-          - runner: macos-latest
+          - runner: macos-13
             artifact: macos-x64
             ext: ""
           - runner: macos-14
