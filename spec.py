@@ -1,0 +1,26 @@
+"""Spec choices and defaults (provider ids, ports, labels)."""
+
+from codex_cli_linker import (  # type: ignore
+    DEFAULT_LMSTUDIO,
+    DEFAULT_OLLAMA,
+    DEFAULT_VLLM,
+    DEFAULT_TGWUI,
+    DEFAULT_TGI_8080,
+    DEFAULT_TGI_3000,
+    DEFAULT_OPENROUTER_LOCAL,
+    COMMON_BASE_URLS,
+    PROVIDER_LABELS,
+)
+
+__all__ = [
+    "DEFAULT_LMSTUDIO",
+    "DEFAULT_OLLAMA",
+    "DEFAULT_VLLM",
+    "DEFAULT_TGWUI",
+    "DEFAULT_TGI_8080",
+    "DEFAULT_TGI_3000",
+    "DEFAULT_OPENROUTER_LOCAL",
+    "COMMON_BASE_URLS",
+    "PROVIDER_LABELS",
+]
+
