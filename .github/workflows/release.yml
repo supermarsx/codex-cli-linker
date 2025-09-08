@@ -11,13 +11,34 @@ on:
 
 jobs:
   build:
-    name: Build binaries (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    name: Build binaries (${{ matrix.artifact }})
+    runs-on: ${{ matrix.runner }}
+    continue-on-error: ${{ matrix.allow_failure || false }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
         py: ["3.11"]
+        include:
+          - runner: ubuntu-latest
+            artifact: linux-x64
+            ext: ""
+          - runner: ubuntu-24.04-arm
+            artifact: linux-arm64
+            ext: ""
+          - runner: macos-latest
+            artifact: macos-x64
+            ext: ""
+          - runner: macos-14
+            artifact: macos-arm64
+            ext: ""
+          - runner: windows-latest
+            artifact: windows-x64.exe
+            ext: ".exe"
+          # Windows ARM64 runner availability may vary; allow failure if unsupported
+          - runner: windows-2022-arm
+            artifact: windows-arm64.exe
+            ext: ".exe"
+            allow_failure: true
 
     steps:
       - name: Checkout
@@ -39,17 +60,15 @@ jobs:
           pyinstaller -F -n codex-cli-linker codex-cli-linker.py
           mkdir -p release
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            cp dist/codex-cli-linker.exe "release/codex-cli-linker-windows-x64.exe"
-          elif [[ "${{ runner.os }}" == "macOS" ]]; then
-            cp dist/codex-cli-linker "release/codex-cli-linker-macos-x64"
+            cp dist/codex-cli-linker.exe "release/codex-cli-linker-${{ matrix.artifact }}"
           else
-            cp dist/codex-cli-linker "release/codex-cli-linker-linux-x64"
+            cp dist/codex-cli-linker "release/codex-cli-linker-${{ matrix.artifact }}"
           fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ runner.os }}
+          name: release-${{ matrix.artifact }}
           path: release/*
           if-no-files-found: error
 
