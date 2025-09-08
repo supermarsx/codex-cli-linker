@@ -21,7 +21,13 @@ dev = [
 ]
 
 [tool.setuptools]
-script-files = ["codex-cli-linker.py"]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+codex-cli-linker = "codex_linker:main"
 
 [tool.pytest.ini_options]
 addopts = "--cov=codex_cli_linker --cov-report=term-missing --timeout=20 --timeout-method=thread"
