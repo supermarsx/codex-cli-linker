@@ -246,13 +246,19 @@ Tip: All options have short aliases (e.g., `-a` for `--auto`). Run `-h` to see t
 - `--yes` - suppress prompts when inputs are fully specified (implies `--auto` and defaults `--model-index 0` when `--model` is not provided).
 - Honors `NO_COLOR` and non‑TTY: disables ANSI; banners are omitted to keep logs clean.
 
-### Short flag map (high‑use)
-- `-a` `--auto` • `-A` `--full-auto` • `-Q` `--yes` • `-n` `--dry-run` • `-Z` `--diff`
-- `-b` `--base-url` • `-m` `--model` • `-i` `--model-index` • `-l` `--providers` • `-p` `--profile`
-- `-P` `--provider` • `-w` `--model-context-window` • `-t` `--model-max-output-tokens`
-- `-j` `--json` • `-y` `--yaml` • `-f` `--log-file` • `-J` `--log-json` • `-R` `--log-remote` • `-v` `--verbose`
-- `-q` `--approval-policy` • `-s` `--sandbox-mode` • `-o` `--file-opener`
-- `-E` `--env-key-name` • `-c` `--config-url` • `-x` `--state-file` • `-V` `--version`
+### Short Flag Map (complete)
+- Startup: `-a` `--auto`, `-A` `--full-auto`, `-Q` `--yes`, `-F` `--clear`, `-V` `--version`
+- Selection: `-b` `--base-url`, `-m` `--model`, `-i` `--model-index`, `-P` `--provider`, `-l` `--providers`, `-p` `--profile`
+- Output: `-j` `--json`, `-y` `--yaml`, `-n` `--dry-run`, `-Z` `--diff`
+- Logging: `-v` `--verbose`, `--log-level <debug|info|warning|error>` (long-only), `-f` `--log-file`, `-J` `--log-json`, `-R` `--log-remote`
+- Config URL / state: `-c` `--config-url`, `-x` `--state-file`
+- Spec knobs: `-q` `--approval-policy`, `-s` `--sandbox-mode`, `-o` `--file-opener`, `-r` `--reasoning-effort`, `-u` `--reasoning-summary`, `-B` `--verbosity`
+- History/storage: `-H` `--no-history`, `-N` `--history-max-bytes`, `-d` `--disable-response-storage`
+- Model limits: `-w` `--model-context-window`, `-t` `--model-max-output-tokens`, `-D` `--project-doc-max-bytes`
+- Visibility/other: `-g` `--hide-agent-reasoning`, `-G` `--show-raw-agent-reasoning`, `-Y` `--model-supports-reasoning-summaries`, `-C` `--chatgpt-base-url`
+- Experimental: `-U` `--experimental-resume`, `-I` `--experimental-instructions-file`, `-X` `--experimental-use-exec-command-tool`, `-O` `--responses-originator-header-internal-override`, `-M` `--preferred-auth-method`, `-W` `--tools-web-search`, `-z` `--azure-api-version`, `-K` `--request-max-retries`, `-S` `--stream-max-retries`, `-e` `--stream-idle-timeout-ms`
+
+Note: `--log-level` is long-only to avoid collisions with existing short flags. Use `--log-level info` (for example) or `-v` for a quick DEBUG/ WARNING toggle.
 
 Post‑run report includes: target file path, backup path (if created), profile, provider, model, context window, and max tokens.
 
