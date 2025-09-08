@@ -23,4 +23,3 @@ __all__ = [
     "COMMON_BASE_URLS",
     "PROVIDER_LABELS",
 ]
-

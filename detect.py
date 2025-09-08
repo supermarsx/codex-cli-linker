@@ -2,6 +2,7 @@
 
 Thin wrapper around the monolithic implementation to enable incremental split.
 """
+
 from codex_cli_linker import (  # type: ignore
     detect_base_url,
     list_models,
@@ -13,4 +14,3 @@ __all__ = [
     "list_models",
     "try_auto_context_window",
 ]
-

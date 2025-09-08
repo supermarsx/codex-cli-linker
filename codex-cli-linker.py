@@ -389,7 +389,8 @@ def backup(path: Path) -> Optional[Path]:
             info(f"Backed up existing {path.name} → {bak.name}")
         except Exception as e:
             warn(f"Backup failed: {e}")
-    
+
+
 def do_backup(path: Path) -> Optional[Path]:
     """Perform and announce a backup; returns the backup path if created."""
     try:
@@ -414,7 +415,9 @@ def atomic_write_with_backup(path: Path, text: str) -> Optional[Path]:
     Returns the backup path if created.
     """
     # Create temp file in same directory for atomic replace
-    fd, tmppath = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=str(path.parent))
+    fd, tmppath = tempfile.mkstemp(
+        prefix=path.name + ".", suffix=".tmp", dir=str(path.parent)
+    )
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
             f.write(text)
@@ -432,6 +435,7 @@ def atomic_write_with_backup(path: Path, text: str) -> Optional[Path]:
         except Exception:
             pass
         raise
+
 
 def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
     """Translate runtime selections into a single dict that mirrors the TOML spec.
@@ -496,13 +500,21 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
                                 else (
                                     "TGI"
                                     if (
-                                        state.base_url.startswith("http://localhost:8080")
-                                        or state.base_url.startswith("http://localhost:3000")
+                                        state.base_url.startswith(
+                                            "http://localhost:8080"
+                                        )
+                                        or state.base_url.startswith(
+                                            "http://localhost:3000"
+                                        )
                                     )
                                     else (
                                         "OpenRouter Local"
-                                        if state.base_url.startswith("http://localhost:7000")
-                                        else PROVIDER_LABELS.get(state.provider, state.provider.capitalize())
+                                        if state.base_url.startswith(
+                                            "http://localhost:7000"
+                                        )
+                                        else PROVIDER_LABELS.get(
+                                            state.provider, state.provider.capitalize()
+                                        )
                                     )
                                 )
                             )
@@ -558,10 +570,10 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
             name = PROVIDER_LABELS.get("openrouter", "OpenRouter Local")
         elif pid.lower() in ("jan", "llamafile", "gpt4all", "local"):
             # Use provided base-url or current state base-url as a template
-            base_u = (args.base_url or state.base_url or DEFAULT_LMSTUDIO)
+            base_u = args.base_url or state.base_url or DEFAULT_LMSTUDIO
             name = PROVIDER_LABELS.get(pid.lower(), pid.capitalize())
         else:
-            base_u = (args.base_url or state.base_url or DEFAULT_LMSTUDIO)
+            base_u = args.base_url or state.base_url or DEFAULT_LMSTUDIO
             name = pid.capitalize()
         cfg["model_providers"][pid] = {
             "name": name,
@@ -998,7 +1010,9 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         action="store_true",
         help="Assume defaults and suppress prompts when inputs are sufficient",
     )
-    p.add_argument("-v", "--verbose", action="store_true", help="Enable INFO/DEBUG logging")
+    p.add_argument(
+        "-v", "--verbose", action="store_true", help="Enable INFO/DEBUG logging"
+    )
     p.add_argument(
         "--log-level",
         "--level",
@@ -1006,7 +1020,9 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Explicit log level (overrides --verbose)",
     )
     p.add_argument("-f", "--log-file", help="Write logs to a file")
-    p.add_argument("-J", "--log-json", action="store_true", help="Also log JSON to stdout")
+    p.add_argument(
+        "-J", "--log-json", action="store_true", help="Also log JSON to stdout"
+    )
     p.add_argument("-R", "--log-remote", help="POST logs to this HTTP URL")
     p.add_argument(
         "--keychain",
@@ -1122,7 +1138,11 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
 
     # Numeric knobs & misc
     p.add_argument(
-        "-w", "--model-context-window", type=int, default=0, help="Context window tokens"
+        "-w",
+        "--model-context-window",
+        type=int,
+        default=0,
+        help="Context window tokens",
     )
     p.add_argument(
         "-t", "--model-max-output-tokens", type=int, default=0, help="Max output tokens"
@@ -1154,7 +1174,12 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     # Output format toggles (TOML always written unless --dry-run; JSON/YAML only if explicitly requested)
     p.add_argument("-j", "--json", action="store_true", help="Also write config.json")
     p.add_argument("-y", "--yaml", action="store_true", help="Also write config.yaml")
-    p.add_argument("-F", "--clear", action="store_true", help="Force clear screen and show banner on start (Windows default is off)")
+    p.add_argument(
+        "-F",
+        "--clear",
+        action="store_true",
+        help="Force clear screen and show banner on start (Windows default is off)",
+    )
     p.add_argument(
         "-n",
         "--dry-run",
@@ -1236,7 +1261,14 @@ def configure_logging(
                     "message": record.getMessage(),
                 }
                 # Include structured fields when provided
-                for k in ("event", "provider", "model", "path", "duration_ms", "error_type"):
+                for k in (
+                    "event",
+                    "provider",
+                    "model",
+                    "path",
+                    "duration_ms",
+                    "error_type",
+                ):
                     if hasattr(record, k):
                         payload[k] = getattr(record, k)
                 return json.dumps(payload)
@@ -1297,7 +1329,9 @@ def configure_logging(
                             except Exception:
                                 pass
 
-                self._t = threading.Thread(target=worker, name="log-http-worker", daemon=True)
+                self._t = threading.Thread(
+                    target=worker, name="log-http-worker", daemon=True
+                )
                 self._t.start()
 
             def emit(self, record: logging.LogRecord) -> None:
@@ -1413,7 +1447,9 @@ def store_api_key_in_keychain(backend: str, env_var: str, api_key: str) -> bool:
                 if coll.is_locked():
                     coll.unlock()
                 attrs = {"service": "codex-cli-linker", "account": env_var}
-                coll.create_item(f"codex-cli-linker:{env_var}", attrs, api_key, replace=True)
+                coll.create_item(
+                    f"codex-cli-linker:{env_var}", attrs, api_key, replace=True
+                )
                 ok("Stored API key in Secret Service.")
                 return True
             except Exception as e:  # pragma: no cover
@@ -1458,7 +1494,9 @@ def store_api_key_in_keychain(backend: str, env_var: str, api_key: str) -> bool:
                 cred.Type = CRED_TYPE_GENERIC
                 cred.TargetName = ctypes.c_wchar_p(target)
                 cred.CredentialBlobSize = len(blob)
-                cred.CredentialBlob = ctypes.cast(ctypes.create_string_buffer(blob), ctypes.c_void_p)
+                cred.CredentialBlob = ctypes.cast(
+                    ctypes.create_string_buffer(blob), ctypes.c_void_p
+                )
                 cred.Persist = CRED_PERSIST_LOCAL_MACHINE
                 cred.AttributeCount = 0
                 cred.Attributes = None
@@ -1526,8 +1564,10 @@ def main():
         return
     # Trim banners on non-TTY or when NO_COLOR is set
     is_tty = bool(getattr(sys.stdout, "isatty", lambda: False)())
-    should_clear = is_tty and not os.environ.get("NO_COLOR") and (
-        os.name != "nt" or getattr(args, "clear", False)
+    should_clear = (
+        is_tty
+        and not os.environ.get("NO_COLOR")
+        and (os.name != "nt" or getattr(args, "clear", False))
     )
     if should_clear:
         clear_screen()
@@ -1542,13 +1582,17 @@ def main():
         args.auto = True
         if args.model_index is None:
             args.model_index = 0
-    configure_logging(args.verbose, args.log_file, args.log_json, args.log_remote, args.log_level)
+    configure_logging(
+        args.verbose, args.log_file, args.log_json, args.log_remote, args.log_level
+    )
     defaults = parse_args([])
     merge_config_defaults(args, defaults)
     # Hard-disable auto launch regardless of flags
     args.launch = False
     # Determine state file path
-    state_path = Path(args.state_file) if getattr(args, "state_file", None) else LINKER_JSON
+    state_path = (
+        Path(args.state_file) if getattr(args, "state_file", None) else LINKER_JSON
+    )
     state = LinkerState.load(state_path)
     apply_saved_state(args, defaults, state)
 
@@ -1582,7 +1626,9 @@ def main():
                             or base.startswith("http://localhost:3000")
                         )
                         else (
-                            "openrouter" if base.startswith("http://localhost:7000") else "custom"
+                            "openrouter"
+                            if base.startswith("http://localhost:7000")
+                            else "custom"
                         )
                     )
                 )
@@ -1648,7 +1694,9 @@ def main():
             sys.exit(2)
     else:
         if getattr(args, "yes", False):
-            err("--yes provided but no model specified; use --model or --model-index with --auto.")
+            err(
+                "--yes provided but no model specified; use --model or --model-index with --auto."
+            )
             sys.exit(2)
         try:
             state.model = pick_model_interactive(state.base_url, state.model or None)

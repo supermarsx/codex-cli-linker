@@ -21,4 +21,3 @@ __all__ = [
     "do_backup",
     "atomic_write_with_backup",
 ]
-

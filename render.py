@@ -1,4 +1,5 @@
 """Config rendering utilities (TOML/JSON/YAML) and shaping."""
+
 from codex_cli_linker import (  # type: ignore
     build_config_dict,
     to_toml,
@@ -12,4 +13,3 @@ __all__ = [
     "to_json",
     "to_yaml",
 ]
-
