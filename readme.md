@@ -54,6 +54,7 @@ This small, dependency‑free Python script:
 - [Examples](#examples)
 - [Environment variables](#environment-variables)
 - [Troubleshooting](#troubleshooting)
+- [Windows Defender False Positive](#windows-defender-false-positive)
 - [CI](#ci)
 - [Releasing](#releasing)
   - [Conventional Commits & Versioning](#conventional-commits--versioning)
@@ -540,12 +541,23 @@ The script verifies a clean working tree, validates `vX.Y.Z` format, creates an 
 <a href="https://github.com/supermarsx/codex-cli-linker/releases/latest"><img alt="Download latest" src="https://img.shields.io/badge/⬇%20Download-Latest%20Release-0b5fff" /></a>
 <a href="https://github.com/supermarsx/codex-cli-linker/releases"><img alt="All releases" src="https://img.shields.io/badge/Releases-All-555" /></a>
 
+## Windows Defender False Positive
+
+The single‑file binaries are built with PyInstaller, which can occasionally trigger false‑positive warnings from Windows Defender or other AV engines.
+
+Mitigations
+- Prefer the source or PyPI install: `pipx install codex-cli-linker` (or `pip install --user codex-cli-linker`) and run `codex-cli-linker`.
+- Build locally from source: `python -m pip install build pyinstaller && pyinstaller -F -n codex-cli-linker codex-cli-linker.py`.
+- Verify checksum against the GitHub Release artifact SHA shown in the release details.
+- Optionally upload the artifact to VirusTotal to confirm multi‑engine status.
+
+Note: We do not include third‑party code in the binary; it is produced directly from this repository’s source. If warnings persist, prefer the PyPI or source‑based install method.
+
+
 ## Changelog
 
 See `changelog.md` for a summary of notable changes by version.
 
-
-## Development & code map
 
 ## Development & code map
 
@@ -567,11 +579,3 @@ See `changelog.md` for a summary of notable changes by version.
   - Coverage targets both the root shim and codex_linker package
   - CI publishes coverage.svg; run coverage xml && python -m coverage_badge -o coverage.svg -f locally if desired
 
-- Windows Defender false positive (PyInstaller)
-  - The single-file binaries are built with PyInstaller, which can occasionally trigger false-positive warnings from Windows Defender or other AV engines.
-  - Options if you encounter a warning:
-    - Prefer the source or PyPI install: `pipx install codex-cli-linker` (or `pip install --user codex-cli-linker`) and run `codex-cli-linker`.
-    - Build locally from source: `python -m pip install build pyinstaller && pyinstaller -F -n codex-cli-linker codex-cli-linker.py`.
-    - Verify checksum against the GitHub Release artifact SHA shown in the release details.
-    - Upload the binary to VirusTotal to confirm multi‑engine status.
-  - We do not include third‑party code in the binary; it is produced directly from this repository’s source. If warnings persist, prefer the PyPI or source-based install method.
