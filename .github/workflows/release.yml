@@ -22,7 +22,7 @@ jobs:
           - runner: ubuntu-latest
             artifact: linux-x64
             ext: ""
-          - runner: ubuntu-22.04-arm64
+          - runner: ubuntu-24.04-arm64
             artifact: linux-arm64
             ext: ""
           - runner: macos-13
@@ -88,7 +88,7 @@ jobs:
       - name: Flatten artifacts
         run: |
           mkdir -p dist_flat
-          find dist -type f -maxdepth 3 -print -exec cp {} dist_flat/ \;
+          find dist -maxdepth 3 -type f -print -exec cp {} dist_flat/ \;
 
       - name: Read release notes (if present)
         id: notes
