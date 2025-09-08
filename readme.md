@@ -1,16 +1,16 @@
 # codex-cli-linker
 
-![CI](https://github.com/supermarsx/codex-cli-linker/actions/workflows/ci.yml/badge.svg)
-![PyPI](https://img.shields.io/pypi/v/codex-cli-linker)
-![Coverage](./coverage.svg)
-![Downloads](https://img.shields.io/github/downloads/supermarsx/codex-cli-linker/total?logo=github)
-![Stars](https://img.shields.io/github/stars/supermarsx/codex-cli-linker?logo=github)
-![Forks](https://img.shields.io/github/forks/supermarsx/codex-cli-linker?logo=github)
-![Watchers](https://img.shields.io/github/watchers/supermarsx/codex-cli-linker?logo=github)
-![Issues](https://img.shields.io/github/issues/supermarsx/codex-cli-linker)
-![Commit Activity](https://img.shields.io/github/commit-activity/m/supermarsx/codex-cli-linker)
-![Made with Python](https://img.shields.io/badge/Made%20with-Python%203.8%2B-3776AB?logo=python&logoColor=white)
-![License](https://img.shields.io/badge/license-MIT-green)
+[![CI](https://github.com/supermarsx/codex-cli-linker/actions/workflows/ci.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/ci.yml?query=branch%3Amain)
+[![PyPI](https://img.shields.io/pypi/v/codex-cli-linker)](https://pypi.org/project/codex-cli-linker/)
+[![Coverage](./coverage.svg)](./coverage.svg)
+[![Downloads](https://img.shields.io/github/downloads/supermarsx/codex-cli-linker/total?logo=github)](https://github.com/supermarsx/codex-cli-linker/releases)
+[![Stars](https://img.shields.io/github/stars/supermarsx/codex-cli-linker?logo=github)](https://github.com/supermarsx/codex-cli-linker/stargazers)
+[![Forks](https://img.shields.io/github/forks/supermarsx/codex-cli-linker?logo=github)](https://github.com/supermarsx/codex-cli-linker/network/members)
+[![Watchers](https://img.shields.io/github/watchers/supermarsx/codex-cli-linker?logo=github)](https://github.com/supermarsx/codex-cli-linker/watchers)
+[![Issues](https://img.shields.io/github/issues/supermarsx/codex-cli-linker)](https://github.com/supermarsx/codex-cli-linker/issues)
+[![Commit Activity](https://img.shields.io/github/commit-activity/m/supermarsx/codex-cli-linker)](https://github.com/supermarsx/codex-cli-linker/graphs/commit-activity)
+[![Made with Python](https://img.shields.io/badge/Made%20with-Python%203.8%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-green)](./license.md)
 
 Generate a ready‑to‑run **Codex CLI** configuration for local OpenAI‑compatible servers like **LM Studio** and **Ollama**.
 
