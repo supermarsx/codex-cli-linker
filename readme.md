@@ -3,6 +3,7 @@
 [![CI](https://github.com/supermarsx/codex-cli-linker/actions/workflows/ci.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/ci.yml?query=branch%3Amain)
 [![PyPI](https://img.shields.io/pypi/v/codex-cli-linker)](https://pypi.org/project/codex-cli-linker/)
 [![PyPI Downloads](https://img.shields.io/pypi/dm/codex-cli-linker?logo=pypi)](https://pypi.org/project/codex-cli-linker/)
+[![PyPI Total Downloads](https://img.shields.io/pepy/dt/codex-cli-linker?logo=pypi)](https://pepy.tech/project/codex-cli-linker)
 [![Coverage](./coverage.svg)](./coverage.svg)
 [![Downloads](https://img.shields.io/github/downloads/supermarsx/codex-cli-linker/total?logo=github)](https://github.com/supermarsx/codex-cli-linker/releases)
 [![Stars](https://img.shields.io/github/stars/supermarsx/codex-cli-linker?logo=github)](https://github.com/supermarsx/codex-cli-linker/stargazers)
