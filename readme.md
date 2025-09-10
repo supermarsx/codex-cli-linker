@@ -88,6 +88,33 @@ Download from Releases:
 - macOS:   codex-cli-linker-macos-x64
 - Linux:   codex-cli-linker-linux-x64
 
+Direct download buttons (latest assets):
+
+<a href="https://github.com/supermarsx/codex-cli-linker/releases/latest/download/codex-cli-linker-windows-x64.exe"><img alt="Download Windows x64" src="https://img.shields.io/badge/⬇%20Windows-x64-0b5fff?logo=windows&logoColor=white" /></a>
+<a href="https://github.com/supermarsx/codex-cli-linker/releases/latest/download/codex-cli-linker-macos-x64"><img alt="Download macOS x64" src="https://img.shields.io/badge/⬇%20macOS-x64-0b5fff?logo=apple&logoColor=white" /></a>
+<a href="https://github.com/supermarsx/codex-cli-linker/releases/latest/download/codex-cli-linker-linux-x64"><img alt="Download Linux x64" src="https://img.shields.io/badge/⬇%20Linux-x64-0b5fff?logo=linux&logoColor=white" /></a>
+
+Or fetch via curl (latest):
+
+```bash
+# macOS
+curl -L -o codex-cli-linker-macos-x64 \
+  https://github.com/supermarsx/codex-cli-linker/releases/latest/download/codex-cli-linker-macos-x64 \
+  && chmod +x codex-cli-linker-macos-x64 \
+  && ./codex-cli-linker-macos-x64 --auto
+
+# Linux
+curl -L -o codex-cli-linker-linux-x64 \
+  https://github.com/supermarsx/codex-cli-linker/releases/latest/download/codex-cli-linker-linux-x64 \
+  && chmod +x codex-cli-linker-linux-x64 \
+  && ./codex-cli-linker-linux-x64 --auto
+
+# Windows (PowerShell or CMD with curl available)
+curl -L -o codex-cli-linker-windows-x64.exe ^
+  https://github.com/supermarsx/codex-cli-linker/releases/latest/download/codex-cli-linker-windows-x64.exe && \
+  .\codex-cli-linker-windows-x64.exe --auto
+```
+
 Then run it (example):
 ```bash
 # macOS/Linux once after download
