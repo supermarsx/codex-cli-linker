@@ -2,6 +2,7 @@ import datetime
 import importlib.util
 import sys
 from pathlib import Path
+import pytest
 
 
 def load_cli():
@@ -41,3 +42,42 @@ def test_backup_creates_unique_versions(monkeypatch, tmp_path):
         "config.toml.20250101-1230.bak",
         "config.toml.20250101-1231.bak",
     ]
+
+
+def test_delete_backups_requires_confirmation(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path))
+    bak = tmp_path / "old.bak"
+    bak.write_text("1", encoding="utf-8")
+    cli = load_cli()
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["codex-cli-linker.py", "--delete-all-backups"],
+    )
+    with pytest.raises(SystemExit):
+        cli.main()
+    out = capsys.readouterr().out
+    assert "confirm-delete-backups" in out
+    assert bak.exists()
+
+
+def test_delete_backups_with_confirmation(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path))
+    b1 = tmp_path / "a.bak"
+    b2 = tmp_path / "b.bak"
+    b1.write_text("1", encoding="utf-8")
+    b2.write_text("2", encoding="utf-8")
+    cli = load_cli()
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "codex-cli-linker.py",
+            "--delete-all-backups",
+            "--confirm-delete-backups",
+        ],
+    )
+    cli.main()
+    out = capsys.readouterr().out
+    assert "Deleted 2 backup file" in out
+    assert not any(tmp_path.glob("*.bak"))

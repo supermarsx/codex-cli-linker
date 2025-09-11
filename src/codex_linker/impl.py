@@ -437,6 +437,29 @@ def atomic_write_with_backup(path: Path, text: str) -> Optional[Path]:
         raise
 
 
+def delete_all_backups(confirm: bool) -> None:
+    """Remove every *.bak file under CODEX_HOME when confirmed."""
+    backups = list(CODEX_HOME.rglob("*.bak"))
+    if not confirm:
+        warn("Refusing to delete backups without --confirm-delete-backups")
+        if backups:
+            info(f"Found {len(backups)} backup file(s) under {CODEX_HOME}")
+        sys.exit(1)
+    if not backups:
+        info("No backup files found.")
+        return
+    deleted = []
+    for bak in backups:
+        try:
+            bak.unlink()
+            deleted.append(bak)
+        except Exception as e:  # pragma: no cover
+            warn(f"Failed to delete {bak}: {e}")
+    ok(f"Deleted {len(deleted)} backup file(s)")
+    for bak in deleted:
+        print(f"  {bak}")
+
+
 def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
     """Translate runtime selections into a single dict that mirrors the TOML spec.
     This is the single source of truth for all emitters (TOML/JSON/YAML).
@@ -1064,6 +1087,17 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Path to linker state JSON (default: $CODEX_HOME/linker_config.json)",
     )
 
+    p.add_argument(
+        "--delete-all-backups",
+        action="store_true",
+        help="Remove all *.bak files under CODEX_HOME",
+    )
+    p.add_argument(
+        "--confirm-delete-backups",
+        action="store_true",
+        help="Actually delete backups when --delete-all-backups is used",
+    )
+
     # Config tuning per # Config (choices restricted to spec)
     p.add_argument(
         "-q",
@@ -1559,6 +1593,9 @@ def apply_saved_state(
 def main():
     """Entry point for the CLI tool."""
     args = parse_args()
+    if args.delete_all_backups:
+        delete_all_backups(args.confirm_delete_backups)
+        return
     if getattr(args, "version", False):
         print(get_version())
         return
