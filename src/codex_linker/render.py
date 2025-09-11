@@ -13,7 +13,6 @@ from .spec import (
     DEFAULT_VLLM,
     DEFAULT_TGWUI,
     DEFAULT_TGI_8080,
-    DEFAULT_TGI_3000,
     DEFAULT_OPENROUTER_LOCAL,
     PROVIDER_LABELS,
 )
@@ -73,12 +72,18 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
                                 else (
                                     "TGI"
                                     if (
-                                        state.base_url.startswith("http://localhost:8080")
-                                        or state.base_url.startswith("http://localhost:3000")
+                                        state.base_url.startswith(
+                                            "http://localhost:8080"
+                                        )
+                                        or state.base_url.startswith(
+                                            "http://localhost:3000"
+                                        )
                                     )
                                     else (
                                         "OpenRouter Local"
-                                        if state.base_url.startswith("http://localhost:7000")
+                                        if state.base_url.startswith(
+                                            "http://localhost:7000"
+                                        )
                                         else PROVIDER_LABELS.get(
                                             state.provider, state.provider.capitalize()
                                         )
@@ -201,11 +206,17 @@ def to_toml(cfg: Dict) -> str:
     w("tui", cfg.get("tui"))
     w("hide_agent_reasoning", cfg.get("hide_agent_reasoning"))
     w("show_raw_agent_reasoning", cfg.get("show_raw_agent_reasoning"))
-    w("model_supports_reasoning_summaries", cfg.get("model_supports_reasoning_summaries"))
+    w(
+        "model_supports_reasoning_summaries",
+        cfg.get("model_supports_reasoning_summaries"),
+    )
     w("chatgpt_base_url", cfg.get("chatgpt_base_url"))
     w("experimental_resume", cfg.get("experimental_resume"))
     w("experimental_instructions_file", cfg.get("experimental_instructions_file"))
-    w("experimental_use_exec_command_tool", cfg.get("experimental_use_exec_command_tool"))
+    w(
+        "experimental_use_exec_command_tool",
+        cfg.get("experimental_use_exec_command_tool"),
+    )
     w(
         "responses_originator_header_internal_override",
         cfg.get("responses_originator_header_internal_override"),
@@ -268,7 +279,11 @@ def to_toml(cfg: Dict) -> str:
         for k in ("name", "base_url", "wire_api", "api_key_env_var"):
             if k in pf:
                 section_lines.append(f"{k} = {json.dumps(pf[k])}")
-        for k in ("request_max_retries", "stream_max_retries", "stream_idle_timeout_ms"):
+        for k in (
+            "request_max_retries",
+            "stream_max_retries",
+            "stream_idle_timeout_ms",
+        ):
             if k in pf:
                 section_lines.append(f"{k} = {pf[k]}")
         if (
