@@ -21,7 +21,9 @@ def get_version() -> str:
         return "0.0.0"
 
 
-def http_get_json(url: str, timeout: float = 3.0) -> Tuple[Optional[dict], Optional[str]]:
+def http_get_json(
+    url: str, timeout: float = 3.0
+) -> Tuple[Optional[dict], Optional[str]]:
     """Fetch JSON with a short timeout; return (data, error_message)."""
     try:
         with urllib.request.urlopen(url, timeout=timeout) as resp:
