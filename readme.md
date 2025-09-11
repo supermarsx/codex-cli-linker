@@ -501,7 +501,7 @@ Note: We do not include third‑party code in the binary; it is produced directl
 
 ## Changelog
 
-See `changelog.md` for a summary of notable changes by version.
+See [changelog.md](./changelog.md) for a summary of notable changes by version.
 
 
 ## Development
@@ -509,3 +509,7 @@ See `changelog.md` for a summary of notable changes by version.
 See [development.md](./development.md) for CI, release, and code map information.
 
 
+
+## License
+
+Released under the MIT License. See [license.md](./license.md) for details.
