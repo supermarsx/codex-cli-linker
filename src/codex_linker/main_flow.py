@@ -20,7 +20,7 @@ from .io_safe import (
     LINKER_JSON,
     atomic_write_with_backup,
     delete_all_backups,
-    remove_config
+    remove_config,
 )
 from .keychain import store_api_key_in_keychain
 from .state import LinkerState
@@ -31,7 +31,15 @@ from .utils import get_version
 def main():
     """Entry point for the CLI tool."""
     args = parse_args()
-    if getattr(args, "remove_config", False) or getattr(args, "remove_config_no_bak", False):
+    mod = sys.modules.get("codex_cli_linker")
+    home = getattr(mod, "CODEX_HOME", CODEX_HOME)
+    config_toml = getattr(mod, "CONFIG_TOML", CONFIG_TOML)
+    config_json = getattr(mod, "CONFIG_JSON", CONFIG_JSON)
+    config_yaml = getattr(mod, "CONFIG_YAML", CONFIG_YAML)
+    linker_json = getattr(mod, "LINKER_JSON", LINKER_JSON)
+    if getattr(args, "remove_config", False) or getattr(
+        args, "remove_config_no_bak", False
+    ):
         remove_config(getattr(args, "remove_config_no_bak", False))
         return
     if args.delete_all_backups:
@@ -69,7 +77,7 @@ def main():
     args.launch = False
     # Determine state file path
     state_path = (
-        Path(args.state_file) if getattr(args, "state_file", None) else LINKER_JSON
+        Path(args.state_file) if getattr(args, "state_file", None) else linker_json
     )
     state = LinkerState.load(state_path)
     apply_saved_state(args, defaults, state)
@@ -140,11 +148,13 @@ def main():
 
     # Model selection: interactive unless provided
     if args.model:
-        # Accept exact id or a case-insensitive substring with deterministic tie-break
         target = args.model
         chosen = target
         try:
-            models = list_models(state.base_url)
+            lm = getattr(
+                sys.modules.get("codex_cli_linker"), "list_models", list_models
+            )
+            models = lm(state.base_url)
             if target in models:
                 chosen = target
             else:
@@ -154,13 +164,15 @@ def main():
                     chosen = matches[0]
                     ok(f"Selected model by substring match: {chosen}")
         except Exception:
-            # server may be unreachable; fall back to provided value
             pass
         state.model = chosen
         log_event("model_selected", provider=state.provider, model=state.model)
     elif args.auto and args.model_index is not None:
         try:
-            models = list_models(state.base_url)
+            lm = getattr(
+                sys.modules.get("codex_cli_linker"), "list_models", list_models
+            )
+            models = lm(state.base_url)
             idx = args.model_index if args.model_index >= 0 else 0
             if idx >= len(models):
                 idx = 0
@@ -197,7 +209,12 @@ def main():
     # Auto-detect context window if not provided
     if (args.model_context_window or 0) <= 0:
         try:
-            cw = try_auto_context_window(state.base_url, state.model)
+            tacw = getattr(
+                sys.modules.get("codex_cli_linker"),
+                "try_auto_context_window",
+                try_auto_context_window,
+            )
+            cw = tacw(state.base_url, state.model)
             if cw > 0:
                 ok(f"Detected context window: {cw} tokens")
                 args.model_context_window = cw
@@ -243,40 +260,40 @@ def main():
         info("Dry run: no files were written.")
     else:
         # Ensure home dir exists
-        CODEX_HOME.mkdir(parents=True, exist_ok=True)
+        home.mkdir(parents=True, exist_ok=True)
 
         # Always write TOML; JSON/YAML only if flags requested. Normalize blank lines and ensure trailing newline.
         t0 = time.time()
-        atomic_write_with_backup(CONFIG_TOML, toml_out)
+        atomic_write_with_backup(config_toml, toml_out)
         log_event(
             "write_config",
             provider=state.provider,
             model=state.model,
-            path=str(CONFIG_TOML),
+            path=str(config_toml),
             duration_ms=int((time.time() - t0) * 1000),
         )
         ok(f"Wrote {CONFIG_TOML}")
 
         if args.json:
             t1 = time.time()
-            atomic_write_with_backup(CONFIG_JSON, to_json(cfg))
+            atomic_write_with_backup(config_json, to_json(cfg))
             log_event(
                 "write_config",
                 provider=state.provider,
                 model=state.model,
-                path=str(CONFIG_JSON),
+                path=str(config_json),
                 duration_ms=int((time.time() - t1) * 1000),
             )
             ok(f"Wrote {CONFIG_JSON}")
 
         if args.yaml:
             t2 = time.time()
-            atomic_write_with_backup(CONFIG_YAML, to_yaml(cfg))
+            atomic_write_with_backup(config_yaml, to_yaml(cfg))
             log_event(
                 "write_config",
                 provider=state.provider,
                 model=state.model,
-                path=str(CONFIG_YAML),
+                path=str(config_yaml),
                 duration_ms=int((time.time() - t2) * 1000),
             )
             ok(f"Wrote {CONFIG_YAML}")

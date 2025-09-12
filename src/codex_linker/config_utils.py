@@ -5,6 +5,7 @@ from .state import LinkerState
 from .ui import warn
 from .utils import http_get_json
 
+
 def merge_config_defaults(
     args: argparse.Namespace, defaults: argparse.Namespace
 ) -> None:
@@ -26,7 +27,7 @@ def apply_saved_state(
     args: argparse.Namespace, defaults: argparse.Namespace, state: LinkerState
 ) -> None:
     """Apply saved preferences unless the user explicitly provided overrides."""
-    specified = getattr(args, "_explicit", set())
+    specified: set[str] = getattr(args, "_explicit", set())
     for fld in (
         "approval_policy",
         "sandbox_mode",
