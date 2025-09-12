@@ -24,6 +24,7 @@ from .io_safe import (
     LINKER_JSON,
     atomic_write_with_backup,
     delete_all_backups,
+    remove_config,
 )
 from .utils import get_version, http_get_json
 from .main_flow import main
@@ -62,6 +63,7 @@ __all__ = [
     "LINKER_JSON",
     "atomic_write_with_backup",
     "delete_all_backups",
+    "remove_config",
     "get_version",
     "http_get_json",
     "main",

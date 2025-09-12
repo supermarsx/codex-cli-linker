@@ -20,6 +20,7 @@ from .io_safe import (
     LINKER_JSON,
     atomic_write_with_backup,
     delete_all_backups,
+    remove_config
 )
 from .keychain import store_api_key_in_keychain
 from .state import LinkerState
@@ -30,6 +31,9 @@ from .utils import get_version
 def main():
     """Entry point for the CLI tool."""
     args = parse_args()
+    if getattr(args, "remove_config", False) or getattr(args, "remove_config_no_bak", False):
+        remove_config(getattr(args, "remove_config_no_bak", False))
+        return
     if args.delete_all_backups:
         delete_all_backups(args.confirm_delete_backups)
         return
