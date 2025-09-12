@@ -70,16 +70,15 @@ def try_auto_context_window(base_url: str, model_id: str) -> int:
             "max_context_window",
             "n_ctx",
         ):
-            if isinstance(meta.get(k), int) and meta.get(k) > 0:
-                return meta.get(k)
+            val = meta.get(k)
+            if isinstance(val, int) and val > 0:
+                return val
             for subkey in ("metadata", "settings", "config", "parameters"):
                 sub = meta.get(subkey)
-                if (
-                    isinstance(sub, dict)
-                    and isinstance(sub.get(k), int)
-                    and sub.get(k) > 0
-                ):
-                    return sub.get(k)
+                if isinstance(sub, dict):
+                    sub_val = sub.get(k)
+                    if isinstance(sub_val, int) and sub_val > 0:
+                        return sub_val
         return 0
 
     for it in data["data"]:

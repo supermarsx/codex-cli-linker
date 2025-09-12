@@ -1,5 +1,6 @@
 import importlib.util
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 
@@ -33,8 +34,9 @@ def test_state_round_trip(tmp_path):
         history_max_bytes=123,
     )
     state_in.save(path)
+    assert '"api_key"' not in path.read_text(encoding="utf-8")
     state_out = cli.LinkerState.load(path)
-    assert state_out == state_in
+    assert state_out == replace(state_in, api_key="")
 
 
 def test_explicit_defaults_override_saved_state():

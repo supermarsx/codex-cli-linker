@@ -8,6 +8,8 @@ from pathlib import Path
 spec = importlib.util.spec_from_file_location(
     "codex_cli_linker", Path(__file__).resolve().parents[1] / "codex-cli-linker.py"
 )
+if spec is None or spec.loader is None:
+    raise RuntimeError("Failed to load CLI module")
 cli = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = cli
 spec.loader.exec_module(cli)
