@@ -246,11 +246,11 @@ def main():
                 )
                 sys.stdout.writelines(diff)
 
-            show_diff(CONFIG_TOML, toml_out, "config.toml")
+            show_diff(config_toml, toml_out, "config.toml")
             if args.json:
-                show_diff(CONFIG_JSON, to_json(cfg), "config.json")
+                show_diff(config_json, to_json(cfg), "config.json")
             if args.yaml:
-                show_diff(CONFIG_YAML, to_yaml(cfg), "config.yaml")
+                show_diff(config_yaml, to_yaml(cfg), "config.yaml")
         else:
             print(toml_out, end="")
             if args.json:
@@ -272,7 +272,7 @@ def main():
             path=str(config_toml),
             duration_ms=int((time.time() - t0) * 1000),
         )
-        ok(f"Wrote {CONFIG_TOML}")
+        ok(f"Wrote {config_toml}")
 
         if args.json:
             t1 = time.time()
@@ -284,7 +284,7 @@ def main():
                 path=str(config_json),
                 duration_ms=int((time.time() - t1) * 1000),
             )
-            ok(f"Wrote {CONFIG_JSON}")
+            ok(f"Wrote {config_json}")
 
         if args.yaml:
             t2 = time.time()
@@ -296,7 +296,7 @@ def main():
                 path=str(config_yaml),
                 duration_ms=int((time.time() - t2) * 1000),
             )
-            ok(f"Wrote {CONFIG_YAML}")
+            ok(f"Wrote {config_yaml}")
 
         # Save linker state for next run (no secrets)
         state.save(state_path)
@@ -308,9 +308,9 @@ def main():
     )
     # Post-run report
     info("Summary:")
-    print(c(f"  target: {CONFIG_TOML}", CYAN))
+    print(c(f"  target: {config_toml}", CYAN))
     try:
-        last_bak = max(CONFIG_TOML.parent.glob("config.toml.*.bak"), default=None)
+        last_bak = max(config_toml.parent.glob("config.toml.*.bak"), default=None)
     except Exception:
         last_bak = None
     if last_bak:
