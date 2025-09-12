@@ -66,17 +66,12 @@ def ensure_codex_cli() -> List[str]:
 def launch_codex(profile: str) -> int:
     cmd = ensure_codex_cli()
     if os.name == "nt":
+        cmdline = subprocess.list2cmdline(cmd + ["--profile", profile])
         ps = shutil.which("powershell")
         if ps:
-            run_cmd = [
-                ps,
-                "-NoLogo",
-                "-NoProfile",
-                "-Command",
-                " ".join(cmd) + f" --profile {profile}",
-            ]
+            run_cmd = [ps, "-NoLogo", "-NoProfile", "-Command", cmdline]
         else:
-            run_cmd = ["cmd", "/c", " ".join(cmd) + f" --profile {profile}"]
+            run_cmd = ["cmd", "/c", cmdline]
     else:
         run_cmd = cmd + ["--profile", profile]
     return subprocess.run(run_cmd).returncode
