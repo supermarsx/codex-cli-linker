@@ -60,6 +60,27 @@ def atomic_write_with_backup(path: Path, text: str) -> Optional[Path]:
         raise
 
 
+def remove_config(no_backup: bool) -> None:
+    """Remove config files, optionally creating .bak backups."""
+    paths = [CONFIG_TOML, CONFIG_JSON, CONFIG_YAML]
+    removed = 0
+    for path in paths:
+        if path.exists():
+            if no_backup:
+                try:
+                    path.unlink()
+                    info(f"Deleted {path.name}")
+                except Exception as e:  # pragma: no cover
+                    warn(f"Failed to delete {path}: {e}")
+            else:
+                do_backup(path)
+            removed += 1
+    if removed:
+        ok(f"Removed {removed} config file(s)")
+    else:
+        info("No config files found.")
+
+
 def delete_all_backups(confirm: bool) -> None:
     """Remove every *.bak file under CODEX_HOME when confirmed."""
     backups = list(CODEX_HOME.rglob("*.bak"))
@@ -92,5 +113,6 @@ __all__ = [
     "backup",
     "do_backup",
     "atomic_write_with_backup",
+    "remove_config",
     "delete_all_backups",
 ]
