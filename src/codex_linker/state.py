@@ -25,7 +25,9 @@ class LinkerState:
     def save(self, path: Path) -> None:
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(json.dumps(asdict(self), indent=2), encoding="utf-8")
+            data = asdict(self)
+            data.pop("api_key", None)
+            path.write_text(json.dumps(data, indent=2), encoding="utf-8")
         except Exception as e:  # pragma: no cover
             print(f"Could not save state: {e}")
 
