@@ -5,6 +5,8 @@ import logging.handlers
 import os
 import sys
 import urllib.parse
+from typing import Optional
+
 
 def configure_logging(
     verbose: bool,
