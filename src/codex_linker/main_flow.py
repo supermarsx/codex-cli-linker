@@ -12,7 +12,16 @@ from .logging_utils import configure_logging, log_event
 from .render import build_config_dict
 from .emit import to_toml, to_json, to_yaml
 from .detect import list_models, try_auto_context_window
-from .io_safe import (CODEX_HOME, CONFIG_TOML, CONFIG_JSON, CONFIG_YAML, LINKER_JSON, atomic_write_with_backup, delete_all_backups)
+from .io_safe import (
+    CODEX_HOME,
+    CONFIG_TOML,
+    CONFIG_JSON,
+    CONFIG_YAML,
+    LINKER_JSON,
+    atomic_write_with_backup,
+    delete_all_backups,
+    remove_config,
+)
 from .keychain import store_api_key_in_keychain
 from .state import LinkerState
 from .ui import banner, clear_screen, c, info, ok, warn, err, BOLD, CYAN
@@ -21,6 +30,9 @@ from .utils import get_version
 def main():
     """Entry point for the CLI tool."""
     args = parse_args()
+    if getattr(args, "remove_config", False) or getattr(args, "remove_config_no_bak", False):
+        remove_config(getattr(args, "remove_config_no_bak", False))
+        return
     if args.delete_all_backups:
         delete_all_backups(args.confirm_delete_backups)
         return

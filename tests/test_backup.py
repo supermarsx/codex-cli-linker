@@ -81,3 +81,43 @@ def test_delete_backups_with_confirmation(monkeypatch, tmp_path, capsys):
     out = capsys.readouterr().out
     assert "Deleted 2 backup file" in out
     assert not any(tmp_path.glob("*.bak"))
+
+
+def test_remove_config_creates_backup(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path))
+    cfg = tmp_path / "config.toml"
+    cfg.write_text("1", encoding="utf-8")
+    for m in list(sys.modules):
+        if m.startswith("codex_linker") or m == "codex_cli_linker":
+            sys.modules.pop(m)
+    cli = load_cli()
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["codex-cli-linker.py", "--remove-config"],
+    )
+    cli.main()
+    out = capsys.readouterr().out
+    assert "Removed 1 config file" in out
+    assert not cfg.exists()
+    assert list(tmp_path.glob("config.toml.*.bak"))
+
+
+def test_remove_config_no_bak(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path))
+    cfg = tmp_path / "config.toml"
+    cfg.write_text("1", encoding="utf-8")
+    for m in list(sys.modules):
+        if m.startswith("codex_linker") or m == "codex_cli_linker":
+            sys.modules.pop(m)
+    cli = load_cli()
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["codex-cli-linker.py", "--remove-config-no-bak"],
+    )
+    cli.main()
+    out = capsys.readouterr().out
+    assert "Removed 1 config file" in out
+    assert not cfg.exists()
+    assert not list(tmp_path.glob("*.bak"))
