@@ -12,11 +12,20 @@ from .logging_utils import configure_logging, log_event
 from .render import build_config_dict
 from .emit import to_toml, to_json, to_yaml
 from .detect import list_models, try_auto_context_window
-from .io_safe import (CODEX_HOME, CONFIG_TOML, CONFIG_JSON, CONFIG_YAML, LINKER_JSON, atomic_write_with_backup, delete_all_backups)
+from .io_safe import (
+    CODEX_HOME,
+    CONFIG_TOML,
+    CONFIG_JSON,
+    CONFIG_YAML,
+    LINKER_JSON,
+    atomic_write_with_backup,
+    delete_all_backups,
+)
 from .keychain import store_api_key_in_keychain
 from .state import LinkerState
-from .ui import banner, clear_screen, c, info, ok, warn, err, BOLD, CYAN
+from .ui import banner, clear_screen, c, info, ok, warn, err, CYAN
 from .utils import get_version
+
 
 def main():
     """Entry point for the CLI tool."""
@@ -169,7 +178,6 @@ def main():
             err(str(e))
             sys.exit(2)
 
-
     if not args.auto:
         interactive_prompts(args)
 
@@ -294,7 +302,6 @@ def main():
     info("Run Codex manually with:")
     print(c(f"  npx codex --profile {state.profile}", CYAN))
     print(c(f"  codex --profile {state.profile}", CYAN))
-
 
 
 __all__ = ["main"]
