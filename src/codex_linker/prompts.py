@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+import sys
 from typing import List, Optional
 
 from .spec import DEFAULT_LMSTUDIO, DEFAULT_OLLAMA
@@ -39,7 +41,9 @@ def prompt_yes_no(question: str, default: bool = True) -> bool:
 def pick_base_url(state: LinkerState, auto: bool) -> str:
     """Interactively choose or auto-detect the server base URL."""
     if auto:
-        return detect_base_url() or state.base_url or DEFAULT_LMSTUDIO
+        mod = sys.modules.get("codex_cli_linker")
+        det = getattr(mod, "detect_base_url", detect_base_url)
+        return det() or state.base_url or DEFAULT_LMSTUDIO
     print()
     print(c("Choose base URL (OpenAI‑compatible):", BOLD))
     opts = [
@@ -58,14 +62,18 @@ def pick_base_url(state: LinkerState, auto: bool) -> str:
     if choice.startswith("Custom"):
         return input("Enter base URL (e.g., http://localhost:1234/v1): ").strip()
     if choice.startswith("Auto"):
-        return detect_base_url() or input("Enter base URL: ").strip()
+        mod = sys.modules.get("codex_cli_linker")
+        det = getattr(mod, "detect_base_url", detect_base_url)
+        return det() or input("Enter base URL: ").strip()
     return state.base_url
 
 
 def pick_model_interactive(base_url: str, last: Optional[str]) -> str:
     """Prompt the user to choose a model from those available on the server."""
     info(f"Querying models from {base_url} …")
-    models = list_models(base_url)
+    mod = sys.modules.get("codex_cli_linker")
+    lm = getattr(mod, "list_models", list_models)
+    models = lm(base_url)
     print(c("Available models:", BOLD))
     labels = [m + (c("  (last)", CYAN) if m == last else "") for m in models]
     idx = prompt_choice("Pick a model", labels)

@@ -22,7 +22,10 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
 
     # General
     general.add_argument(
-        "-a", "--auto", action="store_true", help="Auto-detect base URL and skip that prompt"
+        "-a",
+        "--auto",
+        action="store_true",
+        help="Auto-detect base URL and skip that prompt",
     )
     general.add_argument(
         "-A",
@@ -31,7 +34,10 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Imply --auto and pick the first model with no prompts",
     )
     general.add_argument(
-        "-L", "--launch", action="store_true", help="(No-op) Auto launch disabled by design"
+        "-L",
+        "--launch",
+        action="store_true",
+        help="(No-op) Auto launch disabled by design",
     )
     general.add_argument(
         "-Q",
@@ -114,7 +120,10 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="model_verbosity (spec)",
     )
     model_opts.add_argument(
-        "-g", "--hide-agent-reasoning", action="store_true", help="Hide agent reasoning messages"
+        "-g",
+        "--hide-agent-reasoning",
+        action="store_true",
+        help="Hide agent reasoning messages",
     )
     model_opts.add_argument(
         "-G",
@@ -141,7 +150,9 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Comma-separated provider ids to add (e.g., lmstudio,ollama)",
     )
     providers.add_argument(
-        "-z", "--azure-api-version", help="If targeting Azure, set query_params.api-version"
+        "-z",
+        "--azure-api-version",
+        help="If targeting Azure, set query_params.api-version",
     )
     providers.add_argument(
         "-C",
@@ -186,7 +197,9 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
 
     # Profiles
     profiles.add_argument("-p", "--profile", help="Profile name, default deduced")
-    profiles.add_argument("-c", "--config-url", help="URL to JSON file with default args")
+    profiles.add_argument(
+        "-c", "--config-url", help="URL to JSON file with default args"
+    )
     profiles.add_argument(
         "-q",
         "--approval-policy",
@@ -330,7 +343,9 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     )
 
     # Other
-    other.add_argument("-T", "--tui", default="table", help="TUI style for interactive prompts")
+    other.add_argument(
+        "-T", "--tui", default="table", help="TUI style for interactive prompts"
+    )
 
     if argv is None:
         argv = sys.argv[1:]
@@ -352,4 +367,3 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
 
 
 __all__ = ["parse_args"]
-

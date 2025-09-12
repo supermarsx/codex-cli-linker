@@ -48,6 +48,49 @@ def test_dry_run_diff_outputs_unified(monkeypatch, tmp_path, capsys):
     assert "---" in out and "+++" in out
 
 
+def test_dry_run_diff_respects_patched_paths(monkeypatch, tmp_path, capsys):
+    cli = load_cli()
+    # Override config paths on the shim module
+    monkeypatch.setattr(cli, "CODEX_HOME", tmp_path)
+    toml = tmp_path / "custom.toml"
+    jsn = tmp_path / "custom.json"
+    yaml = tmp_path / "custom.yaml"
+    monkeypatch.setattr(cli, "CONFIG_TOML", toml)
+    monkeypatch.setattr(cli, "CONFIG_JSON", jsn)
+    monkeypatch.setattr(cli, "CONFIG_YAML", yaml)
+    # create existing files so diffs are emitted
+    toml.write_text("model='before'\n", encoding="utf-8")
+    jsn.write_text('{"old":1}\n', encoding="utf-8")
+    yaml.write_text("old: 1\n", encoding="utf-8")
+    # Avoid network and prompts
+    monkeypatch.setattr(cli, "detect_base_url", lambda *a, **k: cli.DEFAULT_LMSTUDIO)
+    monkeypatch.setattr(cli, "list_models", lambda *a, **k: ["m1", "m2"])
+    monkeypatch.setattr(cli, "try_auto_context_window", lambda *a, **k: 0)
+    monkeypatch.setattr(cli, "clear_screen", lambda: None)
+    monkeypatch.setattr(cli, "banner", lambda: None)
+    # Run main with --dry-run --diff including JSON/YAML
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "codex-cli-linker.py",
+            "--auto",
+            "--model-index",
+            "0",
+            "--dry-run",
+            "--diff",
+            "--json",
+            "--yaml",
+        ],
+        raising=False,
+    )
+    cli.main()
+    out = capsys.readouterr().out
+    assert f"--- {toml}" in out
+    assert f"--- {jsn}" in out
+    assert f"--- {yaml}" in out
+
+
 def test_atomic_write_with_backup(tmp_path):
     cli = load_cli()
     target = tmp_path / "file.txt"

@@ -3,6 +3,7 @@ import json
 import re
 from typing import Dict, List
 
+
 def to_toml(cfg: Dict) -> str:
     """Purpose-built TOML emitter for this config shape."""
 
@@ -205,7 +206,6 @@ def to_yaml(cfg: Dict) -> str:
             return f"{sp}{json.dumps(obj)}"
 
     return dump(cfg) + ""
-
 
 
 __all__ = ["to_toml", "to_json", "to_yaml"]
