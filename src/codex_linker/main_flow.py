@@ -20,12 +20,13 @@ from .io_safe import (
     LINKER_JSON,
     atomic_write_with_backup,
     delete_all_backups,
-    remove_config,
+    remove_config
 )
 from .keychain import store_api_key_in_keychain
 from .state import LinkerState
-from .ui import banner, clear_screen, c, info, ok, warn, err, BOLD, CYAN
+from .ui import banner, clear_screen, c, info, ok, warn, err, CYAN
 from .utils import get_version
+
 
 def main():
     """Entry point for the CLI tool."""
@@ -181,7 +182,6 @@ def main():
             err(str(e))
             sys.exit(2)
 
-
     if not args.auto:
         interactive_prompts(args)
 
@@ -306,7 +306,6 @@ def main():
     info("Run Codex manually with:")
     print(c(f"  npx codex --profile {state.profile}", CYAN))
     print(c(f"  codex --profile {state.profile}", CYAN))
-
 
 
 __all__ = ["main"]
