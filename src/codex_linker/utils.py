@@ -1,8 +1,11 @@
 from __future__ import annotations
 import json
+import os
+import shutil
+import subprocess
 import urllib.request
 import urllib.error
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 try:  # pragma: no cover
     from importlib.metadata import PackageNotFoundError, version as pkg_version
@@ -34,6 +37,51 @@ def http_get_json(
         return None, str(e)
 
 
+def find_codex_cmd() -> Optional[List[str]]:
+    for name in ("codex", "codex.cmd"):
+        path = shutil.which(name)
+        if path:
+            return [path]
+    npx = shutil.which("npx")
+    return [npx, "codex"] if npx else None
+
+
+def ensure_codex_cli() -> List[str]:
+    cmd = find_codex_cmd()
+    if cmd:
+        return cmd
+    npm = shutil.which("npm")
+    if not npm:
+        raise SystemExit("Codex CLI is required but npm is missing")
+    try:
+        subprocess.check_call([npm, "install", "-g", "@openai/codex-cli"])
+    except subprocess.CalledProcessError:
+        raise SystemExit("Codex CLI install failed")
+    cmd = find_codex_cmd()
+    if not cmd:
+        raise SystemExit("Codex CLI is required but not installed")
+    return cmd
+
+
+def launch_codex(profile: str) -> int:
+    cmd = ensure_codex_cli()
+    if os.name == "nt":
+        ps = shutil.which("powershell")
+        if ps:
+            run_cmd = [
+                ps,
+                "-NoLogo",
+                "-NoProfile",
+                "-Command",
+                " ".join(cmd) + f" --profile {profile}",
+            ]
+        else:
+            run_cmd = ["cmd", "/c", " ".join(cmd) + f" --profile {profile}"]
+    else:
+        run_cmd = cmd + ["--profile", profile]
+    return subprocess.run(run_cmd).returncode
+
+
 def log_event(event: str, level: int = 20, **fields) -> None:
     """Structured log helper. Uses stdlib logging; never raises."""
     import logging
@@ -44,4 +92,15 @@ def log_event(event: str, level: int = 20, **fields) -> None:
         pass
 
 
-__all__ = ["get_version", "http_get_json", "log_event"]
+__all__ = [
+    "get_version",
+    "http_get_json",
+    "log_event",
+    "pkg_version",
+    "find_codex_cmd",
+    "ensure_codex_cli",
+    "launch_codex",
+    "os",
+    "shutil",
+    "subprocess",
+]

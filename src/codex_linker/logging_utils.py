@@ -45,7 +45,7 @@ def configure_logging(
     fmt = "%(levelname)s: %(message)s"
     stream = logging.StreamHandler()
     stream.setFormatter(logging.Formatter(fmt))
-    stream._added_by_configure_logging = True
+    setattr(stream, "_added_by_configure_logging", True)
     logger.addHandler(stream)
 
     if log_json:
@@ -71,13 +71,13 @@ def configure_logging(
 
         json_handler = logging.StreamHandler(sys.stdout)
         json_handler.setFormatter(JSONFormatter())
-        json_handler._added_by_configure_logging = True
+        setattr(json_handler, "_added_by_configure_logging", True)
         logger.addHandler(json_handler)
 
     if log_file:
         fh = logging.FileHandler(log_file)
         fh.setFormatter(logging.Formatter(fmt))
-        fh._added_by_configure_logging = True
+        setattr(fh, "_added_by_configure_logging", True)
         logger.addHandler(fh)
 
     if log_remote:
@@ -171,7 +171,7 @@ def configure_logging(
                 super().close()
 
         http_handler = BufferedAsyncHandler(inner)
-        http_handler._added_by_configure_logging = True
+        setattr(http_handler, "_added_by_configure_logging", True)
         logger.addHandler(http_handler)
 
     for handler in logger.handlers:

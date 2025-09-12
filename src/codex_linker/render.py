@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 import argparse
-from typing import Dict
+from typing import Any, Dict
 
 from .state import LinkerState
 from .spec import (
@@ -18,7 +18,9 @@ from .spec import (
 
 def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
     """Translate runtime selections into a config dict matching the TOML spec."""
-    cfg: Dict[str, object] = {
+    # Use ``Any`` for nested values so mypy doesn't complain about deep indexing
+    # within the configuration structure.
+    cfg: Dict[str, Any] = {
         "model": args.model or state.model or "gpt-5",
         "model_provider": state.provider,
         "approval_policy": args.approval_policy,
@@ -160,7 +162,6 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
             "approval_policy": args.approval_policy,
         }
     return cfg
-
 
 
 __all__ = ["build_config_dict"]

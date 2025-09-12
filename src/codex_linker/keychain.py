@@ -5,6 +5,7 @@ import sys
 
 from .ui import ok, warn
 
+
 def _keychain_backend_auto() -> str:
     if sys.platform == "darwin":
         return "macos"
@@ -74,6 +75,7 @@ def store_api_key_in_keychain(backend: str, env_var: str, api_key: str) -> bool:
             try:
                 import ctypes
                 from ctypes import wintypes
+                from typing import Any, cast
 
                 CRED_TYPE_GENERIC = 1
                 CRED_PERSIST_LOCAL_MACHINE = 2
@@ -94,7 +96,8 @@ def store_api_key_in_keychain(backend: str, env_var: str, api_key: str) -> bool:
                         ("UserName", wintypes.LPWSTR),
                     ]
 
-                CredWriteW = ctypes.windll.advapi32.CredWriteW
+                windll = cast(Any, getattr(ctypes, "windll"))
+                CredWriteW = windll.advapi32.CredWriteW
                 CredWriteW.argtypes = [ctypes.POINTER(CREDENTIAL), wintypes.DWORD]
                 CredWriteW.restype = wintypes.BOOL
 
@@ -126,7 +129,6 @@ def store_api_key_in_keychain(backend: str, env_var: str, api_key: str) -> bool:
     except Exception as e:  # pragma: no cover
         warn(f"Keychain storage error: {e}")
         return False
-
 
 
 __all__ = ["store_api_key_in_keychain"]
