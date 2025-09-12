@@ -47,6 +47,7 @@ def test_main_non_dry_run_writes_and_summary(monkeypatch, tmp_path, capsys):
     cli.main()
     out = capsys.readouterr().out
     assert "Summary:" in out and "target:" in out and "profile:" in out
+    assert str(tmp_path / "config.toml") in out
     # files exist
     assert (tmp_path / "config.toml").exists()
     assert (tmp_path / "config.json").exists()
