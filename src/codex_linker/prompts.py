@@ -4,14 +4,14 @@ from typing import List, Optional
 from .spec import DEFAULT_LMSTUDIO, DEFAULT_OLLAMA
 from .detect import detect_base_url, list_models
 from .state import LinkerState
-from .ui import err, c, BOLD, CYAN, info, ok, warn
+from .ui import err, c, BOLD, CYAN, info, warn
 
 
 def prompt_choice(prompt: str, options: List[str]) -> int:
     """Display a numbered list and return the selected zero-based index."""
     for i, opt in enumerate(options, 1):
         print(f"  {i}. {opt}")
-        
+
     while True:
         s = input(f"{prompt} [1-{len(options)}]: ").strip()
         if s.isdigit() and 1 <= int(s) <= len(options):
@@ -123,4 +123,10 @@ def interactive_prompts(args) -> None:
     args.hide_agent_reasoning = not show
 
 
-__all__ = ["prompt_choice", "prompt_yes_no", "pick_base_url", "pick_model_interactive", "interactive_prompts"]
+__all__ = [
+    "prompt_choice",
+    "prompt_yes_no",
+    "pick_base_url",
+    "pick_model_interactive",
+    "interactive_prompts",
+]

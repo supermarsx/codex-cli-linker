@@ -9,8 +9,8 @@ _src = _here / "src"
 if str(_src) not in sys.path and _src.exists():  # pragma: no cover
     sys.path.insert(0, str(_src))
 
-from codex_linker.impl import *  # type: ignore  # noqa: F401,F403
-from codex_linker.impl import main as _entry_main, warn as _warn  # type: ignore
+from codex_linker.impl import *  # type: ignore  # noqa: F401,F403,E402
+from codex_linker.impl import main as _entry_main, warn as _warn  # type: ignore  # noqa: E402
 
 
 if __name__ == "__main__":  # pragma: no cover
