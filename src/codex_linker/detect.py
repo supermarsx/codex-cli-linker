@@ -4,6 +4,7 @@ from __future__ import annotations
 import concurrent.futures
 from typing import List, Optional
 import logging
+import sys
 
 from .spec import COMMON_BASE_URLS
 from .utils import http_get_json, log_event
@@ -18,10 +19,11 @@ def detect_base_url(candidates: List[str] = COMMON_BASE_URLS) -> Optional[str]:
     def probe(base: str):
         logging.debug("Probing %s", base)
         url = base.rstrip("/") + "/models"
+        http = getattr(sys.modules.get("codex_cli_linker"), "http_get_json", http_get_json)
         try:
-            return base, http_get_json(url, timeout=1.5)
+            return base, http(url, timeout=1.5)
         except TypeError:  # tests may stub without timeout kw
-            return base, http_get_json(url)
+            return base, http(url)
 
     executor = concurrent.futures.ThreadPoolExecutor(max_workers=len(candidates))
     futures = [executor.submit(probe, base) for base in candidates]
@@ -50,7 +52,8 @@ def detect_base_url(candidates: List[str] = COMMON_BASE_URLS) -> Optional[str]:
 
 def list_models(base_url: str) -> List[str]:
     """Return the list of model IDs advertised by the server."""
-    data, err_ = http_get_json(base_url.rstrip("/") + "/models")
+    http = getattr(sys.modules.get("codex_cli_linker"), "http_get_json", http_get_json)
+    data, err_ = http(base_url.rstrip("/") + "/models")
     if not data:
         raise RuntimeError(f"Failed to fetch models from {base_url}/models: {err_}")
     return [it.get("id") for it in (data.get("data") or []) if it.get("id")]
@@ -58,7 +61,8 @@ def list_models(base_url: str) -> List[str]:
 
 def try_auto_context_window(base_url: str, model_id: str) -> int:
     """Best-effort context window detection via /models metadata."""
-    data, _ = http_get_json(base_url.rstrip("/") + "/models")
+    http = getattr(sys.modules.get("codex_cli_linker"), "http_get_json", http_get_json)
+    data, _ = http(base_url.rstrip("/") + "/models")
     if not data or "data" not in data or not isinstance(data["data"], list):
         return 0
 
