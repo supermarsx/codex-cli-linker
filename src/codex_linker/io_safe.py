@@ -20,7 +20,14 @@ LINKER_JSON = CODEX_HOME / "linker_config.json"
 def backup(path: Path) -> Optional[Path]:
     """Backup existing file with a timestamped suffix. Returns backup path if created."""
     if path.exists():
-        stamp = datetime.now().strftime("%Y%m%d-%H%M")
+        dt_obj = getattr(sys.modules.get("codex_cli_linker"), "datetime", datetime)
+        if hasattr(dt_obj, "now"):
+            now_fn = dt_obj.now
+        elif hasattr(dt_obj, "datetime") and hasattr(dt_obj.datetime, "now"):
+            now_fn = dt_obj.datetime.now  # type: ignore[attr-defined]
+        else:  # pragma: no cover - fallback safety
+            now_fn = datetime.now
+        stamp = now_fn().strftime("%Y%m%d-%H%M")
         bak = path.with_suffix(f"{path.suffix}.{stamp}.bak")
         try:
             path.replace(bak)
@@ -83,11 +90,12 @@ def remove_config(no_backup: bool) -> None:
 
 def delete_all_backups(confirm: bool) -> None:
     """Remove every *.bak file under CODEX_HOME when confirmed."""
-    backups = list(CODEX_HOME.rglob("*.bak"))
+    home = Path(os.environ.get("CODEX_HOME", str(CODEX_HOME)))
+    backups = list(home.rglob("*.bak"))
     if not confirm:
         warn("Refusing to delete backups without --confirm-delete-backups")
         if backups:
-            info(f"Found {len(backups)} backup file(s) under {CODEX_HOME}")
+            info(f"Found {len(backups)} backup file(s) under {home}")
         sys.exit(1)
     if not backups:
         info("No backup files found.")

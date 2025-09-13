@@ -22,7 +22,7 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
     # within the configuration structure.
     cfg: Dict[str, Any] = {
         "model": args.model or state.model or "gpt-5",
-        "model_provider": state.provider,
+        "model_provider": args.provider or state.provider,
         "approval_policy": args.approval_policy,
         "sandbox_mode": args.sandbox_mode,
         "file_opener": args.file_opener,
@@ -35,7 +35,7 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
         "model_reasoning_effort": args.reasoning_effort,
         "model_reasoning_summary": args.reasoning_summary,
         "model_verbosity": args.verbosity,
-        "profile": state.profile,
+        "profile": args.profile or state.profile,
         "model_context_window": args.model_context_window or 0,
         "model_max_output_tokens": args.model_max_output_tokens or 0,
         "project_doc_max_bytes": args.project_doc_max_bytes,
@@ -56,7 +56,7 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
             "max_bytes": args.history_max_bytes,
         },
         "model_providers": {
-            state.provider: {
+            (args.provider or state.provider): {
                 "name": (
                     "LM Studio"
                     if state.base_url.startswith("http://localhost:1234")
@@ -95,16 +95,16 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
                 ),
                 "base_url": state.base_url.rstrip("/"),
                 "wire_api": "chat",
-                "api_key_env_var": state.env_key,
+                "api_key_env_var": state.env_key or "NULLKEY",
                 "request_max_retries": args.request_max_retries,
                 "stream_max_retries": args.stream_max_retries,
                 "stream_idle_timeout_ms": args.stream_idle_timeout_ms,
             }
         },
         "profiles": {
-            state.profile: {
+            (args.profile or state.profile): {
                 "model": args.model or state.model or "gpt-5",
-                "model_provider": state.provider,
+                "model_provider": args.provider or state.provider,
                 "model_context_window": args.model_context_window or 0,
                 "model_max_output_tokens": args.model_max_output_tokens or 0,
                 "approval_policy": args.approval_policy,
@@ -112,7 +112,7 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
         },
     }
     if args.azure_api_version:
-        cfg["model_providers"][state.provider]["query_params"] = {
+        cfg["model_providers"][args.provider or state.provider]["query_params"] = {
             "api-version": args.azure_api_version
         }
     extra = getattr(args, "providers_list", []) or []
