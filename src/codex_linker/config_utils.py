@@ -39,7 +39,9 @@ def apply_saved_state(
         "history_max_bytes",
     ):
         if fld not in specified and getattr(args, fld) == getattr(defaults, fld):
-            setattr(args, fld, getattr(state, fld))
+            val = getattr(state, fld)
+            if val:
+                setattr(args, fld, val)
 
 
 # =============== Main flow ===============

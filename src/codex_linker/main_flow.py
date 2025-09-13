@@ -32,11 +32,17 @@ def main():
     """Entry point for the CLI tool."""
     args = parse_args()
     mod = sys.modules.get("codex_cli_linker")
-    home = getattr(mod, "CODEX_HOME", CODEX_HOME)
-    config_toml = getattr(mod, "CONFIG_TOML", CONFIG_TOML)
-    config_json = getattr(mod, "CONFIG_JSON", CONFIG_JSON)
-    config_yaml = getattr(mod, "CONFIG_YAML", CONFIG_YAML)
-    linker_json = getattr(mod, "LINKER_JSON", LINKER_JSON)
+    home = Path(os.environ.get("CODEX_HOME", str(CODEX_HOME)))
+    if "CODEX_HOME" in os.environ:
+        config_toml = home / "config.toml"
+        config_json = home / "config.json"
+        config_yaml = home / "config.yaml"
+        linker_json = home / "linker_config.json"
+    else:
+        config_toml = Path(getattr(mod, "CONFIG_TOML", home / "config.toml"))
+        config_json = Path(getattr(mod, "CONFIG_JSON", home / "config.json"))
+        config_yaml = Path(getattr(mod, "CONFIG_YAML", home / "config.yaml"))
+        linker_json = Path(getattr(mod, "LINKER_JSON", home / "linker_config.json"))
     if getattr(args, "remove_config", False) or getattr(
         args, "remove_config_no_bak", False
     ):
@@ -83,13 +89,14 @@ def main():
     apply_saved_state(args, defaults, state)
 
     # Base URL: auto-detect or prompt
+    picker = getattr(sys.modules.get("codex_cli_linker"), "pick_base_url", pick_base_url)
     if args.auto:
-        base = args.base_url or pick_base_url(state, True)
+        base = args.base_url or picker(state, True)
     else:
         if getattr(args, "yes", False) and not args.base_url:
             err("--yes provided but no --base-url; refusing to prompt.")
             sys.exit(2)
-        base = args.base_url or pick_base_url(state, False)
+        base = args.base_url or picker(state, False)
     state.base_url = base
 
     # Infer a safe default provider from the base URL (localhost:1234 → lmstudio, 11434 → ollama, otherwise 'custom').

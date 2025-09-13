@@ -3,9 +3,11 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import urllib.request
 import urllib.error
-from typing import List, Optional, Tuple
+from pathlib import Path
+from typing import Callable, List, Optional, Tuple
 
 try:  # pragma: no cover
     from importlib.metadata import PackageNotFoundError, version as pkg_version
@@ -17,11 +19,24 @@ except Exception:  # pragma: no cover
 
 
 def get_version() -> str:
-    """Return installed package version or '0.0.0'."""
+    """Return installed package version or derive from pyproject.
+
+    Falls back to ``0.0.0+unknown`` when no metadata is available."""
+    pv = getattr(sys.modules.get("codex_cli_linker"), "pkg_version", pkg_version)
     try:
-        return pkg_version("codex-cli-linker")
-    except PackageNotFoundError:  # pragma: no cover - when running from source
-        return "0.0.0"
+        return pv("codex-cli-linker")
+    except Exception:
+        pass
+    try:
+        import tomllib
+
+        pyproj = Path(__file__).resolve().parents[2] / "pyproject.toml"
+        if pyproj.exists():
+            data = tomllib.loads(pyproj.read_text(encoding="utf-8"))
+            return data.get("project", {}).get("version", "0.0.0")
+    except Exception:
+        pass
+    return "0.0.0+unknown"
 
 
 def http_get_json(
@@ -38,16 +53,21 @@ def http_get_json(
 
 
 def find_codex_cmd() -> Optional[List[str]]:
+    """Locate the Codex CLI, preferring bare command names.
+
+    Returning command names keeps subprocess invocations predictable and
+    simplifies testing where absolute paths may vary.
+    """
     for name in ("codex", "codex.cmd"):
         path = shutil.which(name)
-        if path:
-            return [path]
-    npx = shutil.which("npx")
-    return [npx, "codex"] if npx else None
+        if path and os.path.basename(path).startswith("codex"):
+            return [name]
+    return ["npx", "codex"] if shutil.which("npx") else None
 
 
 def ensure_codex_cli() -> List[str]:
-    cmd = find_codex_cmd()
+    finder = getattr(sys.modules.get("codex_cli_linker"), "find_codex_cmd", find_codex_cmd)
+    cmd = finder()
     if cmd:
         return cmd
     npm = shutil.which("npm")
@@ -57,24 +77,36 @@ def ensure_codex_cli() -> List[str]:
         subprocess.check_call([npm, "install", "-g", "@openai/codex-cli"])
     except subprocess.CalledProcessError:
         raise SystemExit("Codex CLI install failed")
-    cmd = find_codex_cmd()
+    cmd = finder()
     if not cmd:
         raise SystemExit("Codex CLI is required but not installed")
     return cmd
 
 
-def launch_codex(profile: str) -> int:
-    cmd = ensure_codex_cli()
+def launch_codex(
+    profile: str, ensure: Optional[Callable[[], List[str]]] = None
+) -> int:
+    """Launch the external Codex CLI with the given profile.
+
+    ``ensure`` allows callers (and tests) to supply a custom ``ensure_codex_cli``
+    implementation. KeyboardInterrupts are converted into the conventional exit
+    code ``130`` instead of bubbling up.
+    """
+    ensure = ensure or ensure_codex_cli
+    cmd = ensure()
     if os.name == "nt":
         cmdline = subprocess.list2cmdline(cmd + ["--profile", profile])
         ps = shutil.which("powershell")
         if ps:
-            run_cmd = [ps, "-NoLogo", "-NoProfile", "-Command", cmdline]
+            run_cmd = ["powershell", "-NoLogo", "-NoProfile", "-Command", cmdline]
         else:
             run_cmd = ["cmd", "/c", cmdline]
     else:
         run_cmd = cmd + ["--profile", profile]
-    return subprocess.run(run_cmd).returncode
+    try:
+        return subprocess.run(run_cmd).returncode
+    except KeyboardInterrupt:
+        return 130
 
 
 def log_event(event: str, level: int = 20, **fields) -> None:
