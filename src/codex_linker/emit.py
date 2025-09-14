@@ -192,7 +192,7 @@ def to_yaml(cfg: Dict) -> str:
                     out.append(dump(v, indent + 1))
                 else:
                     out.append(f"{sp}{k}: {json.dumps(v)}")
-            return "".join(out)
+            return "\n".join(out)
         elif isinstance(obj, list):
             out: List[str] = []
             for v in obj:
@@ -201,11 +201,11 @@ def to_yaml(cfg: Dict) -> str:
                     out.append(dump(v, indent + 1))
                 else:
                     out.append(f"{sp}- {json.dumps(v)}")
-            return "".join(out)
+            return "\n".join(out)
         else:
             return f"{sp}{json.dumps(obj)}"
 
-    return dump(cfg) + ""
+    return dump(cfg) + "\n"
 
 
 __all__ = ["to_toml", "to_json", "to_yaml"]
