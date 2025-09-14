@@ -14,12 +14,14 @@ from .spec import (
     DEFAULT_OPENROUTER_LOCAL,
     PROVIDER_LABELS,
 )
+from .utils import resolve_provider
 
 
 def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
     """Translate runtime selections into a config dict matching the TOML spec."""
     # Use ``Any`` for nested values so mypy doesn't complain about deep indexing
     # within the configuration structure.
+    resolved = resolve_provider(state.base_url)
     cfg: Dict[str, Any] = {
         "model": args.model or state.model or "gpt-5",
         "model_provider": args.provider or state.provider,
@@ -57,41 +59,9 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
         },
         "model_providers": {
             (args.provider or state.provider): {
-                "name": (
-                    "LM Studio"
-                    if state.base_url.startswith("http://localhost:1234")
-                    else (
-                        "Ollama"
-                        if state.base_url.startswith("http://localhost:11434")
-                        else (
-                            "vLLM"
-                            if state.base_url.startswith("http://localhost:8000")
-                            else (
-                                "Text-Gen-WebUI"
-                                if state.base_url.startswith("http://localhost:5000")
-                                else (
-                                    "TGI"
-                                    if (
-                                        state.base_url.startswith(
-                                            "http://localhost:8080"
-                                        )
-                                        or state.base_url.startswith(
-                                            "http://localhost:3000"
-                                        )
-                                    )
-                                    else (
-                                        "OpenRouter Local"
-                                        if state.base_url.startswith(
-                                            "http://localhost:7000"
-                                        )
-                                        else PROVIDER_LABELS.get(
-                                            state.provider, state.provider.capitalize()
-                                        )
-                                    )
-                                )
-                            )
-                        )
-                    )
+                "name": PROVIDER_LABELS.get(
+                    resolved,
+                    resolved.capitalize(),
                 ),
                 "base_url": state.base_url.rstrip("/"),
                 "wire_api": "chat",
