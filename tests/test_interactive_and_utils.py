@@ -174,3 +174,10 @@ def test_ui_helpers_no_crash(monkeypatch, capsys):
     # clear_screen and banner shouldn't raise
     cli.clear_screen()
     cli.banner()
+
+
+def test_resolve_provider_mapping():
+    cli = load_cli()
+    assert cli.resolve_provider(cli.DEFAULT_LMSTUDIO) == "lmstudio"
+    assert cli.resolve_provider(cli.DEFAULT_OLLAMA) == "ollama"
+    assert cli.resolve_provider("http://example.com/v1") == "custom"
