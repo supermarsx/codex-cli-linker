@@ -82,6 +82,7 @@ urllib = _impl.urllib
 logging = _impl.logging
 datetime = _impl.datetime
 main = _impl.main
+resolve_provider = _impl.resolve_provider
 
 __all__ = [
     "parse_args",
@@ -150,6 +151,7 @@ __all__ = [
     "logging",
     "datetime",
     "main",
+    "resolve_provider",
 ]
 
 

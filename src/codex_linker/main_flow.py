@@ -14,10 +14,6 @@ from .emit import to_toml, to_json, to_yaml
 from .detect import list_models, try_auto_context_window
 from .io_safe import (
     CODEX_HOME,
-    CONFIG_TOML,
-    CONFIG_JSON,
-    CONFIG_YAML,
-    LINKER_JSON,
     atomic_write_with_backup,
     delete_all_backups,
     remove_config,
@@ -25,7 +21,7 @@ from .io_safe import (
 from .keychain import store_api_key_in_keychain
 from .state import LinkerState
 from .ui import banner, clear_screen, c, info, ok, warn, err, CYAN
-from .utils import get_version
+from .utils import get_version, resolve_provider
 
 
 def main():
@@ -89,7 +85,9 @@ def main():
     apply_saved_state(args, defaults, state)
 
     # Base URL: auto-detect or prompt
-    picker = getattr(sys.modules.get("codex_cli_linker"), "pick_base_url", pick_base_url)
+    picker = getattr(
+        sys.modules.get("codex_cli_linker"), "pick_base_url", pick_base_url
+    )
     if args.auto:
         base = args.base_url or picker(state, True)
     else:
@@ -100,34 +98,7 @@ def main():
     state.base_url = base
 
     # Infer a safe default provider from the base URL (localhost:1234 → lmstudio, 11434 → ollama, otherwise 'custom').
-    default_provider = (
-        "lmstudio"
-        if base.startswith("http://localhost:1234")
-        else (
-            "ollama"
-            if base.startswith("http://localhost:11434")
-            else (
-                "vllm"
-                if base.startswith("http://localhost:8000")
-                else (
-                    "tgwui"
-                    if base.startswith("http://localhost:5000")
-                    else (
-                        "tgi"
-                        if (
-                            base.startswith("http://localhost:8080")
-                            or base.startswith("http://localhost:3000")
-                        )
-                        else (
-                            "openrouter"
-                            if base.startswith("http://localhost:7000")
-                            else "custom"
-                        )
-                    )
-                )
-            )
-        )
-    )
+    default_provider = resolve_provider(base)
     state.provider = args.provider or default_provider
     if state.provider == "custom":
         state.provider = (
