@@ -4,17 +4,14 @@ from pathlib import Path
 import sys
 import importlib
 
+
 def _load_modules():
-    try:
-        impl = importlib.import_module("codex_linker.impl")
-        utils = importlib.import_module("codex_linker.utils")
-    except ModuleNotFoundError:  # pragma: no cover
-        _here = Path(__file__).resolve().parent
-        _src = _here / "src"
-        if str(_src) not in sys.path and _src.exists():
-            sys.path.insert(0, str(_src))
-        impl = importlib.import_module("codex_linker.impl")
-        utils = importlib.import_module("codex_linker.utils")
+    _here = Path(__file__).resolve().parent
+    _src = _here / "src"
+    if _src.exists() and str(_src) not in sys.path:
+        sys.path.insert(0, str(_src))
+    impl = importlib.import_module("codex_linker.impl")
+    utils = importlib.import_module("codex_linker.utils")
     return impl, utils
 
 
