@@ -9,6 +9,16 @@ import urllib.error
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple
 
+from .spec import (
+    DEFAULT_LMSTUDIO,
+    DEFAULT_OLLAMA,
+    DEFAULT_VLLM,
+    DEFAULT_TGWUI,
+    DEFAULT_TGI_8080,
+    DEFAULT_TGI_3000,
+    DEFAULT_OPENROUTER_LOCAL,
+)
+
 try:  # pragma: no cover
     from importlib.metadata import PackageNotFoundError, version as pkg_version
 except Exception:  # pragma: no cover
@@ -52,6 +62,25 @@ def http_get_json(
         return None, str(e)
 
 
+_PROVIDER_PREFIXES = {
+    DEFAULT_LMSTUDIO.rsplit("/v1", 1)[0]: "lmstudio",
+    DEFAULT_OLLAMA.rsplit("/v1", 1)[0]: "ollama",
+    DEFAULT_VLLM.rsplit("/v1", 1)[0]: "vllm",
+    DEFAULT_TGWUI.rsplit("/v1", 1)[0]: "tgwui",
+    DEFAULT_TGI_8080.rsplit("/v1", 1)[0]: "tgi",
+    DEFAULT_TGI_3000.rsplit("/v1", 1)[0]: "tgi",
+    DEFAULT_OPENROUTER_LOCAL.rsplit("/v1", 1)[0]: "openrouter",
+}
+
+
+def resolve_provider(base_url: str) -> str:
+    """Map a base URL to a known provider id or ``custom``."""
+    for prefix, pid in _PROVIDER_PREFIXES.items():
+        if base_url.startswith(prefix):
+            return pid
+    return "custom"
+
+
 def find_codex_cmd() -> Optional[List[str]]:
     """Locate the Codex CLI, preferring bare command names.
 
@@ -66,7 +95,9 @@ def find_codex_cmd() -> Optional[List[str]]:
 
 
 def ensure_codex_cli() -> List[str]:
-    finder = getattr(sys.modules.get("codex_cli_linker"), "find_codex_cmd", find_codex_cmd)
+    finder = getattr(
+        sys.modules.get("codex_cli_linker"), "find_codex_cmd", find_codex_cmd
+    )
     cmd = finder()
     if cmd:
         return cmd
@@ -83,9 +114,7 @@ def ensure_codex_cli() -> List[str]:
     return cmd
 
 
-def launch_codex(
-    profile: str, ensure: Optional[Callable[[], List[str]]] = None
-) -> int:
+def launch_codex(profile: str, ensure: Optional[Callable[[], List[str]]] = None) -> int:
     """Launch the external Codex CLI with the given profile.
 
     ``ensure`` allows callers (and tests) to supply a custom ``ensure_codex_cli``
@@ -122,6 +151,7 @@ def log_event(event: str, level: int = 20, **fields) -> None:
 __all__ = [
     "get_version",
     "http_get_json",
+    "resolve_provider",
     "log_event",
     "pkg_version",
     "find_codex_cmd",

@@ -68,6 +68,7 @@ from .utils import (
     find_codex_cmd,
     ensure_codex_cli,
     launch_codex,
+    resolve_provider,
 )
 from .main_flow import main
 
@@ -121,6 +122,7 @@ __all__ = [
     "find_codex_cmd",
     "ensure_codex_cli",
     "launch_codex",
+    "resolve_provider",
     "CODEX_HOME",
     "CONFIG_TOML",
     "CONFIG_JSON",
