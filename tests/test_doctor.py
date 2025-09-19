@@ -240,9 +240,7 @@ class DoctorSuccessTests(unittest.TestCase):
 
                 info_messages: list[str] = []
 
-                with mock.patch(
-                    "codex_linker.doctor._http_post_json", side_effect=fake_post
-                ), mock.patch(
+                with mock.patch("codex_linker.doctor._http_post_json", side_effect=fake_post), mock.patch(
                     "codex_linker.doctor._probe_feature_support",
                     return_value=(feature_check, feature_status, suggestions),
                 ), mock.patch(
@@ -296,6 +294,67 @@ class DoctorFailureTests(unittest.TestCase):
                 exit_code = run_doctor(args, home, [config], state=state, timeout=0.1)
 
         self.assertEqual(exit_code, 1)
+
+
+
+
+
+class DoctorHelperParsingTests(unittest.TestCase):
+    def test_parse_chat_response_handles_error_and_truncation(self) -> None:
+        success, detail = doctor._parse_chat_response({"error": {"message": "bad"}}, None)
+        assert success is False and detail == "bad"
+        long_text = "pong " * 20
+        payload = {
+            "choices": [
+                {
+                    "message": {
+                        "content": [
+                            {"type": "text", "text": long_text},
+                            {"type": "text", "text": "extra"},
+                        ]
+                    }
+                }
+            ]
+        }
+        success, detail = doctor._parse_chat_response(payload, None)
+        assert success is True
+        assert detail.startswith("Received reply:")
+        assert detail.endswith("...")
+
+    def test_parse_chat_response_missing_content(self) -> None:
+        success, detail = doctor._parse_chat_response({"choices": []}, None)
+        assert success is False and detail == "Response missing choices"
+        success, detail = doctor._parse_chat_response(None, "boom")
+        assert success is False and detail == "boom"
+
+    def test_parse_completions_response_paths(self) -> None:
+        success, detail = doctor._parse_completions_response({"error": "x"}, None)
+        assert success is False and detail == "Completion error"
+        payload = {"choices": [{"text": " completion text with spaces "}]}
+        success, detail = doctor._parse_completions_response(payload, None)
+        assert success is True
+        assert detail.startswith("Received completion:")
+
+    def test_extract_text_from_list(self) -> None:
+        parts = [
+            {"text": " part1 "},
+            {"text": ""},
+            {"text": "part2"},
+        ]
+        assert doctor._extract_text(parts) == "part1 part2"
+
+
+class DoctorProbeBehaviourTests(unittest.TestCase):
+    def test_probe_filesystem_cleans_up(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "home"
+            target = home / "config.toml"
+            success, detail = doctor._probe_filesystem(home, [target])
+            assert success is True
+            assert str(home) in detail
+            assert not list(home.glob("*.doctor"))
+
+
 
 
 if __name__ == "__main__":  # pragma: no cover
