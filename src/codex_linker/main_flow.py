@@ -22,6 +22,78 @@ from .keychain import store_api_key_in_keychain
 from .state import LinkerState
 from .ui import banner, clear_screen, c, info, ok, warn, err, CYAN
 from .utils import get_version, resolve_provider
+from .updates import (
+    check_for_updates,
+    determine_update_sources,
+    detect_install_origin,
+    UpdateCheckResult,
+)
+from .doctor import run_doctor
+
+
+def _label_source(name: str) -> str:
+    mapping = {"github": "GitHub", "pypi": "PyPI"}
+    return mapping.get(name.lower(), name.title())
+
+
+def _label_origin(origin: str) -> str:
+    mapping = {"pypi": "PyPI install", "git": "Git checkout", "binary": "packaged binary", "homebrew": "Homebrew tap", "brew": "Homebrew tap", "scoop": "Scoop install"}
+    return mapping.get(origin.lower(), origin or "unknown")
+
+
+def _log_update_sources(result: UpdateCheckResult, forced: bool, origin: str) -> None:
+    for src in result.sources:
+        log_event(
+            "update_check_source",
+            source=src.name,
+            version=src.version or "",
+            error=src.error or None,
+            forced=forced,
+            origin=origin,
+            used_cache=result.used_cache,
+        )
+
+
+def _report_update_status(
+    result: UpdateCheckResult,
+    current_version: str,
+    *,
+    forced: bool,
+    verbose: bool,
+    origin: str,
+) -> None:
+    origin_label = _label_origin(origin)
+    sources_label = ", ".join(_label_source(src.name) for src in result.sources)
+    if forced:
+        info(f"Current version: {current_version}")
+    if (forced or verbose) and sources_label:
+        info(f"Detected {origin_label}; checking {sources_label} for updates.")
+    elif (forced or verbose) and not sources_label:
+        warn(f"No update sources configured for origin '{origin}'.")
+    all_failed = len(result.errors) == len(result.sources)
+    if forced or verbose or result.has_newer or all_failed:
+        for src in result.sources:
+            label = _label_source(src.name)
+            if src.version:
+                info(f"{label} latest: {src.version}")
+                if (forced or result.has_newer) and src.url:
+                    info(f"{label} release: {src.url}")
+            if src.error and (forced or verbose or all_failed):
+                warn(f"{label} check error: {src.error}")
+    if result.has_newer:
+        summary = ", ".join(
+            f"{_label_source(src.name)} {src.version}"
+            for src in result.newer_sources
+            if src.version
+        )
+        if summary:
+            warn(f"Update available ({summary}); current version is {current_version}.")
+        else:
+            warn(f"Update available; current version is {current_version}.")
+    elif forced or (verbose and not result.errors):
+        ok("codex-cli-linker is up to date.")
+
+
 
 
 def main():
@@ -47,8 +119,24 @@ def main():
     if args.delete_all_backups:
         delete_all_backups(args.confirm_delete_backups)
         return
+    current_version = get_version()
+    install_origin = detect_install_origin()
+    update_sources = determine_update_sources(install_origin)
+    log_event("update_origin_detected", origin=install_origin, sources=",".join(update_sources))
+    sources_arg = update_sources or None
+    if getattr(args, "check_updates", False):
+        try:
+            result = check_for_updates(current_version, home, force=True, sources=sources_arg)
+        except Exception as exc:
+            warn(f"Update check failed: {exc}")
+            log_event("update_check_failed", forced=True, origin=install_origin, error=str(exc))
+            return
+        _log_update_sources(result, forced=True, origin=install_origin)
+        _report_update_status(result, current_version, forced=True, verbose=True, origin=install_origin)
+        log_event("update_check_completed", forced=True, origin=install_origin, newer=result.has_newer, used_cache=result.used_cache, sources=",".join(update_sources))
+        return
     if getattr(args, "version", False):
-        print(get_version())
+        print(current_version)
         return
     # Trim banners on non-TTY or when NO_COLOR is set
     is_tty = bool(getattr(sys.stdout, "isatty", lambda: False)())
@@ -78,11 +166,44 @@ def main():
     # Hard-disable auto launch regardless of flags
     args.launch = False
     # Determine state file path
-    state_path = (
-        Path(args.state_file) if getattr(args, "state_file", None) else linker_json
-    )
+    state_file_override = getattr(args, "state_file", None)
+    workspace_state_path = Path.cwd() / ".codex-linker.json"
+    use_workspace_state = getattr(args, "workspace_state", False)
+    if state_file_override:
+        state_path = Path(state_file_override)
+    else:
+        if not use_workspace_state and workspace_state_path.exists():
+            use_workspace_state = True
+        state_path = workspace_state_path if use_workspace_state else linker_json
     state = LinkerState.load(state_path)
+    log_event(
+        "state_path_selected",
+        path=str(state_path),
+        workspace=bool(use_workspace_state),
+        override=bool(state_file_override),
+    )
     apply_saved_state(args, defaults, state)
+
+    if getattr(args, "doctor", False):
+        targets = [config_toml]
+        if args.json:
+            targets.append(config_json)
+        if args.yaml:
+            targets.append(config_yaml)
+        exit_code = run_doctor(args, home, targets, state=state)
+        sys.exit(exit_code)
+
+    if not getattr(args, "no_update_check", False):
+        try:
+            update_result = check_for_updates(current_version, home, sources=sources_arg)
+        except Exception as exc:
+            log_event("update_check_failed", forced=False, origin=install_origin, error=str(exc))
+            if args.verbose:
+                warn(f"Update check failed: {exc}")
+        else:
+            _log_update_sources(update_result, forced=False, origin=install_origin)
+            _report_update_status(update_result, current_version, forced=False, verbose=args.verbose, origin=install_origin)
+            log_event("update_check_completed", forced=False, origin=install_origin, newer=update_result.has_newer, used_cache=update_result.used_cache, sources=",".join(update_sources))
 
     # Base URL: auto-detect or prompt
     picker = getattr(

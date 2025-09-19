@@ -82,6 +82,9 @@ def pick_model_interactive(base_url: str, last: Optional[str]) -> str:
 
 def interactive_prompts(args) -> None:
     """Collect additional configuration choices interactively."""
+    print()
+    print(c("CODEX CLI LINKER", BOLD))
+    print()
     # APPROVAL POLICY (all allowed by spec)
     ap_opts = ["untrusted", "on-failure"]
     print()

@@ -70,6 +70,15 @@ from .utils import (
     launch_codex,
     resolve_provider,
 )
+from .updates import (
+    check_for_updates,
+    determine_update_sources,
+    detect_install_origin,
+    is_version_newer,
+    SourceResult,
+    UpdateCheckResult,
+)
+from .doctor import run_doctor
 from .main_flow import main
 
 __all__ = [
@@ -132,6 +141,13 @@ __all__ = [
     "delete_all_backups",
     "remove_config",
     "get_version",
+    "check_for_updates",
+    "determine_update_sources",
+    "detect_install_origin",
+    "is_version_newer",
+    "SourceResult",
+    "UpdateCheckResult",
+    "run_doctor",
     "http_get_json",
     "os",
     "shutil",

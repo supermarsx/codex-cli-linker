@@ -1,0 +1,25 @@
+{
+  "version": "0.1.2",
+  "description": "Generate Codex CLI profiles for local LLM servers",
+  "homepage": "https://github.com/supermarsx/codex-cli-linker",
+  "license": "MIT",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/supermarsx/codex-cli-linker/releases/download/v0.1.2/codex-cli-linker-windows-x64.exe",
+      "hash": "A3B996A0C52F5A48A25BB2A3F319CC1C47F63F5081A362AECE64ACCE073C38CD"
+    }
+  },
+  "bin": [
+    ["codex-cli-linker-windows-x64.exe", "codex-cli-linker"]
+  ],
+  "checkver": {
+    "github": "https://github.com/supermarsx/codex-cli-linker"
+  },
+  "autoupdate": {
+    "architecture": {
+      "64bit": {
+        "url": "https://github.com/supermarsx/codex-cli-linker/releases/download/v$version/codex-cli-linker-windows-x64.exe"
+      }
+    }
+  }
+}

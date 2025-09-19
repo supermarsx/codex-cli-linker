@@ -22,7 +22,7 @@
 - Optionally emit `config.json` and `config.yaml` siblings
 - Back up existing config files before writing
 - Preview configs without writing files via `--dry-run`
-- Persist lightweight linker state (no secrets) to `~/.codex/linker_config.json`
+- Persist lightweight linker state (no secrets) to `~/.codex/linker_config.json`; `--workspace-state` prefers `./.codex-linker.json`
 - Merge remote default values via `--config-url` before prompting
 - Expose verbose and remote logging controls (`--verbose`, `--log-file`, `--log-json`, `--log-remote`)
 - Offer helpful, colorized, cross‑platform UX
@@ -131,6 +131,11 @@ save linker state → show next‑step hints
 - `--yaml` — also write `~/.codex/config.yaml`
 - `--dry-run` — print configs to stdout without writing or backing up files
 - `--open-config` — after writing, print a command to open `config.toml` in the selected editor (`--file-opener`). This prints only; it never executes the editor.
+### State & diagnostics
+- `--workspace-state` - prefer `./.codex-linker.json` for linker state (auto-created) instead of `$CODEX_HOME/linker_config.json`
+- `--doctor` - run preflight checks (base URL probe, `/v1/models`, chat echo, filesystem write) and exit success/failure
+- `--doctor-detect-features` - with `--doctor`, attempt tool-choice/response-format/reasoning requests to report optional feature support
+
 
 > A `--launch` flag exists but is a no‑op by design (manual Codex launch is recommended). The script can inform how to run: `npx codex --profile <name>` or `codex --profile <name>`. A helper `launch_codex(profile)` is available for cross‑platform execution (cmd, PowerShell, POSIX shells) and returns the CLI's exit code while logging the command.
 
@@ -146,7 +151,7 @@ save linker state → show next‑step hints
 - **Log file**: when `--log-file` is supplied, logs append to the given path.
 - **Remote defaults**: `--config-url` fetches a JSON file whose values are merged in-memory and not persisted.
 - **Backups**: When rewriting, existing files are moved to `<name>.<ext>.<YYYYMMDD-HHMM>.bak` allowing multiple versions to accumulate.
-- **Linker state**: `~/.codex/linker_config.json` (stores base URL, provider id, profile name, model id, approval policy, sandbox mode, reasoning defaults, verbosity, and history toggles; **no secrets**).
+- **Linker state**: `~/.codex/linker_config.json` (or `./.codex-linker.json` when `--workspace-state` is active); stores base URL, provider id, profile name, model id, approval policy, sandbox mode, reasoning defaults, verbosity, and history toggles; **no secrets**).
 - **Helper scripts**: `scripts/set_env.sh` and `scripts/set_env.bat` — set `NULLKEY` env var (customizable via `--env-key-name`).
 
 ---
@@ -417,7 +422,7 @@ python codex-cli-linker.py \
   - Root fields aligned with chosen flags and with empties omitted
 - If existing config exists, a `.bak` appears alongside the new file.
 - `--json` and/or `--yaml` produce valid, parseable siblings.
-- Linker state is created/updated and contains no secrets.
+- Linker state (home or workspace file) is created/updated and contains no secrets.
 
 ---
 

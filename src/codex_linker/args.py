@@ -74,6 +74,21 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         "-V", "--version", action="store_true", help="Print version and exit"
     )
     general.add_argument(
+        "--doctor",
+        action="store_true",
+        help="Run preflight diagnostics (connectivity, permissions), then exit",
+    )
+    general.add_argument(
+        "--check-updates",
+        action="store_true",
+        help="Check for new releases on GitHub and PyPI, then exit",
+    )
+    general.add_argument(
+        "--no-update-check",
+        action="store_true",
+        help="Skip automatic update checks",
+    )
+    general.add_argument(
         "-F",
         "--clear",
         action="store_true",
@@ -333,6 +348,11 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         "-x",
         "--state-file",
         help="Path to linker state JSON (default: $CODEX_HOME/linker_config.json)",
+    )
+    file_mgmt.add_argument(
+        "--workspace-state",
+        action="store_true",
+        help="Use .codex-linker.json in the current directory for state (overrides CODEX_HOME)",
     )
     file_mgmt.add_argument(
         "--open-config",
