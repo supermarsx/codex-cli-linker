@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import sys
 from typing import List, Optional
 
@@ -38,12 +39,79 @@ def prompt_yes_no(question: str, default: bool = True) -> bool:
         err("Please answer y or n.")
 
 
+def _call_detect_base_url(det, state: LinkerState, auto: bool) -> str:
+    try:
+        sig = inspect.signature(det)
+    except (TypeError, ValueError):
+        sig = None
+
+    attempts = []
+
+    def add_attempt(args, kwargs=None) -> None:
+        if kwargs is None:
+            kwargs = {}
+        attempts.append((args, kwargs))
+
+    if sig is not None:
+        params = list(sig.parameters.values())
+        has_varargs = any(
+            param.kind == inspect.Parameter.VAR_POSITIONAL for param in params
+        )
+        positional = [
+            param
+            for param in params
+            if param.kind
+            in (
+                inspect.Parameter.POSITIONAL_ONLY,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            )
+        ]
+        required_positional = [
+            param for param in positional if param.default is inspect._empty
+        ]
+        if has_varargs or len(required_positional) >= 2:
+            add_attempt((state, auto))
+        elif len(required_positional) == 1:
+            add_attempt((state,))
+        else:
+            add_attempt(())
+    else:
+        add_attempt(())
+
+    add_attempt(())
+    add_attempt((state, auto))
+    add_attempt((state,))
+
+    last_error: Optional[TypeError] = None
+    for args, kwargs in attempts:
+        try:
+            return det(*args, **kwargs)
+        except TypeError as exc:
+            last_error = exc
+            message = str(exc)
+            if (
+                "positional argument" in message
+                or "positional arguments" in message
+                or "required positional" in message
+            ):
+                continue
+            raise
+
+    if last_error is not None:
+        raise last_error
+    return det()
+
+
 def pick_base_url(state: LinkerState, auto: bool) -> str:
     """Interactively choose or auto-detect the server base URL."""
     if auto:
         mod = sys.modules.get("codex_cli_linker")
         det = getattr(mod, "detect_base_url", detect_base_url)
-        return det() or state.base_url or DEFAULT_LMSTUDIO
+        return (
+            _call_detect_base_url(det, state, auto)
+            or state.base_url
+            or DEFAULT_LMSTUDIO
+        )
     print()
     print(c("Choose base URL (OpenAI‑compatible):", BOLD))
     opts = [
@@ -64,7 +132,9 @@ def pick_base_url(state: LinkerState, auto: bool) -> str:
     if choice.startswith("Auto"):
         mod = sys.modules.get("codex_cli_linker")
         det = getattr(mod, "detect_base_url", detect_base_url)
-        return det() or input("Enter base URL: ").strip()
+        return (
+            _call_detect_base_url(det, state, auto) or input("Enter base URL: ").strip()
+        )
     return state.base_url
 
 
