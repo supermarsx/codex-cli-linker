@@ -53,7 +53,11 @@ def run_doctor(
                 base_source = "auto-detected"
 
     if base_url:
-        checks.append(CheckResult("Resolve base URL", True, f"{base_source or 'provided'}: {base_url}"))
+        checks.append(
+            CheckResult(
+                "Resolve base URL", True, f"{base_source or 'provided'}: {base_url}"
+            )
+        )
     else:
         checks.append(
             CheckResult(
@@ -63,7 +67,9 @@ def run_doctor(
             )
         )
 
-    auth_token = (getattr(args, "api_key", None) or getattr(state, "api_key", "") or "").strip()
+    auth_token = (
+        getattr(args, "api_key", None) or getattr(state, "api_key", "") or ""
+    ).strip()
     headers: Dict[str, str] = {}
     if auth_token and auth_token.upper() != "NULLKEY":
         headers["Authorization"] = f"Bearer {auth_token}"
@@ -77,18 +83,26 @@ def run_doctor(
     checks.append(CheckResult("Probe base URL", success, detail))
 
     if success:
-        models_success, models, models_detail = _probe_models(base_url, headers, timeout)
+        models_success, models, models_detail = _probe_models(
+            base_url, headers, timeout
+        )
     else:
         models_success, models_detail = False, "Skipped (base URL check failed)"
     checks.append(CheckResult("Fetch /models", models_success, models_detail))
 
-    model_for_chat = getattr(args, "model", None) or getattr(state, "model", None) or (models[0] if models else None)
+    model_for_chat = (
+        getattr(args, "model", None)
+        or getattr(state, "model", None)
+        or (models[0] if models else None)
+    )
     if not models_success:
         chat_success, chat_detail = False, "Skipped (no models)"
     elif not model_for_chat:
         chat_success, chat_detail = False, "No model available for chat completion"
     else:
-        chat_success, chat_detail = _probe_chat_echo(base_url, model_for_chat, headers, timeout)
+        chat_success, chat_detail = _probe_chat_echo(
+            base_url, model_for_chat, headers, timeout
+        )
     checks.append(CheckResult("Chat completion echo", chat_success, chat_detail))
 
     # Track optional capabilities we discover so the CLI can suggest matching flags.
@@ -107,7 +121,9 @@ def run_doctor(
                 model=model_for_chat or "",
             )
         else:
-            checks.append(CheckResult("Feature probing", False, "Skipped (chat check failed)"))
+            checks.append(
+                CheckResult("Feature probing", False, "Skipped (chat check failed)")
+            )
             log_event("doctor_feature_probe", supported=None, skipped=True)
     else:
         feature_status = None
@@ -128,8 +144,9 @@ def run_doctor(
     return 1
 
 
-
-def _probe_base_url(base_url: str, headers: Dict[str, str], timeout: float) -> Tuple[bool, str]:
+def _probe_base_url(
+    base_url: str, headers: Dict[str, str], timeout: float
+) -> Tuple[bool, str]:
     req = urllib.request.Request(base_url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -149,9 +166,18 @@ def _probe_models(
     url = base_url.rstrip("/") + "/models"
     data, error = _http_get_json(url, headers, timeout)
     if data and isinstance(data.get("data"), list):
-        models = [item.get("id") for item in data["data"] if isinstance(item, dict) and item.get("id")]
+        models = [
+            item.get("id")
+            for item in data["data"]
+            if isinstance(item, dict) and item.get("id")
+        ]
         if models:
-            return True, models, f"{len(models)} model(s): {', '.join(models[:5])}" + ("..." if len(models) > 5 else "")
+            return (
+                True,
+                models,
+                f"{len(models)} model(s): {', '.join(models[:5])}"
+                + ("..." if len(models) > 5 else ""),
+            )
         return False, [], "No models returned"
     return False, [], error or "Unexpected response"
 
@@ -202,7 +228,6 @@ def _probe_chat_echo(
         errors.append(detail)
     joined = "; ".join(err for err in errors if err)
     return False, joined or (error or "Chat/completions failed")
-
 
     return False, joined or (error or "Chat/completions failed")
 
@@ -256,10 +281,6 @@ def _probe_feature_support(
     return check, supported, suggestions
 
 
-
-
-
-
 def _parse_chat_response(data, error):
     if not data:
         return False, error or "No response"
@@ -283,7 +304,6 @@ def _parse_chat_response(data, error):
     return False, "First choice has no text content"
 
 
-
 def _parse_completions_response(data, error):
     if not data:
         return False, error or "No response"
@@ -305,7 +325,6 @@ def _parse_completions_response(data, error):
     return False, "First choice has no text content"
 
 
-
 def _extract_text(content):
     if isinstance(content, str):
         return content
@@ -319,7 +338,6 @@ def _extract_text(content):
         if parts:
             return " ".join(parts)
     return None
-
 
 
 def _probe_filesystem(home: Path, targets: Sequence[Path]) -> Tuple[bool, str]:
@@ -345,7 +363,6 @@ def _probe_filesystem(home: Path, targets: Sequence[Path]) -> Tuple[bool, str]:
                 file.unlink()
             except Exception:
                 pass
-
 
 
 def _http_get_json(
@@ -402,4 +419,3 @@ def _print_results(checks: Iterable[CheckResult]) -> None:
 
 
 __all__ = ["run_doctor"]
-

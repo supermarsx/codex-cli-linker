@@ -37,7 +37,14 @@ def _label_source(name: str) -> str:
 
 
 def _label_origin(origin: str) -> str:
-    mapping = {"pypi": "PyPI install", "git": "Git checkout", "binary": "packaged binary", "homebrew": "Homebrew tap", "brew": "Homebrew tap", "scoop": "Scoop install"}
+    mapping = {
+        "pypi": "PyPI install",
+        "git": "Git checkout",
+        "binary": "packaged binary",
+        "homebrew": "Homebrew tap",
+        "brew": "Homebrew tap",
+        "scoop": "Scoop install",
+    }
     return mapping.get(origin.lower(), origin or "unknown")
 
 
@@ -94,8 +101,6 @@ def _report_update_status(
         ok("codex-cli-linker is up to date.")
 
 
-
-
 def main():
     """Entry point for the CLI tool."""
     args = parse_args()
@@ -122,18 +127,38 @@ def main():
     current_version = get_version()
     install_origin = detect_install_origin()
     update_sources = determine_update_sources(install_origin)
-    log_event("update_origin_detected", origin=install_origin, sources=",".join(update_sources))
+    log_event(
+        "update_origin_detected",
+        origin=install_origin,
+        sources=",".join(update_sources),
+    )
     sources_arg = update_sources or None
     if getattr(args, "check_updates", False):
         try:
-            result = check_for_updates(current_version, home, force=True, sources=sources_arg)
+            result = check_for_updates(
+                current_version, home, force=True, sources=sources_arg
+            )
         except Exception as exc:
             warn(f"Update check failed: {exc}")
-            log_event("update_check_failed", forced=True, origin=install_origin, error=str(exc))
+            log_event(
+                "update_check_failed",
+                forced=True,
+                origin=install_origin,
+                error=str(exc),
+            )
             return
         _log_update_sources(result, forced=True, origin=install_origin)
-        _report_update_status(result, current_version, forced=True, verbose=True, origin=install_origin)
-        log_event("update_check_completed", forced=True, origin=install_origin, newer=result.has_newer, used_cache=result.used_cache, sources=",".join(update_sources))
+        _report_update_status(
+            result, current_version, forced=True, verbose=True, origin=install_origin
+        )
+        log_event(
+            "update_check_completed",
+            forced=True,
+            origin=install_origin,
+            newer=result.has_newer,
+            used_cache=result.used_cache,
+            sources=",".join(update_sources),
+        )
         return
     if getattr(args, "version", False):
         print(current_version)
@@ -195,15 +220,35 @@ def main():
 
     if not getattr(args, "no_update_check", False):
         try:
-            update_result = check_for_updates(current_version, home, sources=sources_arg)
+            update_result = check_for_updates(
+                current_version, home, sources=sources_arg
+            )
         except Exception as exc:
-            log_event("update_check_failed", forced=False, origin=install_origin, error=str(exc))
+            log_event(
+                "update_check_failed",
+                forced=False,
+                origin=install_origin,
+                error=str(exc),
+            )
             if args.verbose:
                 warn(f"Update check failed: {exc}")
         else:
             _log_update_sources(update_result, forced=False, origin=install_origin)
-            _report_update_status(update_result, current_version, forced=False, verbose=args.verbose, origin=install_origin)
-            log_event("update_check_completed", forced=False, origin=install_origin, newer=update_result.has_newer, used_cache=update_result.used_cache, sources=",".join(update_sources))
+            _report_update_status(
+                update_result,
+                current_version,
+                forced=False,
+                verbose=args.verbose,
+                origin=install_origin,
+            )
+            log_event(
+                "update_check_completed",
+                forced=False,
+                origin=install_origin,
+                newer=update_result.has_newer,
+                used_cache=update_result.used_cache,
+                sources=",".join(update_sources),
+            )
 
     # Base URL: auto-detect or prompt
     picker = getattr(

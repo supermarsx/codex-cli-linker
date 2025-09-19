@@ -326,7 +326,21 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     )
     keys.add_argument(
         "--keychain",
-        choices=["none", "auto", "macos", "dpapi", "secretstorage"],
+        choices=[
+            "none",
+            "auto",
+            "macos",
+            "dpapi",
+            "secretstorage",
+            "secretservice",
+            "pass",
+            "bitwarden",
+            "bw",
+            "bitwarden-cli",
+            "1password",
+            "1passwd",
+            "op",
+        ],
         default="none",
         help="Optionally store --api-key in an OS keychain (never required)",
     )

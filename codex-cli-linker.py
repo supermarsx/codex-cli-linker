@@ -184,5 +184,3 @@ if __name__ == "__main__":  # pragma: no cover
             warn("Aborted by user.")
         except Exception:
             pass
-
-

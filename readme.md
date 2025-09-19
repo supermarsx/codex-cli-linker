@@ -39,7 +39,7 @@ This small, dependency‑free Python script:
 - Diagnostic tooling: verbose logging, file logging, JSON logs, and remote HTTP log export.
 - Tunable retry/timeout parameters for flaky networks; Azure-style `api-version` support.
 - Security-aware: never writes API keys to disk; favors env vars (`NULLKEY` placeholder by default).
-  - Optional: `--keychain` can store your `--api-key` in the OS keychain (macOS Keychain, Windows DPAPI/Credential Manager, or Linux Secret Service via `secretstorage` when available). The config still references the env var; secrets are never written to config files.
+  - Optional: `--keychain` can store your `--api-key` in the OS keychain (macOS Keychain, Windows DPAPI/Credential Manager, Linux Secret Service via `secretstorage`, GNU pass, or integrate with Bitwarden/1Password CLIs). The config still references the env var; secrets are never written to config files.
 - Compatible with Codex CLI approvals, sandbox, and history controls without post-editing.
 
 > Works on macOS, Linux, and Windows. No third‑party Python packages required.
@@ -354,7 +354,7 @@ Tip: All options have short aliases (e.g., `-a` for `--auto`). Run `-h` to see t
 - Output: `-j` `--json`, `-y` `--yaml`, `-n` `--dry-run`, `-Z` `--diff`
   - Open helper: `--open-config` (prints editor command; never auto-launches)
 - Logging: `-v` `--verbose`, `--log-level/--level <debug|info|warning|error>`, `-f` `--log-file`, `-J` `--log-json`, `-R` `--log-remote`
-- Secrets: `--keychain {none,auto,macos,dpapi,secretstorage}`
+- Secrets: `--keychain {none,auto,macos,dpapi,secretstorage,secretservice,pass,bitwarden,bw,bitwarden-cli,1password,1passwd,op}`
 - Config URL / state: `-c` `--config-url`, `-x` `--state-file`
 - Spec knobs: `-q` `--approval-policy`, `-s` `--sandbox-mode`, `-o` `--file-opener`, `-r` `--reasoning-effort`, `-u` `--reasoning-summary`, `-B` `--verbosity`
 - History/storage: `-H` `--no-history`, `-N` `--history-max-bytes`, `-d` `--disable-response-storage`

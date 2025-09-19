@@ -104,7 +104,9 @@ def detect_install_origin(
     brew_cellar_path = _safe_path(os.environ.get("HOMEBREW_CELLAR"))
     brew_prefix_path = _safe_path(os.environ.get("HOMEBREW_PREFIX"))
     brew_prefix_cellar = brew_prefix_path / "Cellar" if brew_prefix_path else None
-    if _is_within(module_path, brew_cellar_path) or _is_within(module_path, brew_prefix_cellar):
+    if _is_within(module_path, brew_cellar_path) or _is_within(
+        module_path, brew_prefix_cellar
+    ):
         return "homebrew"
 
     scoop_home = _safe_path(os.environ.get("SCOOP"))
@@ -279,9 +281,15 @@ def _fetch_pypi(url: str, timeout: float) -> SourceResult:
         return SourceResult("pypi", version=None, url=None, error=error)
     info = data.get("info") if isinstance(data.get("info"), dict) else {}
     version = info.get("version") if isinstance(info.get("version"), str) else None
-    project_url = info.get("project_url") if isinstance(info.get("project_url"), str) else None
+    project_url = (
+        info.get("project_url") if isinstance(info.get("project_url"), str) else None
+    )
     if not project_url:
-        project_url = info.get("package_url") if isinstance(info.get("package_url"), str) else None
+        project_url = (
+            info.get("package_url")
+            if isinstance(info.get("package_url"), str)
+            else None
+        )
     if not project_url:
         project_url = "https://pypi.org/project/codex-cli-linker/"
     return SourceResult("pypi", version=version, url=project_url, error=error)
