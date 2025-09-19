@@ -3,8 +3,8 @@ class CodexCliLinker < Formula
 
   desc "Generate Codex CLI profiles for local LLM servers"
   homepage "https://github.com/supermarsx/codex-cli-linker"
-  url "https://github.com/supermarsx/codex-cli-linker/archive/refs/tags/v0.1.2.tar.gz"
-  sha256 "609b9ecb07d3626e66b7b811c159fdbc66dde07f52ef32b322a3864df0615098"
+  url "https://github.com/supermarsx/codex-cli-linker/archive/refs/tags/v0.1.3.tar.gz"
+  sha256 "8777e3a88c53eb72d6a4db5a150ef1ac88aaa7e747b412a23ee5f644686bfd3a"
   license "MIT"
   head "https://github.com/supermarsx/codex-cli-linker.git", branch: "main"
 

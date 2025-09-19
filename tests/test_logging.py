@@ -111,7 +111,6 @@ def test_log_remote_handler_async_queue(monkeypatch):
     handler.close()
 
 
-
 def test_log_json_handler(monkeypatch):
     buf = io.StringIO()
     monkeypatch.setattr(sys, "stdout", buf)

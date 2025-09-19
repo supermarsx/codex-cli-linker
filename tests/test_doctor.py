@@ -240,7 +240,9 @@ class DoctorSuccessTests(unittest.TestCase):
 
                 info_messages: list[str] = []
 
-                with mock.patch("codex_linker.doctor._http_post_json", side_effect=fake_post), mock.patch(
+                with mock.patch(
+                    "codex_linker.doctor._http_post_json", side_effect=fake_post
+                ), mock.patch(
                     "codex_linker.doctor._probe_feature_support",
                     return_value=(feature_check, feature_status, suggestions),
                 ), mock.patch(
@@ -296,12 +298,11 @@ class DoctorFailureTests(unittest.TestCase):
         self.assertEqual(exit_code, 1)
 
 
-
-
-
 class DoctorHelperParsingTests(unittest.TestCase):
     def test_parse_chat_response_handles_error_and_truncation(self) -> None:
-        success, detail = doctor._parse_chat_response({"error": {"message": "bad"}}, None)
+        success, detail = doctor._parse_chat_response(
+            {"error": {"message": "bad"}}, None
+        )
         assert success is False and detail == "bad"
         long_text = "pong " * 20
         payload = {
@@ -353,8 +354,6 @@ class DoctorProbeBehaviourTests(unittest.TestCase):
             assert success is True
             assert str(home) in detail
             assert not list(home.glob("*.doctor"))
-
-
 
 
 if __name__ == "__main__":  # pragma: no cover

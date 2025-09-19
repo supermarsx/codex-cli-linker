@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+
 def load_cli():
     import importlib.util
 
@@ -20,7 +21,6 @@ def load_cli_and_keychain():
 
     keychain_module = importlib.import_module("codex_linker.keychain")
     return cli, keychain_module
-
 
 
 def test_keychain_backends_noop_on_wrong_platform(monkeypatch):
@@ -68,7 +68,9 @@ def test_keychain_pass_backend_behaviour(monkeypatch):
 
     monkeypatch.setattr(keychain_module.subprocess, "run", fake_run)
     monkeypatch.setattr(keychain_module, "ok", lambda msg: messages.append(("ok", msg)))
-    monkeypatch.setattr(keychain_module, "warn", lambda msg: messages.append(("warn", msg)))
+    monkeypatch.setattr(
+        keychain_module, "warn", lambda msg: messages.append(("warn", msg))
+    )
     assert cli.store_api_key_in_keychain("pass", "ENVX", "secret") is True
     assert any(tag == "ok" for tag, _ in messages)
     assert any("--version" in cmd for cmd in calls)
@@ -101,7 +103,6 @@ def test_keychain_bitwarden_and_unknown(monkeypatch):
     assert cli.store_api_key_in_keychain("bitwarden", "ENVX", "secret") is False
     assert cli.store_api_key_in_keychain("mystery", "ENVX", "secret") is False
     assert warnings
-
 
 
 def test_providers_are_added_to_config():

@@ -18,8 +18,9 @@ def load_cli():
 
 
 def test_main_update_check_success(monkeypatch, tmp_path):
-    cli = load_cli()
     import codex_linker.main_flow as main_flow
+
+    cli = load_cli()
 
     dummy_args = argparse.Namespace(
         remove_config=False,
@@ -37,7 +38,9 @@ def test_main_update_check_success(monkeypatch, tmp_path):
 
     result = cli.UpdateCheckResult(
         current_version="0.1.0",
-        sources=[cli.SourceResult(name="github", version="0.2.0", url="http://release")],
+        sources=[
+            cli.SourceResult(name="github", version="0.2.0", url="http://release")
+        ],
         newer_sources=[],
         used_cache=False,
     )
@@ -46,7 +49,9 @@ def test_main_update_check_success(monkeypatch, tmp_path):
     monkeypatch.setattr(main_flow, "parse_args", lambda: dummy_args)
     monkeypatch.setattr(main_flow, "get_version", lambda: "0.1.0")
     monkeypatch.setattr(main_flow, "detect_install_origin", lambda: "pypi")
-    monkeypatch.setattr(main_flow, "determine_update_sources", lambda origin: ["github"])
+    monkeypatch.setattr(
+        main_flow, "determine_update_sources", lambda origin: ["github"]
+    )
     monkeypatch.setattr(main_flow, "check_for_updates", lambda *a, **k: result)
 
     events = []
@@ -56,9 +61,19 @@ def test_main_update_check_success(monkeypatch, tmp_path):
         lambda *a, **k: events.append((a, k)),
     )
     flags = {"log": False, "report": False}
-    monkeypatch.setattr(main_flow, "_log_update_sources", lambda *a, **k: flags.__setitem__("log", True))
-    monkeypatch.setattr(main_flow, "_report_update_status", lambda *a, **k: flags.__setitem__("report", True))
-    monkeypatch.setattr(main_flow, "warn", lambda msg: (_ for _ in ()).throw(AssertionError(f"unexpected warn: {msg}")))
+    monkeypatch.setattr(
+        main_flow, "_log_update_sources", lambda *a, **k: flags.__setitem__("log", True)
+    )
+    monkeypatch.setattr(
+        main_flow,
+        "_report_update_status",
+        lambda *a, **k: flags.__setitem__("report", True),
+    )
+    monkeypatch.setattr(
+        main_flow,
+        "warn",
+        lambda msg: (_ for _ in ()).throw(AssertionError(f"unexpected warn: {msg}")),
+    )
 
     main_flow.main()
 
@@ -88,7 +103,9 @@ def test_main_update_check_failure(monkeypatch, tmp_path):
     monkeypatch.setattr(main_flow, "parse_args", lambda: dummy_args)
     monkeypatch.setattr(main_flow, "get_version", lambda: "0.1.0")
     monkeypatch.setattr(main_flow, "detect_install_origin", lambda: "source")
-    monkeypatch.setattr(main_flow, "determine_update_sources", lambda origin: ["github", "pypi"])
+    monkeypatch.setattr(
+        main_flow, "determine_update_sources", lambda origin: ["github", "pypi"]
+    )
 
     def fail(*args, **kwargs):
         raise RuntimeError("boom")
@@ -101,13 +118,13 @@ def test_main_update_check_failure(monkeypatch, tmp_path):
         lambda *a, **k: events.append((a, k)),
     )
     warnings = []
+    assert hasattr(cli, "UpdateCheckResult")
     monkeypatch.setattr(main_flow, "warn", lambda msg: warnings.append(msg))
 
     main_flow.main()
 
     assert warnings and "Update check failed" in warnings[0]
     assert any(args[0] == "update_check_failed" for args, _ in events)
-
 
 
 def test_main_non_dry_run_writes_and_summary(monkeypatch, tmp_path, capsys):
