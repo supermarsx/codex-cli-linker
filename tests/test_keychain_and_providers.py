@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-
+from types import SimpleNamespace
 
 def load_cli():
     import importlib.util
@@ -12,6 +12,15 @@ def load_cli():
     sys.modules[spec.name] = cli
     spec.loader.exec_module(cli)
     return cli
+
+
+def load_cli_and_keychain():
+    cli = load_cli()
+    import importlib
+
+    keychain_module = importlib.import_module("codex_linker.keychain")
+    return cli, keychain_module
+
 
 
 def test_keychain_backends_noop_on_wrong_platform(monkeypatch):
@@ -42,6 +51,57 @@ def test_keychain_auto_mapping(monkeypatch):
     assert cli._keychain_backend_auto() == "secretstorage"
     monkeypatch.setattr(cli.os, "name", "nt", raising=False)
     assert cli._keychain_backend_auto() == "dpapi"
+
+
+def test_keychain_pass_backend_behaviour(monkeypatch):
+    cli, keychain_module = load_cli_and_keychain()
+    calls = []
+    messages = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        if "--version" in cmd:
+            return SimpleNamespace(returncode=0)
+        assert "insert" in cmd
+        assert kwargs.get("input") == b"secret"
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(keychain_module.subprocess, "run", fake_run)
+    monkeypatch.setattr(keychain_module, "ok", lambda msg: messages.append(("ok", msg)))
+    monkeypatch.setattr(keychain_module, "warn", lambda msg: messages.append(("warn", msg)))
+    assert cli.store_api_key_in_keychain("pass", "ENVX", "secret") is True
+    assert any(tag == "ok" for tag, _ in messages)
+    assert any("--version" in cmd for cmd in calls)
+
+
+def test_keychain_pass_backend_failure(monkeypatch):
+    cli, keychain_module = load_cli_and_keychain()
+    warnings = []
+
+    def fake_run(cmd, **kwargs):
+        if "--version" in cmd:
+            return SimpleNamespace(returncode=1)
+        raise AssertionError("unexpected command")
+
+    monkeypatch.setattr(keychain_module.subprocess, "run", fake_run)
+    monkeypatch.setattr(keychain_module, "warn", lambda msg: warnings.append(msg))
+    assert cli.store_api_key_in_keychain("pass", "ENVX", "secret") is False
+    assert warnings and "pass" in warnings[0]
+
+
+def test_keychain_bitwarden_and_unknown(monkeypatch):
+    cli, keychain_module = load_cli_and_keychain()
+    warnings = []
+
+    def fake_run(cmd, **kwargs):
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(keychain_module.subprocess, "run", fake_run)
+    monkeypatch.setattr(keychain_module, "warn", lambda msg: warnings.append(msg))
+    assert cli.store_api_key_in_keychain("bitwarden", "ENVX", "secret") is False
+    assert cli.store_api_key_in_keychain("mystery", "ENVX", "secret") is False
+    assert warnings
+
 
 
 def test_providers_are_added_to_config():

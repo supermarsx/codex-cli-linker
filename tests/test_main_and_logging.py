@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 import sys
@@ -14,6 +15,99 @@ def load_cli():
     sys.modules[spec.name] = cli
     spec.loader.exec_module(cli)
     return cli
+
+
+def test_main_update_check_success(monkeypatch, tmp_path):
+    cli = load_cli()
+    import codex_linker.main_flow as main_flow
+
+    dummy_args = argparse.Namespace(
+        remove_config=False,
+        remove_config_no_bak=False,
+        delete_all_backups=False,
+        confirm_delete_backups=False,
+        check_updates=True,
+        version=False,
+        verbose=False,
+        log_file=None,
+        log_json=False,
+        log_remote=None,
+        log_level=None,
+    )
+
+    result = cli.UpdateCheckResult(
+        current_version="0.1.0",
+        sources=[cli.SourceResult(name="github", version="0.2.0", url="http://release")],
+        newer_sources=[],
+        used_cache=False,
+    )
+
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path))
+    monkeypatch.setattr(main_flow, "parse_args", lambda: dummy_args)
+    monkeypatch.setattr(main_flow, "get_version", lambda: "0.1.0")
+    monkeypatch.setattr(main_flow, "detect_install_origin", lambda: "pypi")
+    monkeypatch.setattr(main_flow, "determine_update_sources", lambda origin: ["github"])
+    monkeypatch.setattr(main_flow, "check_for_updates", lambda *a, **k: result)
+
+    events = []
+    monkeypatch.setattr(
+        main_flow,
+        "log_event",
+        lambda *a, **k: events.append((a, k)),
+    )
+    flags = {"log": False, "report": False}
+    monkeypatch.setattr(main_flow, "_log_update_sources", lambda *a, **k: flags.__setitem__("log", True))
+    monkeypatch.setattr(main_flow, "_report_update_status", lambda *a, **k: flags.__setitem__("report", True))
+    monkeypatch.setattr(main_flow, "warn", lambda msg: (_ for _ in ()).throw(AssertionError(f"unexpected warn: {msg}")))
+
+    main_flow.main()
+
+    assert flags == {"log": True, "report": True}
+    assert any(args[0] == "update_check_completed" for args, _ in events)
+
+
+def test_main_update_check_failure(monkeypatch, tmp_path):
+    cli = load_cli()
+    import codex_linker.main_flow as main_flow
+
+    dummy_args = argparse.Namespace(
+        remove_config=False,
+        remove_config_no_bak=False,
+        delete_all_backups=False,
+        confirm_delete_backups=False,
+        check_updates=True,
+        version=False,
+        verbose=False,
+        log_file=None,
+        log_json=False,
+        log_remote=None,
+        log_level=None,
+    )
+
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path))
+    monkeypatch.setattr(main_flow, "parse_args", lambda: dummy_args)
+    monkeypatch.setattr(main_flow, "get_version", lambda: "0.1.0")
+    monkeypatch.setattr(main_flow, "detect_install_origin", lambda: "source")
+    monkeypatch.setattr(main_flow, "determine_update_sources", lambda origin: ["github", "pypi"])
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(main_flow, "check_for_updates", fail)
+    events = []
+    monkeypatch.setattr(
+        main_flow,
+        "log_event",
+        lambda *a, **k: events.append((a, k)),
+    )
+    warnings = []
+    monkeypatch.setattr(main_flow, "warn", lambda msg: warnings.append(msg))
+
+    main_flow.main()
+
+    assert warnings and "Update check failed" in warnings[0]
+    assert any(args[0] == "update_check_failed" for args, _ in events)
+
 
 
 def test_main_non_dry_run_writes_and_summary(monkeypatch, tmp_path, capsys):

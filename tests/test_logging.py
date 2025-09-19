@@ -2,6 +2,7 @@ import importlib.util
 import io
 import json
 import logging
+import time
 import sys
 from pathlib import Path
 
@@ -68,6 +69,47 @@ def test_log_remote_handler(monkeypatch):
         "url": "/log",
         "msg": "remote-log",
     }
+
+
+def test_log_remote_handler_async_queue(monkeypatch):
+    created = {}
+
+    class DummyHTTPHandler(logging.Handler):
+        def __init__(self, host, url, method="GET", secure=False):
+            super().__init__()
+            self.host = host
+            self.url = url
+            self.records = []
+            created["handler"] = self
+
+        def emit(self, record):
+            self.records.append(record.getMessage())
+
+    monkeypatch.setattr(logging.handlers, "HTTPHandler", DummyHTTPHandler)
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "codex-cli-linker.py",
+            "--log-remote",
+            "http://example.com/log",
+            "--verbose",
+        ],
+    )
+    args = cli.parse_args()
+    cli.configure_logging(args.verbose, args.log_file, args.log_json, args.log_remote)
+    logging.error("async-remote")
+    for _ in range(100):
+        handler = created.get("handler")
+        if handler and handler.records:
+            break
+        time.sleep(0.01)
+    handler = created.get("handler")
+    assert handler is not None
+    assert handler.records == ["async-remote"]
+    handler.close()
+
 
 
 def test_log_json_handler(monkeypatch):

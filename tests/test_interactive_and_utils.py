@@ -2,6 +2,8 @@ import importlib.util
 import sys
 from pathlib import Path
 
+import pytest
+
 
 def load_cli():
     spec = importlib.util.spec_from_file_location(
@@ -44,6 +46,39 @@ def test_prompt_choice_and_yes_no(monkeypatch, capsys):
     assert cli.prompt_yes_no("Q?", default=True) is False
     # explicit yes
     assert cli.prompt_yes_no("Q?", default=False) is True
+
+
+def test_call_detect_base_url_signatures(monkeypatch):
+    cli = load_cli()
+    import codex_linker.prompts as prompts
+
+    state = cli.LinkerState(base_url="http://saved")
+    captures = []
+
+    def det_two(state_arg, auto_flag):
+        captures.append((state_arg, auto_flag))
+        return "http://detected"
+
+    result = prompts._call_detect_base_url(det_two, state, True)
+    assert result == "http://detected"
+    assert captures == [(state, True)]
+
+    def det_zero():
+        return "http://zero"
+
+    assert prompts._call_detect_base_url(det_zero, state, False) == "http://zero"
+
+
+def test_call_detect_base_url_typeerror_propagates():
+    cli = load_cli()
+    import codex_linker.prompts as prompts
+
+    def det_fail(*args, **kwargs):
+        raise TypeError("unexpected keyword")
+
+    with pytest.raises(TypeError):
+        prompts._call_detect_base_url(det_fail, cli.LinkerState(), False)
+
 
 
 def test_pick_base_url_variants(monkeypatch):
