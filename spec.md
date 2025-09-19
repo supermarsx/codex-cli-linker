@@ -136,6 +136,12 @@ save linker state → show next‑step hints
 - `--doctor` - run preflight checks (base URL probe, `/v1/models`, chat echo, filesystem write) and exit success/failure
 - `--doctor-detect-features` - with `--doctor`, attempt tool-choice/response-format/reasoning requests to report optional feature support
 
+### Secrets
+- `--keychain {none,auto,macos,dpapi,secretstorage,secretservice,pass,bitwarden,bw,bitwarden-cli,1password,1passwd,op}` — optional key storage helpers.
+  - `auto` picks the platform default (macOS keychain, Windows DPAPI, Linux Secret Service).
+  - `pass` uses the GNU pass CLI when available.
+  - `bitwarden` / `bw` and `1password` / `op` detect the respective CLI and prompt the user to store secrets manually.
+
 
 > A `--launch` flag exists but is a no‑op by design (manual Codex launch is recommended). The script can inform how to run: `npx codex --profile <name>` or `codex --profile <name>`. A helper `launch_codex(profile)` is available for cross‑platform execution (cmd, PowerShell, POSIX shells) and returns the CLI's exit code while logging the command.
 

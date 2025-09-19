@@ -108,3 +108,67 @@ def test_keychain_auto_backend(monkeypatch):
     assert keychain._keychain_backend_auto() == "dpapi"
     monkeypatch.setattr(keychain, "os", _NS(name="posix"), raising=False)
     assert keychain._keychain_backend_auto() == "secretstorage"
+
+
+class _Result:
+    def __init__(self, returncode=0):
+        self.returncode = returncode
+        self.stdout = b""
+        self.stderr = b""
+
+
+def test_keychain_secretservice_alias(monkeypatch):
+    keychain = importlib.import_module("codex_linker.keychain")
+    fake_ss = SimpleNamespace(
+        dbus_init=lambda: object(),
+        get_default_collection=lambda bus: SimpleNamespace(
+            is_locked=lambda: False,
+            unlock=lambda: None,
+            create_item=lambda *a, **k: None,
+        ),
+    )
+    sys.modules["secretstorage"] = fake_ss
+    assert keychain.store_api_key_in_keychain("secretservice", "ENV", "KEY") is True
+    sys.modules.pop("secretstorage", None)
+
+
+def test_keychain_pass(monkeypatch):
+    keychain = importlib.import_module("codex_linker.keychain")
+    calls = []
+
+    def fake_run(cmd, *_, **kwargs):
+        calls.append(cmd)
+        if cmd[0] == "pass" and cmd[1] == "--version":
+            return _Result(0)
+        if cmd[0] == "pass" and cmd[1] == "insert":
+            return _Result(0)
+        return _Result(1)
+
+    monkeypatch.setattr(keychain.subprocess, "run", fake_run)
+    monkeypatch.delenv("CODEX_PASS_CMD", raising=False)
+    assert keychain.store_api_key_in_keychain("pass", "ENV", "KEY") is True
+    assert any(cmd[0] == "pass" and cmd[1] == "insert" for cmd in calls)
+
+
+def test_keychain_bitwarden_detection(monkeypatch):
+    keychain = importlib.import_module("codex_linker.keychain")
+
+    def fake_run(cmd, *_, **kwargs):
+        if cmd[0] == "bw" and cmd[1] == "--version":
+            return _Result(0)
+        raise AssertionError("unexpected command")
+
+    monkeypatch.setattr(keychain.subprocess, "run", fake_run)
+    assert keychain.store_api_key_in_keychain("bitwarden", "ENV", "KEY") is False
+
+
+def test_keychain_op_detection(monkeypatch):
+    keychain = importlib.import_module("codex_linker.keychain")
+
+    def fake_run(cmd, *_, **kwargs):
+        if cmd[0] == "op" and cmd[1] == "--version":
+            return _Result(0)
+        raise AssertionError("unexpected command")
+
+    monkeypatch.setattr(keychain.subprocess, "run", fake_run)
+    assert keychain.store_api_key_in_keychain("op", "ENV", "KEY") is False

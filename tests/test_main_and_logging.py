@@ -26,7 +26,9 @@ def test_main_non_dry_run_writes_and_summary(monkeypatch, tmp_path, capsys):
     # avoid UI and network
     monkeypatch.setattr(cli, "clear_screen", lambda: None)
     monkeypatch.setattr(cli, "banner", lambda: None)
-    monkeypatch.setattr(cli, "detect_base_url", lambda state, auto: cli.DEFAULT_LMSTUDIO)
+    monkeypatch.setattr(
+        cli, "detect_base_url", lambda state, auto: cli.DEFAULT_LMSTUDIO
+    )
     monkeypatch.setattr(
         cli, "list_models", lambda *a, **k: ["m1", "m2"]
     )  # model index 0 used
@@ -79,7 +81,9 @@ def test_configure_logging_file_and_remote_error(tmp_path, monkeypatch):
     )
     env = os.environ.copy()
     env.pop("PYTEST_CURRENT_TEST", None)  # ensure async path
-    proc = cli.subprocess.run([sys.executable, "-c", code], capture_output=True, env=env)
+    proc = cli.subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, env=env
+    )
     assert proc.returncode == 0
 
 
@@ -99,7 +103,9 @@ def test_workspace_state_override(monkeypatch, tmp_path, capsys):
 
     monkeypatch.setattr(cli, "clear_screen", lambda: None)
     monkeypatch.setattr(cli, "banner", lambda: None)
-    monkeypatch.setattr(cli, "detect_base_url", lambda state, auto: cli.DEFAULT_LMSTUDIO)
+    monkeypatch.setattr(
+        cli, "detect_base_url", lambda state, auto: cli.DEFAULT_LMSTUDIO
+    )
     monkeypatch.setattr(cli, "list_models", lambda *a, **k: ["model-a"])
     monkeypatch.setattr(cli, "try_auto_context_window", lambda *a, **k: 0)
 
@@ -119,7 +125,9 @@ def test_workspace_state_override(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(cli, "log_event", lambda *a, **k: None)
 
     writes = []
-    monkeypatch.setattr(cli, "atomic_write_with_backup", lambda path, content: writes.append(path))
+    monkeypatch.setattr(
+        cli, "atomic_write_with_backup", lambda path, content: writes.append(path)
+    )
 
     monkeypatch.setattr(
         sys,

@@ -38,11 +38,7 @@ class InstallOriginDetectionTests(unittest.TestCase):
     def test_detects_pypi_from_site_packages(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             module_path = (
-                Path(tmp)
-                / "lib"
-                / "site-packages"
-                / "codex_linker"
-                / "updates.py"
+                Path(tmp) / "lib" / "site-packages" / "codex_linker" / "updates.py"
             )
             module_path.parent.mkdir(parents=True, exist_ok=True)
             module_path.touch()
@@ -63,17 +59,33 @@ class InstallOriginDetectionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             cellar = Path(tmp) / "Cellar"
             formula_dir = cellar / "codex-cli-linker" / "0.1.2"
-            module_path = formula_dir / "lib" / "python3.11" / "site-packages" / "codex_linker" / "updates.py"
+            module_path = (
+                formula_dir
+                / "lib"
+                / "python3.11"
+                / "site-packages"
+                / "codex_linker"
+                / "updates.py"
+            )
             module_path.parent.mkdir(parents=True, exist_ok=True)
             module_path.touch()
-            with mock.patch.dict(os.environ, {"HOMEBREW_CELLAR": str(cellar)}, clear=False):
+            with mock.patch.dict(
+                os.environ, {"HOMEBREW_CELLAR": str(cellar)}, clear=False
+            ):
                 origin = detect_install_origin(module_path, frozen=False)
             self.assertEqual(origin, "homebrew")
 
     def test_detects_scoop_install(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             scoop_root = Path(tmp) / "scoop"
-            module_path = scoop_root / "apps" / "codex-cli-linker" / "current" / "codex_linker" / "updates.py"
+            module_path = (
+                scoop_root
+                / "apps"
+                / "codex-cli-linker"
+                / "current"
+                / "codex_linker"
+                / "updates.py"
+            )
             module_path.parent.mkdir(parents=True, exist_ok=True)
             module_path.touch()
             env = {"SCOOP": str(scoop_root)}

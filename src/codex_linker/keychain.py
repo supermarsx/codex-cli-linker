@@ -15,15 +15,13 @@ def _keychain_backend_auto() -> str:
 
 
 def store_api_key_in_keychain(backend: str, env_var: str, api_key: str) -> bool:
-    """Best-effort storage of API key in OS keychain/credential store.
-
-    Returns True on success. Never raises; logs warnings instead. Not required.
-    """
+    """Best-effort storage of API key in OS keychain/credential store."""
     try:
         if backend == "auto":
             backend = _keychain_backend_auto()
+        backend = (backend or "").strip().lower()
 
-        if backend == "macos":
+        if backend in {"macos", "keychain"}:
             if sys.platform != "darwin":
                 warn("Keychain backend macos requested on non-macOS; skipping.")
                 return False
@@ -43,11 +41,11 @@ def store_api_key_in_keychain(backend: str, env_var: str, api_key: str) -> bool:
                 subprocess.run(cmd, check=True, capture_output=True)
                 ok("Stored API key in macOS Keychain.")
                 return True
-            except Exception as e:
-                warn(f"macOS Keychain storage failed: {e}")
+            except Exception as exc:  # pragma: no cover
+                warn(f"macOS Keychain storage failed: {exc}")
                 return False
 
-        if backend == "secretstorage":
+        if backend in {"secretservice", "secretstorage"}:
             try:
                 import secretstorage  # type: ignore
             except Exception:
@@ -64,8 +62,8 @@ def store_api_key_in_keychain(backend: str, env_var: str, api_key: str) -> bool:
                 )
                 ok("Stored API key in Secret Service.")
                 return True
-            except Exception as e:  # pragma: no cover
-                warn(f"Secret Service storage failed: {e}")
+            except Exception as exc:  # pragma: no cover
+                warn(f"Secret Service storage failed: {exc}")
                 return False
 
         if backend == "dpapi":
@@ -80,7 +78,7 @@ def store_api_key_in_keychain(backend: str, env_var: str, api_key: str) -> bool:
                 CRED_TYPE_GENERIC = 1
                 CRED_PERSIST_LOCAL_MACHINE = 2
 
-                class CREDENTIAL(ctypes.Structure):
+                class CREDENTIAL(ctypes.Structure):  # pragma: no cover - Windows only
                     _fields_ = [
                         ("Flags", wintypes.DWORD),
                         ("Type", wintypes.DWORD),
@@ -121,13 +119,85 @@ def store_api_key_in_keychain(backend: str, env_var: str, api_key: str) -> bool:
                     return False
                 ok("Stored API key in Windows Credential Manager.")
                 return True
-            except Exception as e:  # pragma: no cover
-                warn(f"DPAPI storage failed: {e}")
+            except Exception as exc:  # pragma: no cover
+                warn(f"DPAPI storage failed: {exc}")
                 return False
 
+        if backend == "pass":
+            pass_cmd = (
+                os.environ.get("CODEX_PASS_CMD") or os.environ.get("PASS_CMD") or "pass"
+            )
+            try:
+                check = subprocess.run([pass_cmd, "--version"], capture_output=True)
+                if check.returncode != 0:
+                    warn("`pass` CLI not available; skipping keychain storage.")
+                    return False
+                target = f"codex-cli-linker/{env_var}"
+                proc = subprocess.run(
+                    [pass_cmd, "insert", "-m", "-f", target],
+                    input=api_key.encode(),
+                    capture_output=True,
+                    check=False,
+                )
+                if proc.returncode != 0:
+                    warn("`pass insert` failed; skipping.")
+                    return False
+                ok("Stored API key with pass.")
+                return True
+            except Exception as exc:  # pragma: no cover
+                warn(f"pass storage failed: {exc}")
+                return False
+
+        if backend in {"bitwarden", "bw", "bitwarden-cli"}:
+            bw_cmd = os.environ.get("CODEX_BW_CMD") or "bw"
+            try:
+                proc = subprocess.run([bw_cmd, "--version"], capture_output=True)
+                if proc.returncode != 0:
+                    warn("Bitwarden CLI not available; skipping.")
+                    return False
+                warn(
+                    "Bitwarden CLI detected. Run `bw encode`/`bw set item` manually to store secrets."
+                )
+                return False
+            except Exception as exc:  # pragma: no cover
+                warn(f"Bitwarden CLI storage failed: {exc}")
+                return False
+
+        if backend in {"1password", "1passwd", "op"}:
+            op_cmd = os.environ.get("CODEX_OP_CMD") or "op"
+            try:
+                proc = subprocess.run([op_cmd, "--version"], capture_output=True)
+                if proc.returncode != 0:
+                    warn("1Password CLI not available; skipping.")
+                    return False
+                warn(
+                    "1Password CLI detected. Use `op item create` manually to store secrets."
+                )
+                return False
+            except Exception as exc:  # pragma: no cover
+                warn(f"1Password CLI storage failed: {exc}")
+                return False
+
+        if backend in {"none", "", "skip"}:
+            return False
+
+        if backend not in {
+            "macos",
+            "secretstorage",
+            "secretservice",
+            "dpapi",
+            "pass",
+            "bitwarden",
+            "bw",
+            "bitwarden-cli",
+            "1password",
+            "1passwd",
+            "op",
+        }:
+            warn(f"Unknown keychain backend '{backend}'; skipping.")
         return False
-    except Exception as e:  # pragma: no cover
-        warn(f"Keychain storage error: {e}")
+    except Exception as exc:  # pragma: no cover
+        warn(f"Keychain storage error: {exc}")
         return False
 
 
