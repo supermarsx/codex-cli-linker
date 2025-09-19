@@ -5,6 +5,7 @@ import logging
 import os
 import shutil
 import subprocess
+import sys
 import urllib
 
 from .args import parse_args
@@ -78,8 +79,18 @@ from .updates import (
     SourceResult,
     UpdateCheckResult,
 )
-from .doctor import run_doctor
-from .main_flow import main
+from .main_flow import main, _log_update_sources, _report_update_status
+
+
+def run_doctor(*args, **kwargs):
+    """Proxy to :mod:`codex_linker.doctor` that tolerates module reloads."""
+
+    module = sys.modules.get("codex_linker.doctor")
+    if module is None:
+        from . import doctor as module  # type: ignore[no-redef]
+
+    return module.run_doctor(*args, **kwargs)
+
 
 __all__ = [
     "parse_args",
@@ -148,6 +159,8 @@ __all__ = [
     "SourceResult",
     "UpdateCheckResult",
     "run_doctor",
+    "_log_update_sources",
+    "_report_update_status",
     "http_get_json",
     "os",
     "shutil",

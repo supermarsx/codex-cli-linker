@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import sys
 from typing import List, Optional
 
@@ -38,12 +39,47 @@ def prompt_yes_no(question: str, default: bool = True) -> bool:
         err("Please answer y or n.")
 
 
+def _call_detect_base_url(det, state: LinkerState, auto: bool) -> str:
+    try:
+        sig = inspect.signature(det)
+    except (TypeError, ValueError):
+        sig = None
+
+    if sig is not None:
+        params = list(sig.parameters.values())
+        has_varargs = any(
+            param.kind == inspect.Parameter.VAR_POSITIONAL for param in params
+        )
+        positional = [
+            param
+            for param in params
+            if param.kind
+            in (
+                inspect.Parameter.POSITIONAL_ONLY,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            )
+        ]
+        if has_varargs or len(positional) >= 2:
+            return det(state, auto)
+    try:
+        return det()
+    except TypeError as exc:
+        message = str(exc)
+        if "positional argument" in message or "required positional" in message:
+            return det(state, auto)
+        raise
+
+
 def pick_base_url(state: LinkerState, auto: bool) -> str:
     """Interactively choose or auto-detect the server base URL."""
     if auto:
         mod = sys.modules.get("codex_cli_linker")
         det = getattr(mod, "detect_base_url", detect_base_url)
-        return det() or state.base_url or DEFAULT_LMSTUDIO
+        return (
+            _call_detect_base_url(det, state, auto)
+            or state.base_url
+            or DEFAULT_LMSTUDIO
+        )
     print()
     print(c("Choose base URL (OpenAI‑compatible):", BOLD))
     opts = [
@@ -64,7 +100,9 @@ def pick_base_url(state: LinkerState, auto: bool) -> str:
     if choice.startswith("Auto"):
         mod = sys.modules.get("codex_cli_linker")
         det = getattr(mod, "detect_base_url", detect_base_url)
-        return det() or input("Enter base URL: ").strip()
+        return (
+            _call_detect_base_url(det, state, auto) or input("Enter base URL: ").strip()
+        )
     return state.base_url
 
 
