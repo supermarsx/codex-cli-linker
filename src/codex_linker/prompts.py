@@ -45,6 +45,13 @@ def _call_detect_base_url(det, state: LinkerState, auto: bool) -> str:
     except (TypeError, ValueError):
         sig = None
 
+    attempts = []
+
+    def add_attempt(args, kwargs=None) -> None:
+        if kwargs is None:
+            kwargs = {}
+        attempts.append((args, kwargs))
+
     if sig is not None:
         params = list(sig.parameters.values())
         has_varargs = any(
@@ -59,15 +66,40 @@ def _call_detect_base_url(det, state: LinkerState, auto: bool) -> str:
                 inspect.Parameter.POSITIONAL_OR_KEYWORD,
             )
         ]
-        if has_varargs or len(positional) >= 2:
-            return det(state, auto)
-    try:
-        return det()
-    except TypeError as exc:
-        message = str(exc)
-        if "positional argument" in message or "required positional" in message:
-            return det(state, auto)
-        raise
+        required_positional = [
+            param for param in positional if param.default is inspect._empty
+        ]
+        if has_varargs or len(required_positional) >= 2:
+            add_attempt((state, auto))
+        elif len(required_positional) == 1:
+            add_attempt((state,))
+        else:
+            add_attempt(())
+    else:
+        add_attempt(())
+
+    add_attempt(())
+    add_attempt((state, auto))
+    add_attempt((state,))
+
+    last_error: Optional[TypeError] = None
+    for args, kwargs in attempts:
+        try:
+            return det(*args, **kwargs)
+        except TypeError as exc:
+            last_error = exc
+            message = str(exc)
+            if (
+                "positional argument" in message
+                or "positional arguments" in message
+                or "required positional" in message
+            ):
+                continue
+            raise
+
+    if last_error is not None:
+        raise last_error
+    return det()
 
 
 def pick_base_url(state: LinkerState, auto: bool) -> str:
