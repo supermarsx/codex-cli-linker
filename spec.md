@@ -130,6 +130,7 @@ save linker state → show next‑step hints
 - `--json` — also write `~/.codex/config.json`
 - `--yaml` — also write `~/.codex/config.yaml`
 - `--dry-run` — print configs to stdout without writing or backing up files
+- `--open-config` — after writing, print a command to open `config.toml` in the selected editor (`--file-opener`). This prints only; it never executes the editor.
 
 > A `--launch` flag exists but is a no‑op by design (manual Codex launch is recommended). The script can inform how to run: `npx codex --profile <name>` or `codex --profile <name>`. A helper `launch_codex(profile)` is available for cross‑platform execution (cmd, PowerShell, POSIX shells) and returns the CLI's exit code while logging the command.
 
@@ -515,4 +516,3 @@ GitHub Actions runs five jobs:
 - **publish** — uploads build artifacts to PyPI
 
 `lint`, `format`, and `test` execute in parallel and fail independently. `build` runs only after those three succeed, and `publish` depends on the successful completion of `build`.
-
