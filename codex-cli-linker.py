@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Compatibility shim that re-exports the CLI implementation."""
+
 from pathlib import Path
 import sys
 import importlib

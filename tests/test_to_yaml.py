@@ -30,9 +30,9 @@ class TestToYaml(unittest.TestCase):
             "      c: 2",
             "  d: true",
             "e:",
-            "  - \"x\"",
+            '  - "x"',
             "  -",
-            "    y: \"z\"",
+            '    y: "z"',
         ]
         self.assertEqual(y.splitlines(), expected_lines)
         self.assertTrue(y.endswith("\n"))
