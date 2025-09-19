@@ -80,7 +80,6 @@ def test_call_detect_base_url_typeerror_propagates():
         prompts._call_detect_base_url(det_fail, cli.LinkerState(), False)
 
 
-
 def test_pick_base_url_variants(monkeypatch):
     cli = load_cli()
     st = cli.LinkerState(base_url="http://last:9/v1")

@@ -1,4 +1,3 @@
-import json
 import os
 import sys
 import tempfile
@@ -35,6 +34,7 @@ def load_updates_module():
 
 
 updates = load_updates_module()
+
 
 class VersionComparisonTests(unittest.TestCase):
     def test_numeric_progression(self) -> None:
@@ -87,7 +87,7 @@ class InstallOriginDetectionTests(unittest.TestCase):
     def test_detects_homebrew_via_cellar(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             cellar = Path(tmp) / "Cellar"
-            formula_dir = cellar / "codex-cli-linker" / "0.1.2"
+            formula_dir = cellar / "codex-cli-linker" / "0.1.3"
             module_path = (
                 formula_dir
                 / "lib"
@@ -131,7 +131,6 @@ class InstallOriginDetectionTests(unittest.TestCase):
             self.assertEqual(origin, "source")
 
 
-
 class UpdateCacheTests(unittest.TestCase):
     def test_source_result_from_cache_invalid(self) -> None:
         result = updates.SourceResult.from_cache("github", "not-a-dict")
@@ -150,7 +149,9 @@ class UpdateCacheTests(unittest.TestCase):
             }
             now = datetime.utcnow()
             updates._save_cache(cache_path, now, sources)
-            cached, used = updates._load_cache(cache_path, now, timedelta(hours=1), ["github"])
+            cached, used = updates._load_cache(
+                cache_path, now, timedelta(hours=1), ["github"]
+            )
             self.assertTrue(used)
             self.assertIn("github", cached)
             self.assertEqual(cached["github"].version, "0.2.0")
@@ -166,7 +167,9 @@ class CheckForUpdatesBehaviourTests(unittest.TestCase):
                 calls.append((url, timeout))
                 return updates.SourceResult("github", "0.2.0", url, error=None)
 
-            with mock.patch.dict(updates._FETCHERS, {"github": fake_fetch}, clear=False):
+            with mock.patch.dict(
+                updates._FETCHERS, {"github": fake_fetch}, clear=False
+            ):
                 result_force = updates.check_for_updates(
                     "0.1.0", home, force=True, sources=["github"]
                 )

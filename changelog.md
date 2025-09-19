@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.1.3
+
+### Added
+- Release notes for this iteration (`docs/release-notes/v0.1.3.md`) highlighting the logging shim fix and broadened QA surface.
+- High-signal regression tests that exercise the doctor feature probe, asynchronous HTTP logging queue, keychain `pass` backend flows, update-check entrypoints, and prompt detector helper signatures.
+
+### Changed
+- The compatibility shim now mirrors `src` into `PYTHONPATH` before spawning subprocesses so doctor logging checks and other child processes load the in-repo modules deterministically.
+- Homebrew formula and Scoop manifest now point to the v0.1.3 artifacts; Scoop URL updated pending the freshly built Windows binary hash.
+- Documentation ordering in the changelog cleaned up to keep the latest version at the top for easier scanning.
+
+### Fixed
+- Remote logging subprocesses no longer crash with `ModuleNotFoundError`, restoring the doctor feature probe when `PYTEST_CURRENT_TEST` is unset.
+- Update-check integration tests reuse the CLI shim module so type exports stay in sync with release packaging.
+
+### Maintenance
+- Bumped project metadata to `0.1.3`, regenerated sdist/wheel via `python -m build`, and verified formatting (`ruff`, `black`) plus the full test suite.
+- Ensured release packaging artefacts (sdist, wheel) incorporate the extended tests and shim adjustments.
+
 ## v0.1.2
 
 Highlights
@@ -38,3 +57,4 @@ All notable changes to this project are documented here. The project follows
 ## [0.1.0] - 2025-08-31
 ### Added
 - Initial release of codex-cli-linker: single-file, no-deps tool to auto-detect local servers (LM Studio, Ollama), pick a model, and emit Codex config in TOML (optionally JSON/YAML). Includes safe backups and a small persisted state file.
+
