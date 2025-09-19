@@ -42,4 +42,3 @@ def test_http_get_json_http_error(monkeypatch):
     monkeypatch.setattr(cli.urllib.request, "urlopen", boom)
     data, err = cli.http_get_json("http://x")
     assert data is None and "HTTP 500" in err
-

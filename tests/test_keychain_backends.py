@@ -17,7 +17,6 @@ def load_cli():
 
 
 def test_keychain_macos_success_and_wrong_platform(monkeypatch):
-    cli = load_cli()
     keychain = importlib.import_module("codex_linker.keychain")
     # Simulate macOS success
     monkeypatch.setattr(keychain.sys, "platform", "darwin")
@@ -34,7 +33,6 @@ def test_keychain_macos_success_and_wrong_platform(monkeypatch):
 
 
 def test_keychain_secretstorage_success_and_missing(monkeypatch):
-    cli = load_cli()
     keychain = importlib.import_module("codex_linker.keychain")
     # Fake secretstorage module
     created = {}
@@ -62,10 +60,10 @@ def test_keychain_secretstorage_success_and_missing(monkeypatch):
 
 
 def test_keychain_dpapi_success_and_failure(monkeypatch):
-    cli = load_cli()
     keychain = importlib.import_module("codex_linker.keychain")
     # Pretend Windows
     from types import SimpleNamespace as _NS
+
     monkeypatch.setattr(keychain, "os", _NS(name="nt"), raising=False)
 
     class CredWrite:
@@ -105,6 +103,7 @@ def test_keychain_auto_backend(monkeypatch):
     assert keychain._keychain_backend_auto() == "macos"
     monkeypatch.setattr(keychain.sys, "platform", "linux")
     from types import SimpleNamespace as _NS
+
     monkeypatch.setattr(keychain, "os", _NS(name="nt"), raising=False)
     assert keychain._keychain_backend_auto() == "dpapi"
     monkeypatch.setattr(keychain, "os", _NS(name="posix"), raising=False)

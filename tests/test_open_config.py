@@ -49,7 +49,7 @@ def test_open_config_prints_vscode_command(monkeypatch, tmp_path, capsys):
     cli.main()
     out = capsys.readouterr().out
     assert "Open config in your editor:" in out
-    assert f"code \"{tmp_path / 'config.toml'}\"" in out
+    assert f'code "{tmp_path / "config.toml"}"' in out
 
 
 def test_open_config_prints_insiders_command(monkeypatch, tmp_path, capsys):
@@ -71,5 +71,4 @@ def test_open_config_prints_insiders_command(monkeypatch, tmp_path, capsys):
     cli.main()
     out = capsys.readouterr().out
     assert "Open config in your editor:" in out
-    assert f"code-insiders \"{tmp_path / 'config.toml'}\"" in out
-
+    assert f'code-insiders "{tmp_path / "config.toml"}"' in out
