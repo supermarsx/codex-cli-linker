@@ -82,6 +82,8 @@ is_version_newer = _impl.is_version_newer
 SourceResult = _impl.SourceResult
 UpdateCheckResult = _impl.UpdateCheckResult
 run_doctor = _impl.run_doctor
+_log_update_sources = _impl._log_update_sources
+_report_update_status = _impl._report_update_status
 http_get_json = _impl.http_get_json
 os = _impl.os
 shutil = _impl.shutil
@@ -158,6 +160,8 @@ __all__ = [
     "SourceResult",
     "UpdateCheckResult",
     "run_doctor",
+    "_log_update_sources",
+    "_report_update_status",
     "http_get_json",
     "os",
     "shutil",
