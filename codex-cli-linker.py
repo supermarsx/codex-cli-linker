@@ -1,16 +1,26 @@
 #!/usr/bin/env python3
 """Compatibility shim that re-exports the CLI implementation."""
 
-from pathlib import Path
-import sys
 import importlib
+import os as _os
+import sys
+from pathlib import Path
 
 
 def _load_modules():
     _here = Path(__file__).resolve().parent
     _src = _here / "src"
-    if _src.exists() and str(_src) not in sys.path:
-        sys.path.insert(0, str(_src))
+    if _src.exists():
+        src_str = str(_src)
+        if src_str not in sys.path:
+            sys.path.insert(0, src_str)
+        env_path = _os.environ.get("PYTHONPATH")
+        if env_path:
+            paths = env_path.split(_os.pathsep)
+            if src_str not in paths:
+                _os.environ["PYTHONPATH"] = _os.pathsep.join([src_str, env_path])
+        else:
+            _os.environ["PYTHONPATH"] = src_str
     impl = importlib.import_module("codex_linker.impl")
     utils = importlib.import_module("codex_linker.utils")
     return impl, utils
