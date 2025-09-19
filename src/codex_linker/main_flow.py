@@ -306,9 +306,9 @@ def main():
     if getattr(args, "open_config", False):
         opener = (args.file_opener or "vscode").strip().lower()
         if opener == "vscode-insiders":
-            cmd = f"code-insiders \"{config_toml}\""
+            cmd = f'code-insiders "{config_toml}"'
         else:
-            cmd = f"code \"{config_toml}\""
+            cmd = f'code "{config_toml}"'
         info("Open config in your editor:")
         print(c(f"  {cmd}", CYAN))
 

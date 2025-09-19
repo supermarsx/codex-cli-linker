@@ -1,6 +1,5 @@
 import sys
 from types import ModuleType
-from pathlib import Path
 
 
 def load_pkg_init():

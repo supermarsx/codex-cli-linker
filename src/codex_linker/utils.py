@@ -55,9 +55,7 @@ def get_version() -> str:
                 # Fall back to a simple regex scan within [project] section
                 import re
 
-                m = re.search(
-                    r"(?ms)^\[project\].*?^version\s*=\s*\"([^\"]+)\"", text
-                )
+                m = re.search(r"(?ms)^\[project\].*?^version\s*=\s*\"([^\"]+)\"", text)
                 if m:
                     return m.group(1)
         except Exception:
