@@ -22,7 +22,7 @@ This small, dependency‑free Python script:
 - Fetches available models from `/v1/models` and lets you pick one.
 - Emits a modern **`~/.codex/config.toml`** (Codex “# Config” schema) and can optionally emit **JSON** and **YAML** siblings.
 - Backs up any existing config (adds `.bak`).
-- Stores a tiny linker state (`~/.codex/linker_config.json`) to remember your last choices.
+- Stores a tiny linker state (`~/.codex/linker_config.json` or `./.codex-linker.json` when using workspace override) to remember your last choices.
 - Can preload defaults from a remote JSON via `--config-url`.
 - Preview the would-be files with `--dry-run` (prints to stdout, no writes).
 
@@ -34,7 +34,7 @@ This small, dependency‑free Python script:
 - Produces TOML by default and optional JSON/YAML mirrors to keep schema parity.
 - Centralized schema shaping via a single `build_config_dict()`—no duplicated logic.
 - Creates safe backups (`*.bak`) before overwriting existing configs.
-- Remembers last choices in `~/.codex/linker_config.json` for faster repeat runs.
+- Remembers last choices in `~/.codex/linker_config.json` (or `./.codex-linker.json` when using workspace override) for faster repeat runs.
 - First-class cross‑platform UX: clean colors, concise messages, no auto‑launch side effects.
 - Diagnostic tooling: verbose logging, file logging, JSON logs, and remote HTTP log export.
 - Tunable retry/timeout parameters for flaky networks; Azure-style `api-version` support.
@@ -136,6 +136,20 @@ python3 -m pip install --user codex-cli-linker
 codex-cli-linker.py --auto
 ```
 
+### D) Homebrew (macOS / Linux)
+```bash
+brew tap supermarsx/codex-cli-linker https://github.com/supermarsx/codex-cli-linker
+brew install supermarsx/codex-cli-linker/codex-cli-linker
+codex-cli-linker --auto
+```
+
+### E) Scoop (Windows)
+```powershell
+scoop bucket add codex-cli-linker https://github.com/supermarsx/codex-cli-linker
+scoop install codex-cli-linker
+codex-cli-linker --auto
+```
+
 After generating files, launch Codex with the printed profile:
 ```bash
 npx codex --profile lmstudio   # or: codex --profile lmstudio
@@ -163,6 +177,12 @@ python3 codex-cli-linker.py --verbose --auto
 python3 codex-cli-linker.py --log-file linker.log
 python3 codex-cli-linker.py --log-json
 python3 codex-cli-linker.py --log-remote http://example.com/log
+
+# Run preflight diagnostics (connectivity, permissions)
+python3 codex-cli-linker.py --doctor --base-url http://localhost:1234/v1
+
+# Doctor with feature probing
+python3 codex-cli-linker.py --doctor --doctor-detect-features --base-url http://localhost:1234/v1
 
 # Preload defaults from a remote JSON
 python3 codex-cli-linker.py --config-url https://example.com/defaults.json --auto
@@ -201,9 +221,48 @@ python3 -m pip install --user codex-cli-linker
 codex-cli-linker.py --auto            # or just: codex-cli-linker.py
 ```
 
+### Install via Homebrew
+
+Homebrew installs the tool in a virtual environment and exposes the `codex-cli-linker` entry point:
+
+```bash
+brew tap supermarsx/codex-cli-linker https://github.com/supermarsx/codex-cli-linker
+brew install supermarsx/codex-cli-linker/codex-cli-linker
+codex-cli-linker --auto
+```
+
+Upgrade when a new release ships:
+
+```bash
+brew update
+brew upgrade codex-cli-linker
+```
+
+See [docs/homebrew.md](docs/homebrew.md) for tap maintenance notes.
+
+### Install via Scoop (Windows)
+
+Scoop installs the single-file executable and shims it onto your PATH:
+
+```powershell
+scoop bucket add codex-cli-linker https://github.com/supermarsx/codex-cli-linker
+scoop install codex-cli-linker
+codex-cli-linker --auto
+```
+
+Upgrade with:
+
+```powershell
+scoop update codex-cli-linker
+```
+
+See [docs/scoop.md](docs/scoop.md) for manifest maintenance notes.
+
 Notes:
-- The package installs the single script; there is no Python package import. Run the script by name.
+- PyPI installs the single script; there is no Python package import. Run the script by name.
 - On Windows PowerShell, use `py -m pip install codex-cli-linker` then run `codex-cli-linker.py`.
+- Homebrew keeps the package under `$(brew --cellar)/codex-cli-linker/<version>` and exposes the `codex-cli-linker` entry point on your PATH.
+- Scoop keeps shims in `~/scoop/shims/` while the app lives under `~/scoop/apps/codex-cli-linker/current`.
 
 
 ## How it works
@@ -266,6 +325,8 @@ Tip: All options have short aliases (e.g., `-a` for `--auto`). Run `-h` to see t
 - `--history-max-bytes <N>` - limit history size
 - `--disable-response-storage` - do not store responses
 - `--state-file <PATH>` - use a custom linker state JSON path (default `$CODEX_HOME/linker_config.json`)
+- `--workspace-state` - prefer `./.codex-linker.json` in the current directory for linker state (auto-created when missing)
+- `--doctor-detect-features` - while running `--doctor`, probe advanced API features (tool_choice, response_format, reasoning)
 
 **Keychain (optional)**
 - `--keychain {none,auto,macos,dpapi,secretstorage}` — when `--api-key` is provided, store it in an OS keychain:

@@ -75,6 +75,13 @@ atomic_write_with_backup = _impl.atomic_write_with_backup
 delete_all_backups = _impl.delete_all_backups
 remove_config = _impl.remove_config
 get_version = _impl.get_version
+check_for_updates = _impl.check_for_updates
+determine_update_sources = _impl.determine_update_sources
+detect_install_origin = _impl.detect_install_origin
+is_version_newer = _impl.is_version_newer
+SourceResult = _impl.SourceResult
+UpdateCheckResult = _impl.UpdateCheckResult
+run_doctor = _impl.run_doctor
 http_get_json = _impl.http_get_json
 os = _impl.os
 shutil = _impl.shutil
@@ -144,6 +151,13 @@ __all__ = [
     "delete_all_backups",
     "remove_config",
     "get_version",
+    "check_for_updates",
+    "determine_update_sources",
+    "detect_install_origin",
+    "is_version_newer",
+    "SourceResult",
+    "UpdateCheckResult",
+    "run_doctor",
     "http_get_json",
     "os",
     "shutil",
@@ -170,3 +184,5 @@ if __name__ == "__main__":  # pragma: no cover
             warn("Aborted by user.")
         except Exception:
             pass
+
+

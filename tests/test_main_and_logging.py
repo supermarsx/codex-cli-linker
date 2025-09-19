@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 from pathlib import Path
@@ -25,7 +26,7 @@ def test_main_non_dry_run_writes_and_summary(monkeypatch, tmp_path, capsys):
     # avoid UI and network
     monkeypatch.setattr(cli, "clear_screen", lambda: None)
     monkeypatch.setattr(cli, "banner", lambda: None)
-    monkeypatch.setattr(cli, "detect_base_url", lambda: cli.DEFAULT_LMSTUDIO)
+    monkeypatch.setattr(cli, "detect_base_url", lambda state, auto: cli.DEFAULT_LMSTUDIO)
     monkeypatch.setattr(
         cli, "list_models", lambda *a, **k: ["m1", "m2"]
     )  # model index 0 used
@@ -78,8 +79,64 @@ def test_configure_logging_file_and_remote_error(tmp_path, monkeypatch):
     )
     env = os.environ.copy()
     env.pop("PYTEST_CURRENT_TEST", None)  # ensure async path
-    env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1] / "src") + (
-        os.pathsep + env["PYTHONPATH"] if "PYTHONPATH" in env else ""
+    proc = cli.subprocess.run([sys.executable, "-c", code], capture_output=True, env=env)
+    assert proc.returncode == 0
+
+
+def test_workspace_state_override(monkeypatch, tmp_path, capsys):
+    cli = load_cli()
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    home = tmp_path / "home"
+    home.mkdir()
+
+    monkeypatch.chdir(workspace)
+    monkeypatch.setattr(cli, "CODEX_HOME", home)
+    monkeypatch.setattr(cli, "CONFIG_TOML", home / "config.toml")
+    monkeypatch.setattr(cli, "CONFIG_JSON", home / "config.json")
+    monkeypatch.setattr(cli, "CONFIG_YAML", home / "config.yaml")
+    monkeypatch.setattr(cli, "LINKER_JSON", home / "linker_config.json")
+
+    monkeypatch.setattr(cli, "clear_screen", lambda: None)
+    monkeypatch.setattr(cli, "banner", lambda: None)
+    monkeypatch.setattr(cli, "detect_base_url", lambda state, auto: cli.DEFAULT_LMSTUDIO)
+    monkeypatch.setattr(cli, "list_models", lambda *a, **k: ["model-a"])
+    monkeypatch.setattr(cli, "try_auto_context_window", lambda *a, **k: 0)
+
+    class DummyUpdates:
+        sources = []
+        newer_sources = []
+        errors = []
+        used_cache = False
+
+        @property
+        def has_newer(self):
+            return False
+
+    monkeypatch.setattr(cli, "check_for_updates", lambda *a, **k: DummyUpdates())
+    monkeypatch.setattr(cli, "_log_update_sources", lambda *a, **k: None)
+    monkeypatch.setattr(cli, "_report_update_status", lambda *a, **k: None)
+    monkeypatch.setattr(cli, "log_event", lambda *a, **k: None)
+
+    writes = []
+    monkeypatch.setattr(cli, "atomic_write_with_backup", lambda path, content: writes.append(path))
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "codex-cli-linker.py",
+            "--workspace-state",
+            "--auto",
+            "--model-index",
+            "0",
+        ],
+        raising=False,
     )
-    res = __import__("subprocess").run([sys.executable, "-c", code], env=env)
-    assert res.returncode == 0
+
+    cli.main()
+    state_path = workspace / ".codex-linker.json"
+    assert state_path.exists()
+    data = json.loads(state_path.read_text(encoding="utf-8"))
+    assert data.get("base_url") == cli.DEFAULT_LMSTUDIO
+    assert not (home / "linker_config.json").exists()
