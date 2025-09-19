@@ -30,5 +30,5 @@ where = ["src"]
 codex-cli-linker = "codex_linker:main"
 
 [tool.pytest.ini_options]
-addopts = "--cov=codex_cli_linker --cov=codex_linker.impl --cov-report=term-missing --timeout=20 --timeout-method=thread"
+addopts = "--cov=codex_cli_linker --cov=codex_linker --cov-report=term-missing --timeout=20 --timeout-method=thread"
 testpaths = ["tests"]
