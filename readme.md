@@ -255,6 +255,7 @@ Tip: All options have short aliases (e.g., `-a` for `--auto`). Run `-h` to see t
 - `--approval-policy {untrusted,on-failure}` (default: `on-failure`)
 - `--sandbox-mode {read-only,workspace-write}` (default: `workspace-write`)
 - `--file-opener {vscode,vscode-insiders}` (default: `vscode`)
+- `--open-config` — after writing files, print the exact editor command to open `config.toml` (no auto-launch)
 - `--reasoning-effort {minimal,low}` (default: `low`)
 - `--reasoning-summary {auto,concise}` (default: `auto`)
 - `--verbosity {low,medium}` (default: `medium`)
@@ -290,6 +291,7 @@ Tip: All options have short aliases (e.g., `-a` for `--auto`). Run `-h` to see t
 - Startup: `-a` `--auto`, `-A` `--full-auto`, `-Q` `--yes`, `-F` `--clear`, `-V` `--version`
 - Selection: `-b` `--base-url`, `-m` `--model`, `-i` `--model-index`, `-P` `--provider`, `-l` `--providers`, `-p` `--profile`
 - Output: `-j` `--json`, `-y` `--yaml`, `-n` `--dry-run`, `-Z` `--diff`
+  - Open helper: `--open-config` (prints editor command; never auto-launches)
 - Logging: `-v` `--verbose`, `--log-level/--level <debug|info|warning|error>`, `-f` `--log-file`, `-J` `--log-json`, `-R` `--log-remote`
 - Secrets: `--keychain {none,auto,macos,dpapi,secretstorage}`
 - Config URL / state: `-c` `--config-url`, `-x` `--state-file`

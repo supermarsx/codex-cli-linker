@@ -335,6 +335,11 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Path to linker state JSON (default: $CODEX_HOME/linker_config.json)",
     )
     file_mgmt.add_argument(
+        "--open-config",
+        action="store_true",
+        help="After writing files, print a command to open config.toml in the selected editor (no auto-launch)",
+    )
+    file_mgmt.add_argument(
         "-D",
         "--project-doc-max-bytes",
         type=int,

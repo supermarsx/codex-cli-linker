@@ -302,5 +302,15 @@ def main():
     print(c(f"  npx codex --profile {state.profile}", CYAN))
     print(c(f"  codex --profile {state.profile}", CYAN))
 
+    # Optional: suggest an editor command to open the generated config
+    if getattr(args, "open_config", False):
+        opener = (args.file_opener or "vscode").strip().lower()
+        if opener == "vscode-insiders":
+            cmd = f"code-insiders \"{config_toml}\""
+        else:
+            cmd = f"code \"{config_toml}\""
+        info("Open config in your editor:")
+        print(c(f"  {cmd}", CYAN))
+
 
 __all__ = ["main"]
