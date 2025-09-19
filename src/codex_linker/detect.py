@@ -19,7 +19,9 @@ def detect_base_url(candidates: List[str] = COMMON_BASE_URLS) -> Optional[str]:
     def probe(base: str):
         logging.debug("Probing %s", base)
         url = base.rstrip("/") + "/models"
-        http = getattr(sys.modules.get("codex_cli_linker"), "http_get_json", http_get_json)
+        http = getattr(
+            sys.modules.get("codex_cli_linker"), "http_get_json", http_get_json
+        )
         try:
             return base, http(url, timeout=1.5)
         except TypeError:  # tests may stub without timeout kw

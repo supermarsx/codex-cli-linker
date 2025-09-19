@@ -37,15 +37,33 @@ def get_version() -> str:
         return pv("codex-cli-linker")
     except Exception:
         pass
-    try:
-        import tomllib
 
-        pyproj = Path(__file__).resolve().parents[2] / "pyproject.toml"
-        if pyproj.exists():
-            data = tomllib.loads(pyproj.read_text(encoding="utf-8"))
-            return data.get("project", {}).get("version", "0.0.0")
-    except Exception:
-        pass
+    # Fallback: read version from pyproject.toml without third-party deps.
+    pyproj = Path(__file__).resolve().parents[2] / "pyproject.toml"
+    if pyproj.exists():
+        try:
+            text = pyproj.read_text(encoding="utf-8")
+            # Try stdlib tomllib if available (Python 3.11+)
+            try:
+                import tomllib  # type: ignore
+
+                data = tomllib.loads(text)  # type: ignore[name-defined]
+                ver = (data.get("project") or {}).get("version")
+                if isinstance(ver, str) and ver:
+                    return ver
+            except Exception:
+                # Fall back to a simple regex scan within [project] section
+                import re
+
+                m = re.search(
+                    r"(?ms)^\[project\].*?^version\s*=\s*\"([^\"]+)\"", text
+                )
+                if m:
+                    return m.group(1)
+        except Exception:
+            # Reading/parsing pyproject failed; continue to default
+            pass
+
     return "0.0.0+unknown"
 
 
