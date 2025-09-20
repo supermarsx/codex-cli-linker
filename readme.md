@@ -571,6 +571,57 @@ See [changelog.md](./changelog.md) for a summary of notable changes by version.
 
 See [development.md](./development.md) for CI, release, and code map information.
 
+### CMake pipeline (optional)
+
+You can use CMake to run common tasks for this Python tool (no extra Python deps required):
+
+```bash
+# Configure once
+cmake -S . -B build
+
+# Syntax check
+cmake --build build --target check
+
+# Run unit tests via CTest
+cmake --build build --target test        # or: ctest --test-dir build -V
+
+# Run the tool with flags controlled by cache vars
+cmake -S . -B build \
+  -DCODEX_AUTO=ON \
+  -DCODEX_JSON=ON \
+  -DCODEX_BASE_URL=http://localhost:1234/v1
+cmake --build build --target run
+
+# Handy aggregate target
+cmake --build build --target ci          # runs check + test
+```
+
+Configurable cache variables for `run`:
+- `CODEX_AUTO`, `CODEX_FULL_AUTO`, `CODEX_JSON`, `CODEX_YAML`, `CODEX_DRY_RUN`, `CODEX_VERBOSE`
+- `CODEX_BASE_URL`, `CODEX_PROVIDER`, `CODEX_PROFILE`, `CODEX_MODEL`, `CODEX_MODEL_INDEX`
+
+This keeps side effects explicit (no auto-launch) and matches the repo’s cross‑platform, no‑deps philosophy.
+
+### Makefile helpers (optional)
+
+GNU Make wrapper around the CMake targets:
+
+```bash
+# Configure & run checks/tests
+make configure
+make check
+make test
+
+# Run the tool (pass flags as variables)
+make run AUTO=1 JSON=1 BASE_URL=http://localhost:1234/v1
+
+# Aggregate
+make ci
+
+# Clean build dir
+make clean
+```
+
 
 
 ## License
