@@ -419,6 +419,7 @@ Additional handy short aliases:
   - `-ds, --deepseek` → provider `deepseek` (`https://api.deepseek.com/v1`)
   - `-ch, --cohere` → provider `cohere` (`https://api.cohere.com/v2`)
   - `-bt, --baseten` → provider `baseten` (`https://inference.baseten.co/v1`)
+  - `-kb, --koboldcpp` → provider `koboldcpp` (`http://localhost:5000/v1`)
 - `--profile <NAME>` — profile name for `[profiles.<name>]` (default deduced from provider)
 - `--api-key <VAL>` — dummy key to place in an env var
 - `--env-key-name <NAME>` — env var name that holds the API key (default `NULLKEY`)

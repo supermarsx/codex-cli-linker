@@ -191,6 +191,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     providers.add_argument("-ds", "--deepseek", action="store_true", help="Preset: DeepSeek (https://api.deepseek.com/v1)")
     providers.add_argument("-ch", "--cohere", action="store_true", help="Preset: Cohere (https://api.cohere.com/v2)")
     providers.add_argument("-bt", "--baseten", action="store_true", help="Preset: Baseten (https://inference.baseten.co/v1)")
+    providers.add_argument("-kb", "--koboldcpp", action="store_true", help="Preset: KoboldCpp (http://localhost:5000/v1)")
     providers.add_argument("--azure-resource", help="Azure resource name (e.g., myresource)")
     providers.add_argument("--azure-path", help="Azure path (e.g., openai/v1)")
     providers.add_argument(
@@ -601,6 +602,15 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         ns.provider = ns.provider or "cohere"
     if getattr(ns, "baseten", False):
         ns.provider = ns.provider or "baseten"
+    if getattr(ns, "koboldcpp", False):
+        ns.provider = ns.provider or "koboldcpp"
+        # Default base URL for koboldcpp if not provided
+        try:
+            from .spec import DEFAULT_KOBOLDCPP  # type: ignore
+            if not getattr(ns, "base_url", None):
+                ns.base_url = DEFAULT_KOBOLDCPP
+        except Exception:
+            pass
     # Normalize providers list
     provs = []
     if getattr(ns, "providers", None):
