@@ -261,6 +261,16 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         action="store_true",
         help="Merge generated [profiles.*] into existing config.toml (preserve others)",
     )
+    profiles.add_argument(
+        "--merge-config",
+        action="store_true",
+        help="Merge generated config into existing config.toml (append new sections, prompt on conflicts)",
+    )
+    profiles.add_argument(
+        "--merge-overwrite",
+        action="store_true",
+        help="When merging, overwrite conflicting sections/keys without prompting",
+    )
 
     # MCP servers
     mcp.add_argument(
