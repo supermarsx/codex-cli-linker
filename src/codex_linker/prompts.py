@@ -263,6 +263,8 @@ def pick_base_url(state: LinkerState, auto: bool) -> str:
         return DEFAULT_BASETEN
     if choice.startswith("KoboldCpp"):
         return DEFAULT_KOBOLDCPP
+    if choice.startswith("AnythingLLM"):
+        return DEFAULT_ANYTHINGLLM
     if choice.startswith("Azure OpenAI"):
         resource = input("Azure resource name (e.g., myres): ").strip()
         path = input("Path (e.g., openai/v1): ").strip()

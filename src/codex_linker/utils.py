@@ -24,6 +24,7 @@ from .spec import (
     DEFAULT_MISTRAL,
     DEFAULT_DEEPSEEK,
     DEFAULT_COHERE,
+    DEFAULT_ANYTHINGLLM,
     DEFAULT_BASETEN,
 )
 
@@ -102,6 +103,7 @@ _PROVIDER_PREFIXES = {
     DEFAULT_COHERE.rsplit("/v2", 1)[0]: "cohere",
     DEFAULT_BASETEN.rsplit("/v1", 1)[0]: "baseten",
     DEFAULT_OPENAI.rsplit("/v1", 1)[0]: "openai",
+    DEFAULT_ANYTHINGLLM.rsplit("/v1", 1)[0]: "anythingllm",
 }
 
 
