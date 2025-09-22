@@ -369,12 +369,6 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Set history.persistence=none",
     )
     profiles.add_argument(
-        "--history",
-        action="store_false",
-        dest="no_history",
-        help="Enable history persistence",
-    )
-    profiles.add_argument(
         "-N",
         "--history-max-bytes",
         type=int,
