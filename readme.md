@@ -431,7 +431,7 @@ Additional handy short aliases:
 - `--verbosity {low,medium,high}` (default: `medium`)
 - `--hide-agent-reasoning` / `--show-raw-agent-reasoning`
 
-**History & storage**
+**History persistence & storage**
 - `--no-history` - sets `history.persistence=none` (otherwise `save-all`)
 - `--history-max-bytes <N>` - limit history size
 - `--disable-response-storage` - do not store responses
@@ -468,7 +468,7 @@ Additional handy short aliases:
 - Secrets: `--keychain {none,auto,macos,dpapi,secretstorage,secretservice,pass,bitwarden,bw,bitwarden-cli,1password,1passwd,op}`
 - Config URL / state: `-c` `--config-url`, `-x` `--state-file`
 - Spec knobs: `-q` `--approval-policy`, `-s` `--sandbox-mode`, `-o` `--file-opener`, `-r` `--reasoning-effort`, `-u` `--reasoning-summary`, `-B` `--verbosity`
-- History/storage: `-H` `--no-history`, `-N` `--history-max-bytes`, `-d` `--disable-response-storage`
+- History persistence/storage: `-H` `--no-history`, `-N` `--history-max-bytes`, `-d` `--disable-response-storage`
 - Model limits: `-w` `--model-context-window`, `-t` `--model-max-output-tokens`, `-D` `--project-doc-max-bytes`
 - Visibility/other: `-g` `--hide-agent-reasoning`, `-G` `--show-raw-agent-reasoning`, `-Y` `--model-supports-reasoning-summaries`, `-C` `--chatgpt-base-url`
 - Experimental: `-U` `--experimental-resume`, `-I` `--experimental-instructions-file`, `-X` `--experimental-use-exec-command-tool`, `-O` `--responses-originator-header-internal-override`, `-M` `--preferred-auth-method`, `-W` `--tools-web-search`, `-z` `--azure-api-version`, `-K` `--request-max-retries`, `-S` `--stream-max-retries`, `-e` `--stream-idle-timeout-ms`
