@@ -325,13 +325,6 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Enable network_access under [sandbox_workspace_write]",
     )
     profiles.add_argument(
-        "-Nn",
-        "--no-network-access",
-        dest="network_access",
-        action="store_false",
-        help="Disable network_access under [sandbox_workspace_write]",
-    )
-    profiles.add_argument(
         "-Et",
         "--exclude-tmpdir-env-var",
         dest="exclude_tmpdir_env_var",
