@@ -41,7 +41,9 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
         "model_context_window": args.model_context_window or 0,
         "model_max_output_tokens": args.model_max_output_tokens or 0,
         "project_doc_max_bytes": args.project_doc_max_bytes,
-        "tui": args.tui,
+        "tui": {
+            "style": args.tui,
+        },
         "notify": None,
         "instructions": args.instructions,
         "hide_agent_reasoning": args.hide_agent_reasoning,
@@ -157,6 +159,16 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
                 out["startup_timeout_ms"] = int(entry["startup_timeout_ms"])  # type: ignore[index]
             cfg.setdefault("mcp_servers", {})[name] = out
         # If none valid after normalization, do not emit key
+    # TUI notifications: boolean or array of allowed types
+    allowed_types = {"agent-turn-complete", "approval-requested"}
+    tnt = getattr(args, "tui_notification_types", "") or ""
+    types: list[str] = [s.strip() for s in tnt.split(",") if s.strip()] if tnt else []
+    types = [t for t in types if t in allowed_types]
+    if types:
+        cfg["tui"]["notifications"] = types
+    elif getattr(args, "tui_notifications", None) is not None:
+        cfg["tui"]["notifications"] = bool(args.tui_notifications)
+
     # Parse notify as CSV or JSON array
     notify_raw = getattr(args, "notify", "") or ""
     if notify_raw:
