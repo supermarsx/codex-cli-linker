@@ -369,12 +369,6 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Set disable_response_storage=true (e.g., ZDR orgs)",
     )
     profiles.add_argument(
-        "--enable-response-storage",
-        action="store_false",
-        dest="disable_response_storage",
-        help="Allow response storage",
-    )
-    profiles.add_argument(
         "-H",
         "--no-history",
         action="store_true",

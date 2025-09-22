@@ -365,6 +365,7 @@ def main():
         and (args.preferred_auth_method or "apikey") == "apikey"
         and not getattr(args, "yes", False)
         and not getattr(args, "dry_run", False)
+        and not getattr(args, "_ran_editor", False)
     ):
         import json
         import getpass
@@ -482,6 +483,7 @@ def main():
 
     if not args.full_auto:
         # Keep legacy extra prompts minimal for now, since editor handled main knobs
+        args._ran_editor = True
         pass
         if getattr(args, "manage_profiles", False):
             manage_profiles_interactive(args)
