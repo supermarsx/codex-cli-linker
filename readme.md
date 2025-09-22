@@ -453,7 +453,7 @@ Additional handy short aliases:
    - Also supports: `vllm`, `tgwui`, `tgi`, `openrouter` (common local ports are probed automatically).
 
 **Dry-run diffs**
-- `--dry-run --diff` - show unified diffs versus existing `config.*` files instead of writing.
+- `--dry-run --diff` - show colorized, symbol-rich diffs in TTY (falls back to unified diff when color is unavailable). Additions are green `+`, deletions red `-`, unchanged lines dim.
 
 **Non-interactive**
 - `--yes` - suppress prompts when inputs are fully specified (implies `--auto` and defaults `--model-index 0` when `--model` is not provided).
