@@ -400,16 +400,17 @@ Tip: All options have short aliases (e.g., `-a` for `--auto`). Run `-h` to see t
 - `-V, --version` — print the tool version and exit
 
 **Behavior & UX**
-- `--approval-policy {untrusted,on-failure}` (default: `on-failure`)
+- `--approval-policy {untrusted,on-failure,on-request,never}` (default: `on-failure`)
 - `--sandbox-mode {read-only,workspace-write,danger-full-access}` (default: `workspace-write`)
 - `--network-access` / `--no-network-access` — toggles `sandbox_workspace_write.network_access`
 - `--exclude-tmpdir-env-var` / `--no-exclude-tmpdir-env-var` — exclude/include `$TMPDIR` from writable roots (workspace-write only)
 - `--exclude-slash-tmp` / `--no-exclude-slash-tmp` — exclude/include `/tmp` from writable roots (workspace-write only)
-- `--file-opener {vscode,vscode-insiders}` (default: `vscode`)
+- `--writable-roots <CSV>` — extra writable roots for workspace-write (e.g., `/workspace,/data`)
+- `--file-opener {vscode,vscode-insiders,windsurf,cursor,none}` (default: `vscode`)
 - `--open-config` — after writing files, print the exact editor command to open `config.toml` (no auto-launch)
-- `--reasoning-effort {minimal,low}` (default: `low`)
-- `--reasoning-summary {auto,concise}` (default: `auto`)
-- `--verbosity {low,medium}` (default: `medium`)
+- `--reasoning-effort {minimal,low,medium,high}` (default: `low`)
+- `--reasoning-summary {auto,concise,detailed,none}` (default: `auto`)
+- `--verbosity {low,medium,high}` (default: `medium`)
 - `--hide-agent-reasoning` / `--show-raw-agent-reasoning`
 
 **History & storage**
@@ -492,6 +493,12 @@ Notes:
 - `--chatgpt-base-url <URL>` — optional alternate base for ChatGPT‑authored requests
 - `--preferred-auth-method {chatgpt,apikey}` (default: `apikey`)
 - `--tools-web-search` — sets `tools.web_search=true`
+- `--wire-api {chat,responses}` — wire protocol for the provider
+- `--http-header KEY=VAL` — static HTTP header (repeatable)
+- `--env-http-header KEY=ENV_VAR` — env‑sourced header (repeatable)
+- `--notify '["program","arg1",...]'` or `program,arg1,...` — top‑level `notify`
+- `--instructions <TEXT>` — top‑level `instructions`
+- `--trust-project <PATH>` — mark a project/worktree as trusted (repeatable)
 
 **Output formats**
 - `--json` — also write `~/.codex/config.json`
@@ -528,10 +535,21 @@ At a glance, the script writes:
 - **`[model_providers.<id>]`** *(only the active one is emitted)*
   - `name` — human label (e.g., "LM Studio", "Ollama")
   - `base_url` — your selected base URL, normalized
-  - `wire_api = "chat"` — wire protocol used by Codex
-  - `api_key_env_var` — environment variable holding the API key
+  - `env_key` — environment variable holding the API key
+  - `wire_api` — `chat` or `responses`
   - `request_max_retries`, `stream_max_retries`, `stream_idle_timeout_ms`
+  - `http_headers` — static headers map
+  - `env_http_headers` — env‑sourced headers map
   - `query_params.api-version` *(when `--azure-api-version` is provided)*
+
+- **`mcp_servers.<id>`**
+  - `command`, `args`, `env`, optional `startup_timeout_ms` (default: 10000)
+
+- **`sandbox_workspace_write`** (applies when `sandbox_mode = "workspace-write"`)
+  - `writable_roots` — extra writable roots (cwd, $TMPDIR, and /tmp are writable by default unless excluded)
+  - `network_access` — allow network in workspace-write (default: false)
+  - `exclude_tmpdir_env_var` — exclude `$TMPDIR` (default: false)
+  - `exclude_slash_tmp` — exclude `/tmp` (default: false)
 
 - **`[profiles.<name>]`**
   - `model`, `model_provider`

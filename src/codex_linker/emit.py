@@ -44,6 +44,8 @@ def to_toml(cfg: Dict) -> str:
     w("model_max_output_tokens", cfg.get("model_max_output_tokens"))
     w("project_doc_max_bytes", cfg.get("project_doc_max_bytes"))
     w("tui", cfg.get("tui"))
+    w("notify", cfg.get("notify"))
+    w("instructions", cfg.get("instructions"))
     w("hide_agent_reasoning", cfg.get("hide_agent_reasoning"))
     w("show_raw_agent_reasoning", cfg.get("show_raw_agent_reasoning"))
     w(
@@ -116,7 +118,7 @@ def to_toml(cfg: Dict) -> str:
         if not pf:
             continue
         section_lines = []
-        for k in ("name", "base_url", "wire_api", "api_key_env_var"):
+        for k in ("name", "base_url", "wire_api", "env_key"):
             if k in pf:
                 section_lines.append(f"{k} = {json.dumps(pf[k])}")
         for k in (
@@ -138,6 +140,22 @@ def to_toml(cfg: Dict) -> str:
             )
             if qp_items:
                 section_lines.append(f"query_params = {{ {qp_items} }}")
+        # Optional header maps
+        if (
+            "http_headers" in pf and isinstance(pf["http_headers"], dict) and pf["http_headers"]
+        ):
+            pairs = ", ".join(
+                f"{json.dumps(k)} = {json.dumps(v)}" for k, v in pf["http_headers"].items()
+            )
+            section_lines.append(f"http_headers = {{ {pairs} }}")
+        if (
+            "env_http_headers" in pf and isinstance(pf["env_http_headers"], dict) and pf["env_http_headers"]
+        ):
+            pairs = ", ".join(
+                f"{json.dumps(k)} = {json.dumps(v)}"
+                for k, v in pf["env_http_headers"].items()
+            )
+            section_lines.append(f"env_http_headers = {{ {pairs} }}")
         if section_lines:
             lines.append("")
             lines.append(f"[model_providers.{pid}]")

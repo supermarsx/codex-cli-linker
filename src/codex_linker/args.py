@@ -133,21 +133,21 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         "-r",
         "--reasoning-effort",
         default="low",
-        choices=["minimal", "low"],
+        choices=["minimal", "low", "medium", "high"],
         help="model_reasoning_effort (spec)",
     )
     model_opts.add_argument(
         "-u",
         "--reasoning-summary",
         default="auto",
-        choices=["auto", "concise"],
+        choices=["auto", "concise", "detailed", "none"],
         help="model_reasoning_summary (spec)",
     )
     model_opts.add_argument(
         "-B",
         "--verbosity",
         default="medium",
-        choices=["low", "medium"],
+        choices=["low", "medium", "high"],
         help="model_verbosity (spec)",
     )
     model_opts.add_argument(
@@ -197,6 +197,24 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         default="apikey",
         choices=["chatgpt", "apikey"],
         help="Preferred authentication method for provider",
+    )
+    providers.add_argument(
+        "--wire-api",
+        default="chat",
+        choices=["chat", "responses"],
+        help="Provider wire protocol",
+    )
+    providers.add_argument(
+        "--http-header",
+        action="append",
+        default=[],
+        help="Static HTTP header (KEY=VAL). Repeat for multiple.",
+    )
+    providers.add_argument(
+        "--env-http-header",
+        action="append",
+        default=[],
+        help="Env-sourced HTTP header (KEY=ENV_VAR). Repeat for multiple.",
     )
     providers.add_argument(
         "-W",
@@ -261,7 +279,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         "-q",
         "--approval-policy",
         default="on-failure",
-        choices=["untrusted", "on-failure"],
+        choices=["untrusted", "on-failure", "on-request", "never"],
         help="When to prompt for command approval (spec)",
     )
     profiles.add_argument(
@@ -314,7 +332,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         "-o",
         "--file-opener",
         default="vscode",
-        choices=["vscode", "vscode-insiders"],
+        choices=["vscode", "vscode-insiders", "windsurf", "cursor", "none"],
         help="File opener (spec)",
     )
     profiles.add_argument(
@@ -349,6 +367,25 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         type=int,
         default=0,
         help="Maximum history size in bytes (0 uses default)",
+    )
+    profiles.add_argument(
+        "--writable-roots",
+        help="Comma-separated extra writable roots for sandbox_workspace_write",
+    )
+    profiles.add_argument(
+        "--notify",
+        help="Notification program (CSV or JSON array). Example: 'notify-send,Title,Body'",
+    )
+    profiles.add_argument(
+        "--instructions",
+        default="",
+        help="Instructions string (currently ignored by Codex)",
+    )
+    profiles.add_argument(
+        "--trust-project",
+        action="append",
+        default=[],
+        help="Mark a project/worktree path as trusted (repeatable)",
     )
     profiles.add_argument(
         "-U",
