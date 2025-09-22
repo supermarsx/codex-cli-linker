@@ -23,6 +23,7 @@ from .spec import (
     DEFAULT_GROQ,
     DEFAULT_MISTRAL,
     DEFAULT_DEEPSEEK,
+    DEFAULT_COHERE,
 )
 
 try:  # pragma: no cover
@@ -97,6 +98,7 @@ _PROVIDER_PREFIXES = {
     DEFAULT_GROQ.rsplit("/v1", 1)[0]: "groq",
     DEFAULT_MISTRAL.rsplit("/v1", 1)[0]: "mistral",
     DEFAULT_DEEPSEEK.rsplit("/v1", 1)[0]: "deepseek",
+    DEFAULT_COHERE.rsplit("/v2", 1)[0]: "cohere",
     DEFAULT_OPENAI.rsplit("/v1", 1)[0]: "openai",
 }
 
