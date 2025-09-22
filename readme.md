@@ -417,6 +417,7 @@ Additional handy short aliases:
   - `-gq, --groq` → provider `groq` (`https://api.groq.com/openai/v1`)
   - `-mi, --mistral` → provider `mistral` (`https://api.mistral.ai/v1`)
   - `-ds, --deepseek` → provider `deepseek` (`https://api.deepseek.com/v1`)
+  - `-ch, --cohere` → provider `cohere` (`https://api.cohere.com/v2`)
 - `--profile <NAME>` — profile name for `[profiles.<name>]` (default deduced from provider)
 - `--api-key <VAL>` — dummy key to place in an env var
 - `--env-key-name <NAME>` — env var name that holds the API key (default `NULLKEY`)
@@ -523,7 +524,7 @@ Notes:
 - `--http-header KEY=VAL` — static HTTP header (repeatable)
 - `--env-http-header KEY=ENV_VAR` — env‑sourced header (repeatable)
 - Authorization headers use Bearer tokens for these presets:
-  - OpenRouter (remote), Groq, Mistral, DeepSeek → `Authorization: Bearer <env value>`
+  - OpenRouter (remote), Groq, Mistral, DeepSeek, Cohere → `Authorization: Bearer <env value>`
   - Anthropic → `x-api-key: <env value>`
   - Azure OpenAI → `api-key: <env value>`
 - `--notify '["program","arg1",...]'` or `program,arg1,...` — top‑level `notify`

@@ -16,6 +16,7 @@ from .spec import (
     DEFAULT_GROQ,
     DEFAULT_MISTRAL,
     DEFAULT_DEEPSEEK,
+    DEFAULT_COHERE,
 )
 from .detect import detect_base_url, list_models
 from .state import LinkerState
@@ -228,6 +229,7 @@ def pick_base_url(state: LinkerState, auto: bool) -> str:
         f"Groq ({DEFAULT_GROQ})",
         f"Mistral ({DEFAULT_MISTRAL})",
         f"DeepSeek ({DEFAULT_DEEPSEEK})",
+        f"Cohere ({DEFAULT_COHERE})",
         "Azure OpenAI (enter resource + path)",
         "Custom…",
         "Auto‑detect",
@@ -251,6 +253,8 @@ def pick_base_url(state: LinkerState, auto: bool) -> str:
         return DEFAULT_MISTRAL
     if choice.startswith("DeepSeek"):
         return DEFAULT_DEEPSEEK
+    if choice.startswith("Cohere"):
+        return DEFAULT_COHERE
     if choice.startswith("Azure OpenAI"):
         resource = input("Azure resource name (e.g., myres): ").strip()
         path = input("Path (e.g., openai/v1): ").strip()

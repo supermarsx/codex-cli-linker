@@ -15,6 +15,7 @@ DEFAULT_ANTHROPIC = "https://api.anthropic.com/v1"
 DEFAULT_GROQ = "https://api.groq.com/openai/v1"
 DEFAULT_MISTRAL = "https://api.mistral.ai/v1"
 DEFAULT_DEEPSEEK = "https://api.deepseek.com/v1"
+DEFAULT_COHERE = "https://api.cohere.com/v2"
 DEFAULT_OPENAI = "https://api.openai.com/v1"
 
 COMMON_BASE_URLS: List[str] = [
@@ -30,6 +31,7 @@ COMMON_BASE_URLS: List[str] = [
     DEFAULT_GROQ,
     DEFAULT_MISTRAL,
     DEFAULT_DEEPSEEK,
+    DEFAULT_COHERE,
 ]
 
 PROVIDER_LABELS: Dict[str, str] = {
@@ -45,6 +47,7 @@ PROVIDER_LABELS: Dict[str, str] = {
     "groq": "Groq",
     "mistral": "Mistral",
     "deepseek": "DeepSeek",
+    "cohere": "Cohere",
     "openai": "OpenAI",
 }
 
@@ -61,6 +64,7 @@ __all__ = [
     "DEFAULT_GROQ",
     "DEFAULT_MISTRAL",
     "DEFAULT_DEEPSEEK",
+    "DEFAULT_COHERE",
     "DEFAULT_OPENAI",
     "COMMON_BASE_URLS",
     "PROVIDER_LABELS",

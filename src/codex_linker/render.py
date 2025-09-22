@@ -195,8 +195,15 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
         cfg["model_providers"][active_pid]["env_http_headers"]["api-key"] = state.env_key or "AZURE_OPENAI_API_KEY"
     if active_pid in ("groq",):
         cfg["model_providers"][active_pid]["env_http_headers"]["Authorization"] = state.env_key or "GROQ_API_KEY"
-    if active_pid in ("mistral", "deepseek", "openrouter-remote"):
-        cfg["model_providers"][active_pid]["env_http_headers"]["Authorization"] = state.env_key or ("MISTRAL_API_KEY" if active_pid=="mistral" else ("DEEPSEEK_API_KEY" if active_pid=="deepseek" else "OPENROUTER_API_KEY"))
+    if active_pid in ("mistral", "deepseek", "openrouter-remote", "cohere"):
+        # All Authorization presets use Bearer scheme via env var
+        default_env = {
+            "mistral": "MISTRAL_API_KEY",
+            "deepseek": "DEEPSEEK_API_KEY",
+            "openrouter-remote": "OPENROUTER_API_KEY",
+            "cohere": "COHERE_API_KEY",
+        }[active_pid]
+        cfg["model_providers"][active_pid]["env_http_headers"]["Authorization"] = state.env_key or default_env
 
     # Parse notify as CSV or JSON array
     notify_raw = getattr(args, "notify", "") or ""
