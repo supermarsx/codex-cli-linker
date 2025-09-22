@@ -19,6 +19,7 @@ DEFAULT_COHERE = "https://api.cohere.com/v2"
 DEFAULT_BASETEN = "https://inference.baseten.co/v1"
 DEFAULT_KOBOLDCPP = "http://localhost:5000/v1"
 DEFAULT_ANYTHINGLLM = "http://localhost:3001/v1"
+DEFAULT_JAN = "http://localhost:1337/v1"
 DEFAULT_OPENAI = "https://api.openai.com/v1"
 
 COMMON_BASE_URLS: List[str] = [
@@ -56,6 +57,7 @@ PROVIDER_LABELS: Dict[str, str] = {
     "baseten": "Baseten",
     "koboldcpp": "KoboldCpp",
     "anythingllm": "AnythingLLM",
+    "jan": "Jan AI",
     "openai": "OpenAI",
 }
 
