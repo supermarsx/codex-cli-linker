@@ -133,19 +133,17 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
         elif pid.lower() == "openrouter":
             base_u = DEFAULT_OPENROUTER_LOCAL
             name = PROVIDER_LABELS.get("openrouter", "OpenRouter Local")
-        elif pid.lower() in ("jan", "llamafile", "gpt4all", "local"):
-            base_u = args.base_url or state.base_url or DEFAULT_LMSTUDIO
-            name = PROVIDER_LABELS.get(pid.lower(), pid.capitalize())
         else:
             base_u = args.base_url or state.base_url or DEFAULT_LMSTUDIO
-            name = pid.capitalize()
+            name = PROVIDER_LABELS.get(pid.lower(), pid.capitalize())
+        override = (getattr(args, "provider_overrides", {}) or {}).get(pid) or {}
         cfg["model_providers"][pid] = {
             "name": name,
-            "base_url": base_u.rstrip("/"),
-            "wire_api": getattr(args, "wire_api", "chat"),
-            "env_key": state.env_key,
+            "base_url": (override.get("base_url") or base_u).rstrip("/"),
+            "wire_api": override.get("wire_api") or getattr(args, "wire_api", "chat"),
+            "env_key": override.get("env_key") or state.env_key,
             # Back-compat for older consumers/tests expecting api_key_env_var
-            "api_key_env_var": state.env_key,
+            "api_key_env_var": override.get("env_key") or state.env_key,
             "request_max_retries": args.request_max_retries,
             "stream_max_retries": args.stream_max_retries,
             "stream_idle_timeout_ms": args.stream_idle_timeout_ms,
@@ -299,3 +297,5 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
 
 
 __all__ = ["build_config_dict"]
+
+

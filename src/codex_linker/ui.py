@@ -12,6 +12,7 @@ YELLOW = "\033[33m"
 BLUE = "\033[34m"
 CYAN = "\033[36m"
 GRAY = "\033[90m"
+MAGENTA = "\033[35m"
 
 
 def supports_color() -> bool:
@@ -88,4 +89,5 @@ __all__ = [
     "BLUE",
     "CYAN",
     "GRAY",
+    "MAGENTA",
 ]
