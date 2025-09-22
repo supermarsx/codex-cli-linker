@@ -3,11 +3,14 @@ from __future__ import annotations
 import inspect
 import sys
 from typing import List, Optional, Dict, Any
+import json as _json
+import getpass
 
 from .spec import DEFAULT_LMSTUDIO, DEFAULT_OLLAMA, DEFAULT_OPENAI
 from .detect import detect_base_url, list_models
 from .state import LinkerState
-from .ui import err, c, BOLD, CYAN, info, warn
+from .ui import err, c, BOLD, CYAN, GRAY, info, warn, ok
+from .io_safe import AUTH_JSON, atomic_write_with_backup
 
 
 def prompt_choice(prompt: str, options: List[str]) -> int:
@@ -271,6 +274,21 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
             ("Base URL", state.base_url or args.base_url or "<auto>"),
             ("Model", args.model or state.model or "<pick>"),
             ("Auth (OpenAI)", getattr(args, "preferred_auth_method", "apikey")),
+        ]
+        # API key status (OpenAI only)
+        if (args.provider or state.provider) == "openai":
+            existing_key = ""
+            if AUTH_JSON.exists():
+                try:
+                    data = _json.loads(AUTH_JSON.read_text(encoding="utf-8"))
+                    if isinstance(data, dict):
+                        existing_key = str(data.get("OPENAI_API_KEY") or "")
+                except Exception:
+                    existing_key = ""
+            status = "set" if existing_key else "missing"
+            items.append(("API key (OPENAI_API_KEY)", status))
+        # Rest of settings
+        items.extend([
             ("Approval policy", args.approval_policy),
             ("Sandbox mode", args.sandbox_mode),
             ("Network access", "true" if getattr(args, "network_access", None) else "false"),
@@ -303,9 +321,11 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
             ("TUI notification types (CSV)", getattr(args, "tui_notification_types", "") or ""),
             ("Manage profiles…", "open"),
             ("Manage MCP servers…", "open"),
-        ]
+        ])
         for i, (label, val) in enumerate(items, 1):
-            print(f"  {i}. {label}: {val}")
+            # Dim unchanged metadata for readability
+            show = f"  {i}. {label}: {val}"
+            print(c(show, GRAY) if "Manage" not in label and label not in ("Profile name","Provider","Base URL","Model") else show)
         print()
         action_idx = prompt_choice(
             "Select item to edit or action",
@@ -348,6 +368,26 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
             elif label == "Auth (OpenAI)":
                 i2 = prompt_choice("OpenAI auth method", ["apikey", "chatgpt"])
                 args.preferred_auth_method = "apikey" if i2 == 0 else "chatgpt"
+            elif label == "API key (OPENAI_API_KEY)":
+                # Set or update OPENAI_API_KEY in auth.json
+                try:
+                    new_key = getpass.getpass("Enter OPENAI_API_KEY (input hidden): ").strip()
+                except Exception as exc:  # pragma: no cover
+                    err(f"Could not read input: {exc}")
+                    new_key = ""
+                if new_key:
+                    current = {}
+                    if AUTH_JSON.exists():
+                        try:
+                            current = _json.loads(AUTH_JSON.read_text(encoding="utf-8"))
+                            if not isinstance(current, dict):
+                                current = {}
+                        except Exception:
+                            current = {}
+                    current["OPENAI_API_KEY"] = new_key
+                    atomic_write_with_backup(AUTH_JSON, _json.dumps(current, indent=2) + "\n")
+                    ok(f"Updated {AUTH_JSON} with OPENAI_API_KEY")
+                    warn("Never commit this file; it contains a secret.")
             elif label == "Approval policy":
                 i2 = prompt_choice("Choose", ["untrusted", "on-failure"])
                 args.approval_policy = "untrusted" if i2 == 0 else "on-failure"
@@ -500,7 +540,18 @@ def manage_mcp_servers_interactive(args) -> None:
             info("(none)")
         else:
             for n in names:
-                info(f" - {n}")
+                curr = dict((args.mcp_servers or {}).get(n) or {})
+                cmd = curr.get("command", "npx")
+                a = curr.get("args") or ["-y", "mcp-server"]
+                env = curr.get("env") or {}
+                to_ms = curr.get("startup_timeout_ms", 10000)
+                print(c(f" - {n}", CYAN))
+                print(c(f"    command: {cmd}", GRAY))
+                print(c(f"    args: {', '.join(a)}", GRAY))
+                if env:
+                    kv = ", ".join(f"{k}={v}" for k, v in env.items())
+                    print(c(f"    env: {kv}", GRAY))
+                print(c(f"    startup_timeout_ms: {to_ms}", GRAY))
         i = prompt_choice(
             "Choose",
             ["Add server", "Edit server", "Remove server", "Done"],
