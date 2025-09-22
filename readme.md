@@ -389,7 +389,7 @@ Tip: All options have short aliases (e.g., `-a` for `--auto`). Run `-h` to see t
 Additional handy short aliases:
 - `-mp/--merge-profiles`, `-mc/--merge-config`, `-mO/--merge-overwrite`
 - `-mm/--manage-mcp`, `-mj/--mcp-json`
-- `-Na/--network-access`, `-Nn/--no-network-access`
+- `-Na/--network-access`
 - `-Et/--exclude-tmpdir-env-var`, `-ET/--no-exclude-tmpdir-env-var`
 - `-Es/--exclude-slash-tmp`, `-ES/--no-exclude-slash-tmp`
 - `-Wr/--writable-roots`
@@ -418,7 +418,7 @@ Additional handy short aliases:
 **Behavior & UX**
 - `--approval-policy {untrusted,on-failure,on-request,never}` (default: `on-failure`)
 - `--sandbox-mode {read-only,workspace-write,danger-full-access}` (default: `workspace-write`)
-- `--network-access` / `--no-network-access` — toggles `sandbox_workspace_write.network_access`
+- `--network-access` — enable `sandbox_workspace_write.network_access` (omit to keep disabled)
 - `--exclude-tmpdir-env-var` / `--no-exclude-tmpdir-env-var` — exclude/include `$TMPDIR` from writable roots (workspace-write only)
 - `--exclude-slash-tmp` / `--no-exclude-slash-tmp` — exclude/include `/tmp` from writable roots (workspace-write only)
 - `--writable-roots <CSV>` — extra writable roots for workspace-write (e.g., `/workspace,/data`)
