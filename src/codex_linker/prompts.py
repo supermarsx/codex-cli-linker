@@ -27,7 +27,22 @@ from .spec import (
 from .detect import detect_base_url, list_models
 from .detect import try_auto_context_window  # type: ignore
 from .state import LinkerState
-from .ui import err, c, BOLD, CYAN, GRAY, info, warn, ok, supports_color
+from .ui import (
+    err,
+    c,
+    BOLD,
+    CYAN,
+    GRAY,
+    info,
+    warn,
+    ok,
+    supports_color,
+    RED,
+    YELLOW,
+    GREEN,
+    BLUE,
+    MAGENTA,
+)
 from .io_safe import AUTH_JSON, atomic_write_with_backup
 
 
@@ -426,7 +441,7 @@ def manage_profiles_interactive(args) -> None:
         for n in names:
             print(c(f" - {n}", CYAN))
         i = prompt_choice(
-            "Choose", ["Add profile", "Edit profile", "Remove profile", "Done"]
+            "Choose", ["Add profile", "Edit profile", "Remove profile", "Go back"]
         )
         if i == 0:
             name = _safe_input("Profile name: ").strip()
@@ -843,7 +858,16 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
         print(c("Interactive settings:", BOLD))
         hub = prompt_choice(
             "Start with",
-            ["Manage profiles", "Manage MCP servers", "Edit run settings", "Proceed"],
+            [
+                "Manage profiles",
+                "Manage MCP servers",
+                "Manage providers",
+                "Manage global settings",
+                "Write",
+                "Overwrite + Write",
+                "Write and launch (print cmd)",
+                "Quit (no write)",
+            ],
         )
         if hub == 0:
             manage_profiles_interactive(args)
@@ -851,9 +875,18 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
         if hub == 1:
             manage_mcp_servers_interactive(args)
             continue
-        if hub == 3:
-            # proceed to write
+        if hub == 2:
+            manage_providers_interactive(args)
+            continue
+        if hub == 4:
+            # Write from main menu
             return "write"
+        if hub == 5:
+            return "overwrite"
+        if hub == 6:
+            return "write_and_launch"
+        if hub == 7:
+            return "quit"
         items = [
             (
                 "Profile name",
@@ -995,13 +1028,11 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
             )
         print()
         action_idx = prompt_choice(
-            "Select item to edit or action",
+            "Select edit action",
             [
                 "Edit item (enter number)",
-                "Write",
-                "Overwrite + Write",
-                "Write and launch (print cmd)",
-                "Quit (no write)",
+                "Edit all",
+                "Go back",
             ],
         )
         if action_idx == 0:
@@ -1217,13 +1248,217 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
                 manage_mcp_servers_interactive(args)
             continue
         elif action_idx == 1:
-            return "write"
-        elif action_idx == 2:
-            return "overwrite"
-        elif action_idx == 3:
-            return "write_and_launch"
+            # Edit all fields sequentially
+            for idx in range(len(items)):
+                label = items[idx][0]
+                if label in ("Manage profiles…", "Manage MCP servers…"):
+                    continue
+                # Duplicate single-item edit flow for each label
+                if label == "Profile name":
+                    newp = input("Profile name: ").strip()
+                    if newp:
+                        args.profile = newp
+                elif label == "Provider":
+                    newprov = input(
+                        "Provider id (e.g., lmstudio, ollama, openai, custom): "
+                    ).strip()
+                    if newprov:
+                        args.provider = newprov
+                        state.provider = newprov
+                elif label == "Base URL":
+                    state.base_url = pick_base_url(state, False)
+                elif label == "Model":
+                    if not state.base_url:
+                        state.base_url = pick_base_url(state, False)
+                    try:
+                        state.model = pick_model_interactive(
+                            state.base_url, state.model or None
+                        )
+                    except Exception as e:
+                        err(str(e))
+                elif label == "Edit global config…":
+                    _edit_global_all_fields(args, state)
+                elif label == "Auth (OpenAI)":
+                    i2 = prompt_choice("OpenAI auth method", ["apikey", "chatgpt"])
+                    args.preferred_auth_method = "apikey" if i2 == 0 else "chatgpt"
+                elif label == "API key (OPENAI_API_KEY)":
+                    try:
+                        new_key = getpass.getpass(
+                            "Enter OPENAI_API_KEY (input hidden): "
+                        ).strip()
+                    except Exception as exc:  # pragma: no cover
+                        err(f"Could not read input: {exc}")
+                        new_key = ""
+                    if new_key:
+                        current = {}
+                        if AUTH_JSON.exists():
+                            try:
+                                current = _json.loads(AUTH_JSON.read_text(encoding="utf-8"))
+                                if not isinstance(current, dict):
+                                    current = {}
+                            except Exception:
+                                current = {}
+                        current["OPENAI_API_KEY"] = new_key
+                        atomic_write_with_backup(
+                            AUTH_JSON, _json.dumps(current, indent=2) + "\n"
+                        )
+                        ok(f"Updated {AUTH_JSON} with OPENAI_API_KEY")
+                        warn("Never commit this file; it contains a secret.")
+                elif label == "Approval policy":
+                    i2 = prompt_choice("Choose", ["untrusted", "on-failure", "on-request", "never"])
+                    args.approval_policy = ["untrusted", "on-failure", "on-request", "never"][i2]
+                elif label == "Sandbox mode":
+                    i2 = prompt_choice(
+                        "Choose", ["read-only", "workspace-write", "danger-full-access"]
+                    )
+                    args.sandbox_mode = [
+                        "read-only",
+                        "workspace-write",
+                        "danger-full-access",
+                    ][i2]
+                elif label == "Network access":
+                    i2 = prompt_choice("Network access", ["true", "false"])
+                    args.network_access = True if i2 == 0 else False
+                elif label == "Exclude $TMPDIR":
+                    i2 = prompt_choice("Exclude $TMPDIR", ["true", "false"])
+                    args.exclude_tmpdir_env_var = True if i2 == 0 else False
+                elif label == "Exclude /tmp":
+                    i2 = prompt_choice("Exclude /tmp", ["true", "false"])
+                    args.exclude_slash_tmp = True if i2 == 0 else False
+                elif label == "Writable roots (CSV)":
+                    args.writable_roots = input("Writable roots CSV: ").strip()
+                elif label == "File opener":
+                    i2 = prompt_choice(
+                        "File opener",
+                        ["vscode", "vscode-insiders", "windsurf", "cursor", "none"],
+                    )
+                    args.file_opener = [
+                        "vscode",
+                        "vscode-insiders",
+                        "windsurf",
+                        "cursor",
+                        "none",
+                    ][i2]
+                elif label == "Context window":
+                    try:
+                        args.model_context_window = int(
+                            input("Context window: ").strip() or "0"
+                        )
+                    except Exception:
+                        pass
+                elif label == "Max output tokens":
+                    try:
+                        args.model_max_output_tokens = int(
+                            input("Max output tokens: ").strip() or "0"
+                        )
+                    except Exception:
+                        pass
+                elif label == "Reasoning effort":
+                    i2 = prompt_choice("Effort", ["minimal", "low", "medium", "high"])
+                    args.reasoning_effort = ["minimal", "low", "medium", "high"][i2]
+                elif label == "Reasoning summary":
+                    i2 = prompt_choice("Summary", ["auto", "concise", "detailed", "none"])
+                    args.reasoning_summary = ["auto", "concise", "detailed", "none"][i2]
+                elif label == "Verbosity":
+                    i2 = prompt_choice("Verbosity", ["low", "medium", "high"])
+                    args.verbosity = ["low", "medium", "high"][i2]
+                elif label == "Hide agent reasoning":
+                    i2 = prompt_choice("Hide agent reasoning", ["true", "false"])
+                    args.hide_agent_reasoning = True if i2 == 0 else False
+                elif label == "Show raw agent reasoning":
+                    i2 = prompt_choice("Show raw agent reasoning", ["true", "false"])
+                    args.show_raw_agent_reasoning = True if i2 == 0 else False
+                elif label == "Model supports reasoning summaries":
+                    i2 = prompt_choice(
+                        "Model supports reasoning summaries", ["true", "false"]
+                    )
+                    args.model_supports_reasoning_summaries = True if i2 == 0 else False
+                elif label == "Disable response storage":
+                    i2 = prompt_choice("Disable response storage", ["true", "false"])
+                    args.disable_response_storage = True if i2 == 0 else False
+                elif label == "History persistence":
+                    i2 = prompt_choice("History persistence", ["save-all", "none"])
+                    args.no_history = True if i2 == 1 else False
+                elif label == "History max bytes":
+                    try:
+                        args.history_max_bytes = int(
+                            input("History max bytes: ").strip() or "0"
+                        )
+                    except Exception:
+                        pass
+                elif label == "Tools: web_search":
+                    i2 = prompt_choice("tools.web_search", ["true", "false"])
+                    args.tools_web_search = True if i2 == 0 else False
+                elif label == "Wire API":
+                    i2 = prompt_choice("Wire API", ["chat", "responses"])
+                    args.wire_api = ["chat", "responses"][i2]
+                elif label == "ChatGPT base URL":
+                    args.chatgpt_base_url = input("ChatGPT base URL: ").strip()
+                elif label == "Azure api-version":
+                    args.azure_api_version = input("Azure api-version: ").strip()
+                elif label == "Project doc max bytes":
+                    try:
+                        args.project_doc_max_bytes = int(
+                            input("Project doc max bytes: ").strip() or "0"
+                        )
+                    except Exception:
+                        pass
+                elif label == "HTTP headers (CSV KEY=VAL)":
+                    raw = input("Headers CSV: ").strip()
+                    args.http_header = [s.strip() for s in raw.split(",") if s.strip()]
+                elif label == "Env HTTP headers (CSV KEY=ENV)":
+                    raw = input("Env headers CSV: ").strip()
+                    args.env_http_header = [s.strip() for s in raw.split(",") if s.strip()]
+                elif label == "Notify (CSV or JSON array)":
+                    args.notify = input("Notify (CSV or JSON array): ").strip()
+                elif label == "Instructions":
+                    args.instructions = input("Instructions: ").strip()
+                elif label == "Experimental resume":
+                    args.experimental_resume = input("Experimental resume: ").strip()
+                elif label == "Experimental instructions file":
+                    args.experimental_instructions_file = input(
+                        "Experimental instructions file: "
+                    ).strip()
+                elif label == "Experimental: use exec command tool":
+                    i2 = prompt_choice("Use exec command tool", ["true", "false"])
+                    args.experimental_use_exec_command_tool = True if i2 == 0 else False
+                elif label == "Responses originator header override":
+                    args.responses_originator_header_internal_override = input(
+                        "Responses originator header override: "
+                    ).strip()
+                elif label == "Trusted projects (CSV)":
+                    raw = input("Trusted projects CSV: ").strip()
+                    args.trust_project = [s.strip() for s in raw.split(",") if s.strip()]
+                elif label == "Env key name":
+                    args.env_key_name = input("Env key name: ").strip() or args.env_key_name
+                elif label == "TUI notifications":
+                    i2 = prompt_choice(
+                        "TUI notifications", ["disabled", "enabled (all)", "filter types"]
+                    )
+                    if i2 == 0:
+                        args.tui_notifications = False
+                        args.tui_notification_types = ""
+                    elif i2 == 1:
+                        args.tui_notifications = True
+                        args.tui_notification_types = ""
+                    else:
+                        args.tui_notifications = None
+                        args.tui_notification_types = input(
+                            "Types CSV (agent-turn-complete,approval-requested): "
+                        ).strip()
+                elif label == "TUI notification types (CSV)":
+                    args.tui_notification_types = input(
+                        "Types CSV (agent-turn-complete,approval-requested): "
+                    ).strip()
+                elif label == "Manage profiles…":
+                    manage_profiles_interactive(args)
+                elif label == "Manage MCP servers…":
+                    manage_mcp_servers_interactive(args)
+            # Go back
+            continue
         else:
-            return "quit"
+            # Go back to main menu
+            continue
 
 
 def _input_list_csv(prompt: str, default: Optional[List[str]] = None) -> List[str]:
@@ -1285,7 +1520,7 @@ def manage_mcp_servers_interactive(args) -> None:
                     print(c(f"    env: {kv}", GRAY))
                 print(c(f"    startup_timeout_ms: {to_ms}", GRAY))
         i = prompt_choice(
-            "Choose", ["Add server", "Edit server", "Remove server", "Done"]
+            "Choose", ["Add server", "Edit server", "Remove server", "Go back"]
         )
         if i == 0:
             name = input("Server name (identifier): ").strip()
