@@ -526,12 +526,6 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Enable TUI desktop notifications",
     )
     other.add_argument(
-        "--no-tui-notifications",
-        dest="tui_notifications",
-        action="store_false",
-        help="Disable TUI desktop notifications",
-    )
-    other.add_argument(
         "--tui-notification-types",
         help="Comma-separated notification types (agent-turn-complete,approval-requested)",
     )
