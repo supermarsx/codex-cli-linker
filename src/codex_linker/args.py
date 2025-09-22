@@ -192,7 +192,8 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     providers.add_argument("-ch", "--cohere", action="store_true", help="Preset: Cohere (https://api.cohere.com/v2)")
     providers.add_argument("-bt", "--baseten"
     providers.add_argument("-al", "--anythingllm", action="store_true", help="Preset: AnythingLLM (http://localhost:3001/v1)")
-    providers.add_argument("-jn", "--jan", action="store_true", help="Preset: Jan AI (http://localhost:1337/v1)"), action="store_true", help="Preset: Baseten (https://inference.baseten.co/v1)")
+    providers.add_argument("-jn", "--jan", action="store_true", help="Preset: Jan AI (http://localhost:1337/v1)")
+    providers.add_argument("-lc", "--llamacpp", action="store_true", help="Preset: llama.cpp (http://localhost:8080/v1)"), action="store_true", help="Preset: Baseten (https://inference.baseten.co/v1)")
     providers.add_argument("-kb", "--koboldcpp", action="store_true", help="Preset: KoboldCpp (http://localhost:5000/v1)")
     providers.add_argument("--azure-resource", help="Azure resource name (e.g., myresource)")
     providers.add_argument("--azure-path", help="Azure path (e.g., openai/v1)")
@@ -569,6 +570,14 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
             data = json.loads(ns.mcp_json)
             if isinstance(data, dict):
                 ns.mcp_servers = data
+        except Exception:
+            pass
+    if getattr(ns, "llamacpp", False):
+        ns.provider = ns.provider or "llamacpp"
+        try:
+            from .spec import DEFAULT_LLAMACPP  # type: ignore
+            if not getattr(ns, "base_url", None):
+                ns.base_url = DEFAULT_LLAMACPP
         except Exception:
             pass
     if getattr(ns, "jan", False):

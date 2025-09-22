@@ -58,6 +58,7 @@ PROVIDER_LABELS: Dict[str, str] = {
     "koboldcpp": "KoboldCpp",
     "anythingllm": "AnythingLLM",
     "jan": "Jan AI",
+    "llamacpp": "llama.cpp",
     "openai": "OpenAI",
 }
 
@@ -77,6 +78,7 @@ __all__ = [
     "DEFAULT_COHERE",
     "DEFAULT_BASETEN",
     "DEFAULT_KOBOLDCPP",
+    "DEFAULT_ANYTHINGLLM",
     "DEFAULT_ANYTHINGLLM",
     "DEFAULT_OPENAI",
     "COMMON_BASE_URLS",
