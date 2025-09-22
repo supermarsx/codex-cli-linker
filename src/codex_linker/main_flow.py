@@ -10,7 +10,6 @@ from .config_utils import merge_config_defaults, apply_saved_state
 from .prompts import (
     pick_base_url,
     pick_model_interactive,
-    interactive_prompts,
     interactive_settings_editor,
     manage_profiles_interactive,
     manage_mcp_servers_interactive,
@@ -30,7 +29,21 @@ from .io_safe import (
 )
 from .keychain import store_api_key_in_keychain
 from .state import LinkerState
-from .ui import banner, clear_screen, c, info, ok, warn, err, CYAN
+from .ui import (
+    banner,
+    clear_screen,
+    c,
+    info,
+    ok,
+    warn,
+    err,
+    CYAN,
+    RED,
+    GREEN,
+    GRAY,
+    supports_color,
+    BOLD,
+)
 from .utils import get_version, resolve_provider
 from .updates import (
     check_for_updates,
@@ -183,6 +196,9 @@ def main():
     if should_clear:
         clear_screen()
         banner()
+    else:
+        # Always present app title when launching
+        print(c("CODEX CLI LINKER", CYAN))
     # --yes implies non-interactive where possible
     if getattr(args, "yes", False):
         if not args.auto:
@@ -207,7 +223,9 @@ def main():
         key_val = args.api_key or ""
         if not key_val:
             try:
-                key_val = getpass.getpass("Enter OPENAI_API_KEY (input hidden): ").strip()
+                key_val = getpass.getpass(
+                    "Enter OPENAI_API_KEY (input hidden): "
+                ).strip()
             except Exception as exc:  # pragma: no cover
                 err(f"Could not read input: {exc}")
                 sys.exit(2)
@@ -315,11 +333,15 @@ def main():
                 base = args.base_url or picker(state, False)
         state.base_url = base
     else:
-        # Non full-auto: do not detect/prompt here; editor will handle it
-        state.base_url = args.base_url or state.base_url or ""
+        # Non full-auto: if --auto provided, still perform detection once; otherwise editor will handle it
+        if args.auto:
+            base = args.base_url or picker(state, True)
+            state.base_url = base
+        else:
+            state.base_url = args.base_url or state.base_url or ""
 
     # Infer a safe default provider from the base URL (localhost:1234 → lmstudio, 11434 → ollama, otherwise 'custom').
-    default_provider = resolve_provider(base)
+    default_provider = resolve_provider(state.base_url or "")
     state.provider = args.provider or default_provider
     # If provider is OpenAI and no base provided, normalize to default OpenAI endpoint
     if state.provider == "openai" and not state.base_url:
@@ -327,16 +349,26 @@ def main():
 
         state.base_url = DEFAULT_OPENAI
     if state.provider == "custom":
-        state.provider = (
-            input("Provider id to use in model_providers (e.g., myprovider): ").strip()
-            or "custom"
-        )
+        # Avoid prompting in non-interactive runs
+        if not (args.full_auto or args.auto or getattr(args, "yes", False)):
+            state.provider = (
+                input(
+                    "Provider id to use in model_providers (e.g., myprovider): "
+                ).strip()
+                or "custom"
+            )
 
     # If targeting OpenAI interactively, allow choosing auth method (API vs ChatGPT)
     if state.provider == "openai" and not args.auto and not getattr(args, "yes", False):
         print()
         print(c("OpenAI authentication method:", CYAN))
-        idx = prompt_choice("Select", ["API key (preferred_auth_method=apikey)", "ChatGPT (preferred_auth_method=chatgpt)"])
+        idx = prompt_choice(
+            "Select",
+            [
+                "API key (preferred_auth_method=apikey)",
+                "ChatGPT (preferred_auth_method=chatgpt)",
+            ],
+        )
         args.preferred_auth_method = "apikey" if idx == 0 else "chatgpt"
 
     if args.provider:
@@ -426,13 +458,16 @@ def main():
     # Offer unified interactive editor unless full-auto is requested
     interactive_action = None
     if not args.full_auto:
-        # Always show editor even in --auto to allow adjustments
-        interactive_action = interactive_settings_editor(state, args)
-        if interactive_action == "quit":
-            info("Aborted without writing.")
-            return
-        if interactive_action == "overwrite":
-            args.overwrite_profile = True
+        # Invoke editor by default with no CLI args, or when explicitly managing profiles/MCP
+        trigger_editor = bool(getattr(args, "_no_args", False))
+        trigger_editor = trigger_editor or getattr(args, "manage_profiles", False) or getattr(args, "manage_mcp", False)
+        if trigger_editor:
+            interactive_action = interactive_settings_editor(state, args)
+            if interactive_action == "quit":
+                info("Aborted without writing.")
+                return
+            if interactive_action == "overwrite":
+                args.overwrite_profile = True
     # Model selection: Only old pipeline for full-auto. If explicit --model provided, respect it.
     if args.model:
         target = args.model
@@ -454,7 +489,11 @@ def main():
             pass
         state.model = chosen
         log_event("model_selected", provider=state.provider, model=state.model)
-    elif args.full_auto and args.model_index is not None and state.provider != "openai":
+    elif (
+        (args.full_auto or args.auto)
+        and args.model_index is not None
+        and state.provider != "openai"
+    ):
         try:
             lm = getattr(
                 sys.modules.get("codex_cli_linker"), "list_models", list_models
@@ -469,7 +508,24 @@ def main():
         except Exception as e:
             err(str(e))
             sys.exit(2)
-    # Non full-auto: defer model selection to the editor; no legacy prompts here
+    # Non full-auto legacy interactive: if no model was provided and no auto selection, prompt to pick
+    if (
+        not args.full_auto
+        and not args.auto
+        and not args.model
+        and state.provider != "openai"
+    ):
+        try:
+            pmi = getattr(
+                sys.modules.get("codex_cli_linker"),
+                "pick_model_interactive",
+                pick_model_interactive,
+            )
+            state.model = pmi(state.base_url, None)
+            log_event("model_selected", provider=state.provider, model=state.model)
+        except Exception as e:
+            err(str(e))
+            sys.exit(2)
 
     if not args.full_auto:
         # Keep legacy extra prompts minimal for now, since editor handled main knobs
@@ -566,6 +622,7 @@ def main():
 
         # Optional safety: prevent overwriting an existing profile unless allowed
         import re as _re
+
         if config_toml.exists() and not getattr(args, "overwrite_profile", False):
             try:
                 old_text = config_toml.read_text(encoding="utf-8")
@@ -573,7 +630,9 @@ def main():
                 old_text = ""
             prof = (args.profile or state.profile or state.provider).strip()
             if prof:
-                pattern = _re.compile(r"^\[profiles\.%s\]\s*$" % _re.escape(prof), _re.MULTILINE)
+                pattern = _re.compile(
+                    r"^\[profiles\.%s\]\s*$" % _re.escape(prof), _re.MULTILINE
+                )
                 if pattern.search(old_text):
                     if getattr(args, "yes", False):
                         err(
@@ -599,7 +658,9 @@ def main():
             import re as _re
 
             profile_blocks = []
-            for m in _re.finditer(r"(?ms)^\[profiles\.([^\]]+)\]\s*.*?(?=^\[|\Z)", toml_out):
+            for m in _re.finditer(
+                r"(?ms)^\[profiles\.([^\]]+)\]\s*.*?(?=^\[|\Z)", toml_out
+            ):
                 profile_blocks.append(m.group(0).rstrip())
             # Remove same-named blocks from existing
             merged_text = existing_text
@@ -608,11 +669,17 @@ def main():
                 if not header_m:
                     continue
                 name = header_m.group(1)
-                pat = _re.compile(rf"(?ms)^\[profiles\.{_re.escape(name)}\]\s*.*?(?=^\[|\Z)")
+                pat = _re.compile(
+                    rf"(?ms)^\[profiles\.{_re.escape(name)}\]\s*.*?(?=^\[|\Z)"
+                )
                 merged_text = pat.sub("", merged_text)
             # Append new blocks at end
-            frag = ("\n\n" + "\n\n".join(profile_blocks) + "\n") if profile_blocks else ""
-            out_text = (merged_text.rstrip() + frag + "\n").lstrip("\n") if frag else toml_out
+            frag = (
+                ("\n\n" + "\n\n".join(profile_blocks) + "\n") if profile_blocks else ""
+            )
+            out_text = (
+                (merged_text.rstrip() + frag + "\n").lstrip("\n") if frag else toml_out
+            )
             atomic_write_with_backup(config_toml, _re.sub(r"\n{3,}", "\n\n", out_text))
         else:
             # Optional full-config merge with conflict checks
@@ -622,6 +689,7 @@ def main():
                 except Exception:
                     existing_text = ""
                 import re as _re
+
                 new_text = toml_out
                 merged = existing_text
                 conflicts = []
@@ -642,44 +710,63 @@ def main():
                         merged = merged.rstrip() + "\n" + line + "\n"
                 # Simple sections
                 for sec in ("tools", "history", "sandbox_workspace_write", "tui"):
-                    m = _re.search(rf"(?ms)^\[{_re.escape(sec)}\]\s*.*?(?=^\[|\Z)", new_text)
+                    m = _re.search(
+                        rf"(?ms)^\[{_re.escape(sec)}\]\s*.*?(?=^\[|\Z)", new_text
+                    )
                     if not m:
                         continue
                     if _re.search(rf"(?m)^\[{_re.escape(sec)}\]\s*$", existing_text):
                         conflicts.append(f"[{sec}]")
                     else:
                         merged = merged.rstrip() + "\n\n" + m.group(0).rstrip() + "\n"
+
                 # Namespaced tables
                 def merge_ns(prefix: str):
                     nonlocal merged
-                    for m2 in _re.finditer(rf"(?ms)^\[{_re.escape(prefix)}\.([^\]]+)\]\s*.*?(?=^\[|\Z)", new_text):
+                    for m2 in _re.finditer(
+                        rf"(?ms)^\[{_re.escape(prefix)}\.([^\]]+)\]\s*.*?(?=^\[|\Z)",
+                        new_text,
+                    ):
                         name = m2.group(1)
-                        hdr_pat = rf"(?m)^\[{_re.escape(prefix)}\.{_re.escape(name)}\]\s*$"
+                        hdr_pat = (
+                            rf"(?m)^\[{_re.escape(prefix)}\.{_re.escape(name)}\]\s*$"
+                        )
                         if _re.search(hdr_pat, existing_text):
                             conflicts.append(f"[{prefix}.{name}]")
                         else:
-                            merged = merged.rstrip() + "\n\n" + m2.group(0).rstrip() + "\n"
+                            merged = (
+                                merged.rstrip() + "\n\n" + m2.group(0).rstrip() + "\n"
+                            )
+
                 for pf in ("model_providers", "profiles", "mcp_servers"):
                     merge_ns(pf)
                 if conflicts and not getattr(args, "merge_overwrite", False):
                     if getattr(args, "yes", False):
-                        err("Merge conflicts detected; re-run with --merge-overwrite to replace them.")
+                        err(
+                            "Merge conflicts detected; re-run with --merge-overwrite to replace them."
+                        )
                         sys.exit(2)
                     info("Merge conflicts detected (will overwrite if confirmed):")
                     for citem in conflicts:
                         print(c(f"  {citem}", CYAN))
-                    if not prompt_yes_no("Overwrite conflicting entries?", default=False):
+                    if not prompt_yes_no(
+                        "Overwrite conflicting entries?", default=False
+                    ):
                         err("Aborting merge to avoid overwriting.")
                         sys.exit(2)
                 # Overwrite conflicts
                 for citem in conflicts:
                     if citem.startswith("["):
                         sec = citem.strip("[]")
-                        pat = _re.compile(rf"(?ms)^\[{_re.escape(sec)}\]\s*.*?(?=^\[|\Z)")
+                        pat = _re.compile(
+                            rf"(?ms)^\[{_re.escape(sec)}\]\s*.*?(?=^\[|\Z)"
+                        )
                         merged = pat.sub("", merged)
                         m3 = _re.search(pat, new_text)
                         if m3:
-                            merged = merged.rstrip() + "\n\n" + m3.group(0).rstrip() + "\n"
+                            merged = (
+                                merged.rstrip() + "\n\n" + m3.group(0).rstrip() + "\n"
+                            )
                     else:
                         pat = _re.compile(rf"(?m)^\s*{_re.escape(citem)}\s*=.*$")
                         merged = pat.sub("", merged)

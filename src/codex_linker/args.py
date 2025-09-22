@@ -183,19 +183,81 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Provider id (model_providers.<id>), default deduced",
     )
     # Preset convenience flags
-    providers.add_argument("-or", "--openrouter", action="store_true", help="Preset: OpenRouter (https://openrouter.ai/api/v1)")
-    providers.add_argument("-an", "--anthropic", action="store_true", help="Preset: Anthropic (https://api.anthropic.com/v1)")
-    providers.add_argument("-az", "--azure", action="store_true", help="Preset: Azure OpenAI (https://<resource>.openai.azure.com/<path>)")
-    providers.add_argument("-gq", "--groq", action="store_true", help="Preset: Groq (https://api.groq.com/openai/v1)")
-    providers.add_argument("-mi", "--mistral", action="store_true", help="Preset: Mistral (https://api.mistral.ai/v1)")
-    providers.add_argument("-ds", "--deepseek", action="store_true", help="Preset: DeepSeek (https://api.deepseek.com/v1)")
-    providers.add_argument("-ch", "--cohere", action="store_true", help="Preset: Cohere (https://api.cohere.com/v2)")
-    providers.add_argument("-bt", "--baseten"
-    providers.add_argument("-al", "--anythingllm", action="store_true", help="Preset: AnythingLLM (http://localhost:3001/v1)")
-    providers.add_argument("-jn", "--jan", action="store_true", help="Preset: Jan AI (http://localhost:1337/v1)")
-    providers.add_argument("-lc", "--llamacpp", action="store_true", help="Preset: llama.cpp (http://localhost:8080/v1)"), action="store_true", help="Preset: Baseten (https://inference.baseten.co/v1)")
-    providers.add_argument("-kb", "--koboldcpp", action="store_true", help="Preset: KoboldCpp (http://localhost:5000/v1)")
-    providers.add_argument("--azure-resource", help="Azure resource name (e.g., myresource)")
+    providers.add_argument(
+        "-or",
+        "--openrouter",
+        action="store_true",
+        help="Preset: OpenRouter (https://openrouter.ai/api/v1)",
+    )
+    providers.add_argument(
+        "-an",
+        "--anthropic",
+        action="store_true",
+        help="Preset: Anthropic (https://api.anthropic.com/v1)",
+    )
+    providers.add_argument(
+        "-az",
+        "--azure",
+        action="store_true",
+        help="Preset: Azure OpenAI (https://<resource>.openai.azure.com/<path>)",
+    )
+    providers.add_argument(
+        "-gq",
+        "--groq",
+        action="store_true",
+        help="Preset: Groq (https://api.groq.com/openai/v1)",
+    )
+    providers.add_argument(
+        "-mi",
+        "--mistral",
+        action="store_true",
+        help="Preset: Mistral (https://api.mistral.ai/v1)",
+    )
+    providers.add_argument(
+        "-ds",
+        "--deepseek",
+        action="store_true",
+        help="Preset: DeepSeek (https://api.deepseek.com/v1)",
+    )
+    providers.add_argument(
+        "-ch",
+        "--cohere",
+        action="store_true",
+        help="Preset: Cohere (https://api.cohere.com/v2)",
+    )
+    providers.add_argument(
+        "-bt",
+        "--baseten",
+        action="store_true",
+        help="Preset: Baseten (https://inference.baseten.co/v1)",
+    )
+    providers.add_argument(
+        "-al",
+        "--anythingllm",
+        action="store_true",
+        help="Preset: AnythingLLM (http://localhost:3001/v1)",
+    )
+    providers.add_argument(
+        "-jn",
+        "--jan",
+        action="store_true",
+        help="Preset: Jan AI (http://localhost:1337/v1)",
+    )
+    providers.add_argument(
+        "-lc",
+        "--llamacpp",
+        action="store_true",
+        help="Preset: llama.cpp (http://localhost:8080/v1)",
+    )
+    providers.add_argument(
+        "-kb",
+        "--koboldcpp",
+        action="store_true",
+        help="Preset: KoboldCpp (http://localhost:5000/v1)",
+    )
+    providers.add_argument(
+        "--azure-resource", help="Azure resource name (e.g., myresource)"
+    )
     providers.add_argument("--azure-path", help="Azure path (e.g., openai/v1)")
     providers.add_argument(
         "-l",
@@ -312,7 +374,25 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     mcp.add_argument(
         "-mj",
         "--mcp-json",
-        help="JSON object for mcp_servers (e.g., '{""srv"": {""command"": ""npx"", ""args"": [""-y"", ""mcp-server""], ""env"": {""API_KEY"": ""v""}}}')",
+        help="JSON object for mcp_servers (e.g., '{"
+        "srv"
+        ": {"
+        "command"
+        ": "
+        "npx"
+        ", "
+        "args"
+        ": ["
+        "-y"
+        ", "
+        "mcp-server"
+        "], "
+        "env"
+        ": {"
+        "API_KEY"
+        ": "
+        "v"
+        "}}}')",
     )
     profiles.add_argument(
         "-c", "--config-url", help="URL to JSON file with default args"
@@ -376,12 +456,25 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         dest="disable_response_storage",
         help="Set disable_response_storage=true (e.g., ZDR orgs)",
     )
+    # Back-compat deprecated flags
+    profiles.add_argument(
+        "--enable-response-storage",
+        action="store_false",
+        dest="disable_response_storage",
+        help=argparse.SUPPRESS,
+    )
     profiles.add_argument(
         "-H",
         "--no-history",
         action="store_true",
         dest="no_history",
         help="Set history.persistence=none",
+    )
+    profiles.add_argument(
+        "--history",
+        action="store_false",
+        dest="no_history",
+        help=argparse.SUPPRESS,
     )
     profiles.add_argument(
         "-N",
@@ -576,6 +669,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         ns.provider = ns.provider or "llamacpp"
         try:
             from .spec import DEFAULT_LLAMACPP  # type: ignore
+
             if not getattr(ns, "base_url", None):
                 ns.base_url = DEFAULT_LLAMACPP
         except Exception:
@@ -584,6 +678,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         ns.provider = ns.provider or "jan"
         try:
             from .spec import DEFAULT_JAN  # type: ignore
+
             if not getattr(ns, "base_url", None):
                 ns.base_url = DEFAULT_JAN
         except Exception:
@@ -592,6 +687,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         ns.provider = ns.provider or "anythingllm"
         try:
             from .spec import DEFAULT_ANYTHINGLLM  # type: ignore
+
             if not getattr(ns, "base_url", None):
                 ns.base_url = DEFAULT_ANYTHINGLLM
         except Exception:
@@ -634,6 +730,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         # Default base URL for koboldcpp if not provided
         try:
             from .spec import DEFAULT_KOBOLDCPP  # type: ignore
+
             if not getattr(ns, "base_url", None):
                 ns.base_url = DEFAULT_KOBOLDCPP
         except Exception:
@@ -651,6 +748,8 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
             for opt in a.option_strings
         )
     }
+    # True when invoked without any CLI arguments
+    ns._no_args = len(argv) == 0
     return ns
 
 
