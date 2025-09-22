@@ -19,11 +19,25 @@ from .spec import (
     DEFAULT_COHERE,
     DEFAULT_BASETEN,
     DEFAULT_KOBOLDCPP,
+    DEFAULT_ANYTHINGLLM,
+    DEFAULT_JAN,
+    DEFAULT_LLAMACPP,
+    PROVIDER_LABELS,
 )
 from .detect import detect_base_url, list_models
+from .detect import try_auto_context_window  # type: ignore
 from .state import LinkerState
 from .ui import err, c, BOLD, CYAN, GRAY, info, warn, ok, supports_color
 from .io_safe import AUTH_JSON, atomic_write_with_backup
+
+
+def _safe_input(prompt: str) -> str:
+    """input() that exits cleanly on Ctrl-C during interactive flows."""
+    try:
+        return input(prompt)
+    except KeyboardInterrupt:
+        print()
+        sys.exit(0)
 
 
 def _arrow_choice(prompt: str, options: List[str]) -> Optional[int]:
@@ -32,19 +46,24 @@ def _arrow_choice(prompt: str, options: List[str]) -> Optional[int]:
         return None
     try:
         if os.name == "nt":
-            import msvcrt  # type: ignore
+            import msvcrt as _ms  # type: ignore
+
+            del _ms
         else:
-            import termios  # type: ignore
-            import tty  # type: ignore
+            import termios as _t  # type: ignore
+            import tty as _ty  # type: ignore
+
+            del _t, _ty
     except Exception:
         return None
 
     idx = 0
     n = len(options)
     use_color = supports_color() and not os.environ.get("NO_COLOR")
+    numbuf: str = ""
 
     def draw():
-        print()
+        # Render header and options without inserting an extra blank line each redraw
         print(c(prompt, BOLD))
         for i, opt in enumerate(options):
             marker = "➤" if i == idx else " "
@@ -60,7 +79,10 @@ def _arrow_choice(prompt: str, options: List[str]) -> Optional[int]:
     def read_key() -> str:
         if os.name == "nt":
             import msvcrt  # type: ignore
+
             ch = msvcrt.getwch()
+            if ch == "\x03":  # Ctrl-C
+                return "CTRL_C"
             if ch in ("\r", "\n"):
                 return "ENTER"
             if ch == "\x1b":
@@ -69,17 +91,24 @@ def _arrow_choice(prompt: str, options: List[str]) -> Optional[int]:
                 ch2 = msvcrt.getwch()
                 mapping = {"H": "UP", "P": "DOWN", "K": "LEFT", "M": "RIGHT"}
                 return mapping.get(ch2, "")
+            if ch == "\x08":
+                return "BACKSPACE"
             return ch
         else:
             import termios  # type: ignore
             import tty  # type: ignore
+
             fd = sys.stdin.fileno()
             old = termios.tcgetattr(fd)
             try:
                 tty.setraw(fd)
                 ch1 = sys.stdin.read(1)
+                if ch1 == "\x03":  # Ctrl-C
+                    return "CTRL_C"
                 if ch1 in ("\r", "\n"):
                     return "ENTER"
+                if ch1 == "\x7f":
+                    return "BACKSPACE"
                 if ch1 != "\x1b":
                     return ch1
                 ch2 = sys.stdin.read(1)
@@ -91,24 +120,40 @@ def _arrow_choice(prompt: str, options: List[str]) -> Optional[int]:
             finally:
                 termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
+    # Initial render
     draw()
     while True:
         key = read_key()
+        if key == "CTRL_C":
+            print()
+            sys.exit(0)
         if key == "ENTER":
+            # If user typed numeric input, use it
+            if numbuf and numbuf.isdigit():
+                sel = int(numbuf)
+                if 1 <= sel <= n:
+                    print()
+                    return sel - 1
             print()
             return idx
         if key in ("UP", "k"):
             idx = (idx - 1) % n
+            numbuf = ""
         elif key in ("DOWN", "j"):
             idx = (idx + 1) % n
+            numbuf = ""
+        elif key == "BACKSPACE":
+            numbuf = numbuf[:-1]
+            if numbuf.isdigit() and 1 <= int(numbuf) <= n:
+                idx = int(numbuf) - 1
         elif key and key.isdigit():
-            d = int(key)
-            if 1 <= d <= n:
-                print()
-                return d - 1
-        # redraw in place
+            # Accumulate multi-digit numeric selection and preview
+            numbuf += key
+            if numbuf.isdigit() and 1 <= int(numbuf) <= n:
+                idx = int(numbuf) - 1
+        # redraw in place: move cursor to the start of the block and repaint
         if supports_color():
-            sys.stdout.write(f"\x1b[{n+1}F")
+            sys.stdout.write(f"\x1b[{n+1}F")  # up header+options lines
             sys.stdout.flush()
         draw()
 
@@ -124,7 +169,7 @@ def prompt_choice(prompt: str, options: List[str]) -> int:
     for i, opt in enumerate(options, 1):
         print(f"  {i}. {opt}")
     while True:
-        s = input(f"{prompt} [1-{len(options)}]: ").strip()
+        s = _safe_input(f"{prompt} [1-{len(options)}]: ").strip()
         if s.isdigit() and 1 <= int(s) <= len(options):
             return int(s) - 1
         err("Invalid choice.")
@@ -137,7 +182,7 @@ def prompt_yes_no(question: str, default: bool = True) -> bool:
     """
     suffix = "[Y/n]" if default else "[y/N]"
     while True:
-        s = input(f"{question} {suffix} ").strip().lower()
+        s = _safe_input(f"{question} {suffix} ").strip().lower()
         if not s:
             return default
         if s in ("y", "yes"):
@@ -225,6 +270,9 @@ def pick_base_url(state: LinkerState, auto: bool) -> str:
     opts = [
         f"LM Studio default ({DEFAULT_LMSTUDIO})",
         f"Ollama default ({DEFAULT_OLLAMA})",
+        "Custom…",
+        "Auto‑detect",
+        f"Use last saved ({state.base_url})",
         f"OpenAI API ({DEFAULT_OPENAI})",
         f"OpenRouter ({DEFAULT_OPENROUTER})",
         f"Anthropic ({DEFAULT_ANTHROPIC})",
@@ -235,9 +283,6 @@ def pick_base_url(state: LinkerState, auto: bool) -> str:
         f"Baseten ({DEFAULT_BASETEN})",
         f"KoboldCpp ({DEFAULT_KOBOLDCPP})",
         "Azure OpenAI (enter resource + path)",
-        "Custom…",
-        "Auto‑detect",
-        f"Use last saved ({state.base_url})",
     ]
     idx = prompt_choice("Select", opts)
     choice = opts[idx]
@@ -270,20 +315,20 @@ def pick_base_url(state: LinkerState, auto: bool) -> str:
     if choice.startswith("llama.cpp"):
         return DEFAULT_LLAMACPP
     if choice.startswith("Azure OpenAI"):
-        resource = input("Azure resource name (e.g., myres): ").strip()
-        path = input("Path (e.g., openai/v1): ").strip()
+        resource = _safe_input("Azure resource name (e.g., myres): ").strip()
+        path = _safe_input("Path (e.g., openai/v1): ").strip()
         if not resource:
             resource = "<resource>"
         if not path:
             path = "openai/v1"
         return f"https://{resource}.openai.azure.com/{path}"
     if choice.startswith("Custom"):
-        return input("Enter base URL (e.g., http://localhost:1234/v1): ").strip()
+        return _safe_input("Enter base URL (e.g., http://localhost:1234/v1): ").strip()
     if choice.startswith("Auto"):
         mod = sys.modules.get("codex_cli_linker")
         det = getattr(mod, "detect_base_url", detect_base_url)
         return (
-            _call_detect_base_url(det, state, auto) or input("Enter base URL: ").strip()
+            _call_detect_base_url(det, state, auto) or _safe_input("Enter base URL: ").strip()
         )
     return state.base_url
 
@@ -367,17 +412,91 @@ def manage_profiles_interactive(args) -> None:
         for k in (args.profile_overrides or {}).keys():
             if k not in names:
                 names.append(k)
-        for p in (args.providers_list or []):
+        for p in args.providers_list or []:
             if p not in names:
                 names.append(p)
         for n in names:
             print(c(f" - {n}", CYAN))
-        i = prompt_choice("Choose", ["Add profile", "Edit profile", "Remove profile", "Done"])
+        i = prompt_choice(
+            "Choose", ["Add profile", "Edit profile", "Remove profile", "Done"]
+        )
         if i == 0:
-            name = input("Profile name: ").strip()
+            name = _safe_input("Profile name: ").strip()
             if not name:
                 continue
-            provider = input("Provider id (e.g., lmstudio, ollama, openai): ").strip() or (args.provider or "")
+            # Choose provider via preset or manual id
+            src = prompt_choice("Provider source", ["Pick from presets", "Enter id manually"])
+            if src == 0:
+                # Build preset list from PROVIDER_LABELS and add OpenAI auth variants
+                base_presets = sorted(
+                    [(pid, lbl) for pid, lbl in PROVIDER_LABELS.items()],
+                    key=lambda x: x[1].lower(),
+                )
+                # Insert distinct OpenAI auth-mode presets
+                extended_presets = [("openai:api", "OpenAI (API Key)"), ("openai:chatgpt", "OpenAI (ChatGPT)")]
+                presets = extended_presets + base_presets
+                labels = [f"{lbl} ({pid.split(':')[0]})" if ':' in pid else f"{lbl} ({pid})" for pid, lbl in presets]
+                sel = prompt_choice("Choose preset", labels)
+                chosen = presets[sel][0]
+                # Map selection to provider + auth mode
+                if chosen == "openai:api":
+                    provider = "openai"
+                    # Set preferred_auth_method and env key for OpenAI API preset
+                    args.preferred_auth_method = "apikey"
+                    if not getattr(args, "env_key_name", "") or getattr(args, "env_key_name", "") in ("", "NULLKEY"):
+                        args.env_key_name = "OPENAI_API_KEY"
+                    if not getattr(args, "base_url", "").strip():
+                        args.base_url = DEFAULT_OPENAI
+                elif chosen == "openai:chatgpt":
+                    provider = "openai"
+                    args.preferred_auth_method = "chatgpt"
+                    if not getattr(args, "base_url", "").strip():
+                        args.base_url = DEFAULT_OPENAI
+                else:
+                    provider = chosen
+                # Auto-fill basics: base_url and env key name when possible
+                try:
+                    # Base URL defaults per provider
+                    default_base_by_provider = {
+                        "lmstudio": DEFAULT_LMSTUDIO,
+                        "ollama": DEFAULT_OLLAMA,
+                        "openai": DEFAULT_OPENAI,
+                        "openrouter-remote": DEFAULT_OPENROUTER,
+                        "anthropic": DEFAULT_ANTHROPIC,
+                        "groq": DEFAULT_GROQ,
+                        "mistral": DEFAULT_MISTRAL,
+                        "deepseek": DEFAULT_DEEPSEEK,
+                        "cohere": DEFAULT_COHERE,
+                        "baseten": DEFAULT_BASETEN,
+                        "llamacpp": DEFAULT_LLAMACPP,
+                        "koboldcpp": DEFAULT_KOBOLDCPP,
+                        "jan": DEFAULT_JAN,
+                        "anythingllm": DEFAULT_ANYTHINGLLM,
+                    }
+                    if not getattr(args, "base_url", "").strip():
+                        if provider != "azure":  # Azure requires resource name
+                            args.base_url = default_base_by_provider.get(provider, getattr(args, "base_url", ""))
+                    # Env var defaults per provider
+                    default_envs = {
+                        "openai": "OPENAI_API_KEY",
+                        "openrouter-remote": "OPENROUTER_API_KEY",
+                        "anthropic": "ANTHROPIC_API_KEY",
+                        "azure": "AZURE_OPENAI_API_KEY",
+                        "groq": "GROQ_API_KEY",
+                        "mistral": "MISTRAL_API_KEY",
+                        "deepseek": "DEEPSEEK_API_KEY",
+                        "cohere": "COHERE_API_KEY",
+                        "baseten": "BASETEN_API_KEY",
+                    }
+                    current_env_key = getattr(args, "env_key_name", "NULLKEY") or "NULLKEY"
+                    if current_env_key in ("", "NULLKEY") and provider in default_envs and getattr(args, "preferred_auth_method", "apikey") == "apikey":
+                        args.env_key_name = default_envs[provider]
+                except Exception:
+                    pass
+            else:
+                provider = _safe_input(
+                    "Provider id (e.g., lmstudio, ollama, openai): "
+                ).strip() or (args.provider or "")
             # start with minimal override
             args.profile_overrides[name] = {
                 "provider": provider,
@@ -386,7 +505,36 @@ def manage_profiles_interactive(args) -> None:
                 "model_max_output_tokens": 0,
                 "approval_policy": args.approval_policy,
             }
-            _edit_profile_entry_interactive(args, name)
+            # Offer to show fields or jump into editor
+            while True:
+                step = prompt_choice(
+                    "Next",
+                    [
+                        "Start editing",
+                        "Show all fields",
+                        "Save",
+                    ],
+                )
+                if step == 0:
+                    _edit_profile_entry_interactive(args, name)
+                    break
+                elif step == 1:
+                    ov = args.profile_overrides.get(name, {})
+                    print()
+                    print(c(f"Profile fields [{name}]", BOLD))
+                    print(f"  Provider: {ov.get('provider','')}")
+                    print(f"  Model: {ov.get('model','')}")
+                    print(
+                        f"  Context window: {int(ov.get('model_context_window') or 0)}"
+                    )
+                    print(
+                        f"  Max output tokens: {int(ov.get('model_max_output_tokens') or 0)}"
+                    )
+                    print(f"  Approval policy: {ov.get('approval_policy','')}")
+                    # loop back to offer editing/saving
+                else:
+                    ok("Saved.")
+                    break
         elif i == 1:
             if not names:
                 warn("No profiles to edit.")
@@ -395,7 +543,7 @@ def manage_profiles_interactive(args) -> None:
             target = names[idx]
             if target == main_name:
                 # Edit main profile name only
-                newn = input("New profile name: ").strip()
+                newn = _safe_input("New profile name: ").strip()
                 if newn:
                     args.profile = newn
             else:
@@ -406,14 +554,18 @@ def manage_profiles_interactive(args) -> None:
                 continue
             idx = prompt_choice("Remove which?", names)
             target = names[idx]
-            if target in (args.profile_overrides or {}):
-                args.profile_overrides.pop(target, None)
-                info(f"Removed override: {target}")
-            elif target in (args.providers_list or []):
-                args.providers_list = [p for p in args.providers_list if p != target]
-                info(f"Removed provider profile: {target}")
-            elif target == main_name:
+            if target == main_name:
                 warn("Won't remove the current active profile; rename instead.")
+            else:
+                if prompt_yes_no(f"Remove profile '{target}'?", default=False):
+                    if target in (args.profile_overrides or {}):
+                        args.profile_overrides.pop(target, None)
+                        info(f"Removed override: {target}")
+                    elif target in (args.providers_list or []):
+                        args.providers_list = [p for p in args.providers_list if p != target]
+                        info(f"Removed provider profile: {target}")
+                else:
+                    info("Removal cancelled.")
         else:
             break
 
@@ -421,7 +573,13 @@ def manage_profiles_interactive(args) -> None:
 def _edit_profile_entry_interactive(args, name: str) -> None:
     ov = dict((getattr(args, "profile_overrides", {}) or {}).get(name) or {})
     if not ov:
-        ov = {"provider": args.provider or "", "model": "", "model_context_window": 0, "model_max_output_tokens": 0, "approval_policy": args.approval_policy}
+        ov = {
+            "provider": args.provider or "",
+            "model": "",
+            "model_context_window": 0,
+            "model_max_output_tokens": 0,
+            "approval_policy": args.approval_policy,
+        }
     while True:
         print()
         print(c(f"Edit profile [{name}]", BOLD))
@@ -434,30 +592,151 @@ def _edit_profile_entry_interactive(args, name: str) -> None:
         ]
         for i, (lbl, val) in enumerate(items, 1):
             print(f"  {i}. {lbl}: {val}")
-        act = prompt_choice("Action", ["Edit field", "Save", "Cancel"])
+        act = prompt_choice("Action", ["Edit field", "Edit all fields", "Save", "Cancel"])
         if act == 0:
             s = input("Field number: ").strip()
             if not s.isdigit():
                 continue
             idx = int(s) - 1
             if idx == 0:
-                ov["provider"] = input("Provider: ").strip() or ov.get("provider") or ""
+                ov["provider"] = _safe_input("Provider: ").strip() or ov.get("provider") or ""
             elif idx == 1:
-                ov["model"] = input("Model: ").strip() or ov.get("model") or ""
+                # Model: allow manual entry or auto-detect from server
+                mode = prompt_choice("Set model", ["Enter manually", "Auto-detect from server"])
+                if mode == 0:
+                    ov["model"] = _safe_input("Model: ").strip() or ov.get("model") or ""
+                else:
+                    base = (getattr(args, "base_url", "") or "").strip()
+                    if not base:
+                        base = _safe_input("Base URL for model list (e.g., http://localhost:1234/v1): ").strip()
+                    try:
+                        mod = sys.modules.get("codex_cli_linker")
+                        lm = getattr(mod, "list_models", list_models)
+                        models = lm(base)
+                        if models:
+                            print(c("Available models:", BOLD))
+                            pick = prompt_choice("Choose model", models)
+                            ov["model"] = models[pick]
+                        else:
+                            warn("No models returned; leaving model empty.")
+                    except Exception as e:
+                        err(f"Model detection failed: {e}")
             elif idx == 2:
-                try:
-                    ov["model_context_window"] = int(input("Context window: ").strip() or "0")
-                except Exception:
-                    pass
+                # Context window: manual or auto-detect for current model
+                mode = prompt_choice("Set context window", ["Enter value", "Auto-detect for current model"])
+                if mode == 0:
+                    try:
+                        ov["model_context_window"] = int(_safe_input("Context window: ").strip() or "0")
+                    except Exception:
+                        pass
+                else:
+                    base = (getattr(args, "base_url", "") or "").strip()
+                    if not base:
+                        base = _safe_input("Base URL for detection (e.g., http://localhost:1234/v1): ").strip()
+                    model = (ov.get("model") or "").strip()
+                    if not model:
+                        try:
+                            mod = sys.modules.get("codex_cli_linker")
+                            lm = getattr(mod, "list_models", list_models)
+                            models = lm(base)
+                            if models:
+                                pick = prompt_choice("Choose model", models)
+                                model = models[pick]
+                                ov["model"] = model
+                        except Exception:
+                            pass
+                    try:
+                        tacw = getattr(sys.modules.get("codex_cli_linker"), "try_auto_context_window", try_auto_context_window)
+                        cw = tacw(base, model)
+                        if cw > 0:
+                            ov["model_context_window"] = cw
+                            ok(f"Detected context window: {cw} tokens")
+                        else:
+                            warn("Could not detect context window; leaving unchanged.")
+                    except Exception as e:
+                        err(f"Context window detection failed: {e}")
             elif idx == 3:
                 try:
-                    ov["model_max_output_tokens"] = int(input("Max output tokens: ").strip() or "0")
+                    ov["model_max_output_tokens"] = int(
+                        _safe_input("Max output tokens: ").strip() or "0"
+                    )
                 except Exception:
                     pass
             elif idx == 4:
-                i2 = prompt_choice("Approval policy", ["untrusted", "on-failure", "on-request", "never"])
-                ov["approval_policy"] = ["untrusted", "on-failure", "on-request", "never"][i2]
+                i2 = prompt_choice(
+                    "Approval policy",
+                    ["untrusted", "on-failure", "on-request", "never"],
+                )
+                ov["approval_policy"] = [
+                    "untrusted",
+                    "on-failure",
+                    "on-request",
+                    "never",
+                ][i2]
         elif act == 1:
+            # Edit all fields in sequence
+            ov["provider"] = _safe_input("Provider: ").strip() or ov.get("provider") or ""
+            # Model sequence
+            mode = prompt_choice("Set model", ["Enter manually", "Auto-detect from server"])
+            if mode == 0:
+                ov["model"] = _safe_input("Model: ").strip() or ov.get("model") or ""
+            else:
+                base = (getattr(args, "base_url", "") or "").strip()
+                if not base:
+                    base = _safe_input("Base URL for model list (e.g., http://localhost:1234/v1): ").strip()
+                try:
+                    mod = sys.modules.get("codex_cli_linker")
+                    lm = getattr(mod, "list_models", list_models)
+                    models = lm(base)
+                    if models:
+                        print(c("Available models:", BOLD))
+                        pick = prompt_choice("Choose model", models)
+                        ov["model"] = models[pick]
+                except Exception as e:
+                    err(f"Model detection failed: {e}")
+            # Context window sequence
+            mode_cw = prompt_choice("Set context window", ["Enter value", "Auto-detect for current model"])
+            if mode_cw == 0:
+                try:
+                    ov["model_context_window"] = int(_safe_input("Context window: ").strip() or "0")
+                except Exception:
+                    pass
+            else:
+                base = (getattr(args, "base_url", "") or "").strip()
+                if not base:
+                    base = _safe_input("Base URL for detection (e.g., http://localhost:1234/v1): ").strip()
+                model = (ov.get("model") or "").strip()
+                if not model:
+                    try:
+                        mod = sys.modules.get("codex_cli_linker")
+                        lm = getattr(mod, "list_models", list_models)
+                        models = lm(base)
+                        if models:
+                            pick = prompt_choice("Choose model", models)
+                            model = models[pick]
+                            ov["model"] = model
+                    except Exception:
+                        pass
+                try:
+                    tacw = getattr(sys.modules.get("codex_cli_linker"), "try_auto_context_window", try_auto_context_window)
+                    cw = tacw(base, model)
+                    if cw > 0:
+                        ov["model_context_window"] = cw
+                        ok(f"Detected context window: {cw} tokens")
+                except Exception as e:
+                    err(f"Context window detection failed: {e}")
+            # Max output tokens
+            try:
+                ov["model_max_output_tokens"] = int(_safe_input("Max output tokens: ").strip() or "0")
+            except Exception:
+                pass
+            # Approval policy
+            i2 = prompt_choice(
+                "Approval policy",
+                ["untrusted", "on-failure", "on-request", "never"],
+            )
+            ov["approval_policy"] = ["untrusted", "on-failure", "on-request", "never"][i2]
+        elif act == 2:
             args.profile_overrides[name] = ov
             ok("Saved.")
             return
@@ -488,7 +767,10 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
             # proceed to write
             return "write"
         items = [
-            ("Profile name", args.profile or state.profile or state.provider or "<auto>"),
+            (
+                "Profile name",
+                args.profile or state.profile or state.provider or "<auto>",
+            ),
             ("Provider", args.provider or state.provider or "<auto>"),
             ("Base URL", state.base_url or args.base_url or "<auto>"),
             ("Model", args.model or state.model or "<pick>"),
@@ -507,44 +789,88 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
             status = "set" if existing_key else "missing"
             items.append(("API key (OPENAI_API_KEY)", status))
         # Rest of settings
-        items.extend([
-            ("Approval policy", args.approval_policy),
-            ("Sandbox mode", args.sandbox_mode),
-            ("Network access", "true" if getattr(args, "network_access", None) else "false"),
-            (
-                "Exclude $TMPDIR",
-                "true" if getattr(args, "exclude_tmpdir_env_var", None) else "false",
-            ),
-            ("Exclude /tmp", "true" if getattr(args, "exclude_slash_tmp", None) else "false"),
-            ("Writable roots (CSV)", getattr(args, "writable_roots", "") or ""),
-            ("File opener", args.file_opener),
-            ("Context window", str(args.model_context_window or 0)),
-            ("Max output tokens", str(args.model_max_output_tokens or 0)),
-            ("Reasoning effort", args.reasoning_effort),
-            ("Reasoning summary", args.reasoning_summary),
-            ("Verbosity", args.verbosity),
-            ("Disable response storage", "true" if args.disable_response_storage else "false"),
-            ("History persistence", "none" if args.no_history else "save-all"),
-            ("History max bytes", str(args.history_max_bytes or 0)),
-            ("Tools: web_search", "true" if args.tools_web_search else "false"),
-            ("Wire API", getattr(args, "wire_api", "chat")),
-            ("ChatGPT base URL", args.chatgpt_base_url or ""),
-            ("Azure api-version", args.azure_api_version or ""),
-            ("HTTP headers (CSV KEY=VAL)", ",".join(getattr(args, "http_header", []) or []) or ""),
-            ("Env HTTP headers (CSV KEY=ENV)", ",".join(getattr(args, "env_http_header", []) or []) or ""),
-            ("Notify (CSV or JSON array)", getattr(args, "notify", "") or ""),
-            ("Instructions", args.instructions or ""),
-            ("Trusted projects (CSV)", ",".join(getattr(args, "trust_project", []) or []) or ""),
-            ("Env key name", getattr(args, "env_key_name", "NULLKEY")),
-            ("TUI notifications", "custom" if getattr(args, "tui_notification_types", "") else ("true" if getattr(args, "tui_notifications", None) else "false")),
-            ("TUI notification types (CSV)", getattr(args, "tui_notification_types", "") or ""),
-            ("Manage profiles…", "open"),
-            ("Manage MCP servers…", "open"),
-        ])
+        items.extend(
+            [
+                ("Approval policy", args.approval_policy),
+                ("Sandbox mode", args.sandbox_mode),
+                (
+                    "Network access",
+                    "true" if getattr(args, "network_access", None) else "false",
+                ),
+                (
+                    "Exclude $TMPDIR",
+                    (
+                        "true"
+                        if getattr(args, "exclude_tmpdir_env_var", None)
+                        else "false"
+                    ),
+                ),
+                (
+                    "Exclude /tmp",
+                    "true" if getattr(args, "exclude_slash_tmp", None) else "false",
+                ),
+                ("Writable roots (CSV)", getattr(args, "writable_roots", "") or ""),
+                ("File opener", args.file_opener),
+                ("Context window", str(args.model_context_window or 0)),
+                ("Max output tokens", str(args.model_max_output_tokens or 0)),
+                ("Reasoning effort", args.reasoning_effort),
+                ("Reasoning summary", args.reasoning_summary),
+                ("Verbosity", args.verbosity),
+                (
+                    "Disable response storage",
+                    "true" if args.disable_response_storage else "false",
+                ),
+                ("History persistence", "none" if args.no_history else "save-all"),
+                ("History max bytes", str(args.history_max_bytes or 0)),
+                ("Tools: web_search", "true" if args.tools_web_search else "false"),
+                ("Wire API", getattr(args, "wire_api", "chat")),
+                ("ChatGPT base URL", args.chatgpt_base_url or ""),
+                ("Azure api-version", args.azure_api_version or ""),
+                (
+                    "HTTP headers (CSV KEY=VAL)",
+                    ",".join(getattr(args, "http_header", []) or []) or "",
+                ),
+                (
+                    "Env HTTP headers (CSV KEY=ENV)",
+                    ",".join(getattr(args, "env_http_header", []) or []) or "",
+                ),
+                ("Notify (CSV or JSON array)", getattr(args, "notify", "") or ""),
+                ("Instructions", args.instructions or ""),
+                (
+                    "Trusted projects (CSV)",
+                    ",".join(getattr(args, "trust_project", []) or []) or "",
+                ),
+                ("Env key name", getattr(args, "env_key_name", "NULLKEY")),
+                (
+                    "TUI notifications",
+                    (
+                        "custom"
+                        if getattr(args, "tui_notification_types", "")
+                        else (
+                            "true"
+                            if getattr(args, "tui_notifications", None)
+                            else "false"
+                        )
+                    ),
+                ),
+                (
+                    "TUI notification types (CSV)",
+                    getattr(args, "tui_notification_types", "") or "",
+                ),
+                ("Edit global config…", "open"),
+                ("Manage profiles…", "open"),
+                ("Manage MCP servers…", "open"),
+            ]
+        )
         for i, (label, val) in enumerate(items, 1):
             # Dim unchanged metadata for readability
             show = f"  {i}. {label}: {val}"
-            print(c(show, GRAY) if "Manage" not in label and label not in ("Profile name","Provider","Base URL","Model") else show)
+            print(
+                c(show, GRAY)
+                if "Manage" not in label
+                and label not in ("Profile name", "Provider", "Base URL", "Model")
+                else show
+            )
         print()
         action_idx = prompt_choice(
             "Select item to edit or action",
@@ -569,7 +895,9 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
                 if newp:
                     args.profile = newp
             elif label == "Provider":
-                newprov = input("Provider id (e.g., lmstudio, ollama, openai, custom): ").strip()
+                newprov = input(
+                    "Provider id (e.g., lmstudio, ollama, openai, custom): "
+                ).strip()
                 if newprov:
                     args.provider = newprov
                     state.provider = newprov
@@ -581,16 +909,22 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
                 if not state.base_url:
                     state.base_url = pick_base_url(state, False)
                 try:
-                    state.model = pick_model_interactive(state.base_url, state.model or None)
+                    state.model = pick_model_interactive(
+                        state.base_url, state.model or None
+                    )
                 except Exception as e:
                     err(str(e))
+            elif label == "Edit global config…":
+                _edit_global_all_fields(args, state)
             elif label == "Auth (OpenAI)":
                 i2 = prompt_choice("OpenAI auth method", ["apikey", "chatgpt"])
                 args.preferred_auth_method = "apikey" if i2 == 0 else "chatgpt"
             elif label == "API key (OPENAI_API_KEY)":
                 # Set or update OPENAI_API_KEY in auth.json
                 try:
-                    new_key = getpass.getpass("Enter OPENAI_API_KEY (input hidden): ").strip()
+                    new_key = getpass.getpass(
+                        "Enter OPENAI_API_KEY (input hidden): "
+                    ).strip()
                 except Exception as exc:  # pragma: no cover
                     err(f"Could not read input: {exc}")
                     new_key = ""
@@ -604,7 +938,9 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
                         except Exception:
                             current = {}
                     current["OPENAI_API_KEY"] = new_key
-                    atomic_write_with_backup(AUTH_JSON, _json.dumps(current, indent=2) + "\n")
+                    atomic_write_with_backup(
+                        AUTH_JSON, _json.dumps(current, indent=2) + "\n"
+                    )
                     ok(f"Updated {AUTH_JSON} with OPENAI_API_KEY")
                     warn("Never commit this file; it contains a secret.")
             elif label == "Approval policy":
@@ -631,16 +967,29 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
             elif label == "Writable roots (CSV)":
                 args.writable_roots = input("Writable roots CSV: ").strip()
             elif label == "File opener":
-                i2 = prompt_choice("File opener", ["vscode", "vscode-insiders", "windsurf", "cursor", "none"])
-                args.file_opener = ["vscode", "vscode-insiders", "windsurf", "cursor", "none"][i2]
+                i2 = prompt_choice(
+                    "File opener",
+                    ["vscode", "vscode-insiders", "windsurf", "cursor", "none"],
+                )
+                args.file_opener = [
+                    "vscode",
+                    "vscode-insiders",
+                    "windsurf",
+                    "cursor",
+                    "none",
+                ][i2]
             elif label == "Context window":
                 try:
-                    args.model_context_window = int(input("Context window: ").strip() or "0")
+                    args.model_context_window = int(
+                        input("Context window: ").strip() or "0"
+                    )
                 except Exception:
                     pass
             elif label == "Max output tokens":
                 try:
-                    args.model_max_output_tokens = int(input("Max output tokens: ").strip() or "0")
+                    args.model_max_output_tokens = int(
+                        input("Max output tokens: ").strip() or "0"
+                    )
                 except Exception:
                     pass
             elif label == "Reasoning effort":
@@ -660,7 +1009,9 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
                 args.no_history = True if i2 == 1 else False
             elif label == "History max bytes":
                 try:
-                    args.history_max_bytes = int(input("History max bytes: ").strip() or "0")
+                    args.history_max_bytes = int(
+                        input("History max bytes: ").strip() or "0"
+                    )
                 except Exception:
                     pass
             elif label == "Tools: web_search":
@@ -689,7 +1040,9 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
             elif label == "Env key name":
                 args.env_key_name = input("Env key name: ").strip() or args.env_key_name
             elif label == "TUI notifications":
-                i2 = prompt_choice("TUI notifications", ["disabled", "enabled (all)", "filter types"])
+                i2 = prompt_choice(
+                    "TUI notifications", ["disabled", "enabled (all)", "filter types"]
+                )
                 if i2 == 0:
                     args.tui_notifications = False
                     args.tui_notification_types = ""
@@ -698,9 +1051,13 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
                     args.tui_notification_types = ""
                 else:
                     args.tui_notifications = None
-                    args.tui_notification_types = input("Types CSV (agent-turn-complete,approval-requested): ").strip()
+                    args.tui_notification_types = input(
+                        "Types CSV (agent-turn-complete,approval-requested): "
+                    ).strip()
             elif label == "TUI notification types (CSV)":
-                args.tui_notification_types = input("Types CSV (agent-turn-complete,approval-requested): ").strip()
+                args.tui_notification_types = input(
+                    "Types CSV (agent-turn-complete,approval-requested): "
+                ).strip()
             elif label == "Manage profiles…":
                 manage_profiles_interactive(args)
             elif label == "Manage MCP servers…":
@@ -725,7 +1082,9 @@ def _input_list_csv(prompt: str, default: Optional[List[str]] = None) -> List[st
     return [s.strip() for s in raw.split(",") if s.strip()]
 
 
-def _input_env_kv(prompt: str, default: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+def _input_env_kv(
+    prompt: str, default: Optional[Dict[str, str]] = None
+) -> Dict[str, str]:
     raw = input(f"{prompt} ").strip()
     if not raw and default is not None:
         return dict(default)
@@ -748,6 +1107,7 @@ def manage_mcp_servers_interactive(args) -> None:
     Each server entry supports keys: command (str), args (list[str]), env (map),
     and optional startup_timeout_ms (int, default 10000).
     """
+
     def list_servers() -> List[str]:
         return sorted(list((args.mcp_servers or {}).keys()))
 
@@ -771,12 +1131,18 @@ def manage_mcp_servers_interactive(args) -> None:
                     kv = ", ".join(f"{k}={v}" for k, v in env.items())
                     print(c(f"    env: {kv}", GRAY))
                 print(c(f"    startup_timeout_ms: {to_ms}", GRAY))
-        i = prompt_choice("Choose", ["Add server", "Edit server", "Remove server", "Done"])
+        i = prompt_choice(
+            "Choose", ["Add server", "Edit server", "Remove server", "Done"]
+        )
         if i == 0:
             name = input("Server name (identifier): ").strip()
             if not name:
                 continue
-            entry: Dict[str, Any] = {"command": "npx", "args": ["-y", "mcp-server"], "env": {}}
+            entry: Dict[str, Any] = {
+                "command": "npx",
+                "args": ["-y", "mcp-server"],
+                "env": {},
+            }
             _edit_mcp_entry_interactive(args, name, entry, creating=True)
         elif i == 1:
             if not names:
@@ -785,7 +1151,12 @@ def manage_mcp_servers_interactive(args) -> None:
             idx = prompt_choice("Edit which?", names)
             name = names[idx]
             curr = dict((args.mcp_servers or {}).get(name) or {})
-            _edit_mcp_entry_interactive(args, name, curr or {"command": "npx", "args": ["-y", "mcp-server"], "env": {}}, creating=False)
+            _edit_mcp_entry_interactive(
+                args,
+                name,
+                curr or {"command": "npx", "args": ["-y", "mcp-server"], "env": {}},
+                creating=False,
+            )
         elif i == 2:
             if not names:
                 warn("No servers to remove.")
@@ -800,7 +1171,9 @@ def manage_mcp_servers_interactive(args) -> None:
             break
 
 
-def _edit_mcp_entry_interactive(args, name: str, entry: Dict[str, Any], creating: bool) -> None:
+def _edit_mcp_entry_interactive(
+    args, name: str, entry: Dict[str, Any], creating: bool
+) -> None:
     curr = dict(entry)
     while True:
         print()
@@ -808,7 +1181,10 @@ def _edit_mcp_entry_interactive(args, name: str, entry: Dict[str, Any], creating
         items = [
             ("Command", curr.get("command", "npx")),
             ("Args (CSV)", ", ".join(curr.get("args") or [])),
-            ("Env (CSV KEY=VAL)", ", ".join(f"{k}={v}" for k, v in (curr.get("env") or {}).items())),
+            (
+                "Env (CSV KEY=VAL)",
+                ", ".join(f"{k}={v}" for k, v in (curr.get("env") or {}).items()),
+            ),
             ("Startup timeout (ms)", str(curr.get("startup_timeout_ms", 10000))),
         ]
         for i, (lbl, val) in enumerate(items, 1):
@@ -820,14 +1196,22 @@ def _edit_mcp_entry_interactive(args, name: str, entry: Dict[str, Any], creating
                 continue
             idx = int(s) - 1
             if idx == 0:
-                curr["command"] = input("Command: ").strip() or curr.get("command", "npx")
+                curr["command"] = input("Command: ").strip() or curr.get(
+                    "command", "npx"
+                )
             elif idx == 1:
-                curr["args"] = _input_list_csv("Args CSV: ", curr.get("args") or ["-y", "mcp-server"])
+                curr["args"] = _input_list_csv(
+                    "Args CSV: ", curr.get("args") or ["-y", "mcp-server"]
+                )
             elif idx == 2:
-                curr["env"] = _input_env_kv("Env CSV (KEY=VAL,...): ", curr.get("env") or {})
+                curr["env"] = _input_env_kv(
+                    "Env CSV (KEY=VAL,...): ", curr.get("env") or {}
+                )
             elif idx == 3:
                 try:
-                    curr["startup_timeout_ms"] = int(input("Startup timeout (ms): ").strip() or "10000")
+                    curr["startup_timeout_ms"] = int(
+                        input("Startup timeout (ms): ").strip() or "10000"
+                    )
                 except Exception:
                     pass
         elif act == 1:

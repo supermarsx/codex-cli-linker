@@ -29,10 +29,24 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
         "sandbox_mode": args.sandbox_mode,
         "file_opener": args.file_opener,
         "sandbox_workspace_write": {
-            "writable_roots": [p.strip() for p in (getattr(args, "writable_roots", "") or "").split(",") if p.strip()],
-            "network_access": bool(args.network_access) if args.network_access is not None else False,
-            "exclude_tmpdir_env_var": bool(args.exclude_tmpdir_env_var) if getattr(args, "exclude_tmpdir_env_var", None) is not None else False,
-            "exclude_slash_tmp": bool(args.exclude_slash_tmp) if getattr(args, "exclude_slash_tmp", None) is not None else False,
+            "writable_roots": [
+                p.strip()
+                for p in (getattr(args, "writable_roots", "") or "").split(",")
+                if p.strip()
+            ],
+            "network_access": (
+                bool(args.network_access) if args.network_access is not None else False
+            ),
+            "exclude_tmpdir_env_var": (
+                bool(args.exclude_tmpdir_env_var)
+                if getattr(args, "exclude_tmpdir_env_var", None) is not None
+                else False
+            ),
+            "exclude_slash_tmp": (
+                bool(args.exclude_slash_tmp)
+                if getattr(args, "exclude_slash_tmp", None) is not None
+                else False
+            ),
         },
         "model_reasoning_effort": args.reasoning_effort,
         "model_reasoning_summary": args.reasoning_summary,
@@ -70,6 +84,8 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
                 "base_url": state.base_url.rstrip("/"),
                 "wire_api": getattr(args, "wire_api", "chat"),
                 "env_key": state.env_key or "NULLKEY",
+                # Back-compat for older consumers/tests expecting api_key_env_var
+                "api_key_env_var": state.env_key or "NULLKEY",
                 "request_max_retries": args.request_max_retries,
                 "stream_max_retries": args.stream_max_retries,
                 "stream_idle_timeout_ms": args.stream_idle_timeout_ms,
@@ -128,6 +144,8 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
             "base_url": base_u.rstrip("/"),
             "wire_api": getattr(args, "wire_api", "chat"),
             "env_key": state.env_key,
+            # Back-compat for older consumers/tests expecting api_key_env_var
+            "api_key_env_var": state.env_key,
             "request_max_retries": args.request_max_retries,
             "stream_max_retries": args.stream_max_retries,
             "stream_idle_timeout_ms": args.stream_idle_timeout_ms,
@@ -150,18 +168,36 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
         if not isinstance(ov, dict):
             continue
         pprov = (ov.get("provider") or state.provider).strip()
-        cfg.setdefault("profiles", {})[name] = {
+        prof_dict: Dict[str, Any] = {
             "model": ov.get("model") or args.model or state.model or "gpt-5",
             "model_provider": pprov or (args.provider or state.provider),
-            "model_context_window": int(ov.get("model_context_window") or args.model_context_window or 0),
-            "model_max_output_tokens": int(ov.get("model_max_output_tokens") or args.model_max_output_tokens or 0),
+            "model_context_window": int(
+                ov.get("model_context_window") or args.model_context_window or 0
+            ),
+            "model_max_output_tokens": int(
+                ov.get("model_max_output_tokens") or args.model_max_output_tokens or 0
+            ),
             "approval_policy": ov.get("approval_policy") or args.approval_policy,
         }
+        # Additional optional overrides supported in profiles
+        passthrough_keys = [
+            "file_opener",
+            "model_reasoning_effort",
+            "model_reasoning_summary",
+            "model_verbosity",
+            "disable_response_storage",
+            "sandbox_mode",
+            "chatgpt_base_url",
+            "preferred_auth_method",
+        ]
+        for k in passthrough_keys:
+            if k in ov and ov[k] not in (None, ""):
+                prof_dict[k] = ov[k]
+        cfg.setdefault("profiles", {})[name] = prof_dict
     # Optional: MCP servers (top-level key mcp_servers)
     mcp = getattr(args, "mcp_servers", None) or {}
     if isinstance(mcp, dict) and mcp:
         # Minimal normalization: ensure args list for each server when string provided
-        norm: Dict[str, Any] = {}
         for name, entry in mcp.items():
             if not isinstance(entry, dict):
                 continue
@@ -190,11 +226,17 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
     # Apply provider-specific default headers for auth
     active_pid = args.provider or state.provider
     if active_pid in ("anthropic",):
-        cfg["model_providers"][active_pid]["env_http_headers"]["x-api-key"] = state.env_key or "ANTHROPIC_API_KEY"
+        cfg["model_providers"][active_pid]["env_http_headers"]["x-api-key"] = (
+            state.env_key or "ANTHROPIC_API_KEY"
+        )
     if active_pid in ("azure",):
-        cfg["model_providers"][active_pid]["env_http_headers"]["api-key"] = state.env_key or "AZURE_OPENAI_API_KEY"
+        cfg["model_providers"][active_pid]["env_http_headers"]["api-key"] = (
+            state.env_key or "AZURE_OPENAI_API_KEY"
+        )
     if active_pid in ("groq",):
-        cfg["model_providers"][active_pid]["env_http_headers"]["Authorization"] = state.env_key or "GROQ_API_KEY"
+        cfg["model_providers"][active_pid]["env_http_headers"]["Authorization"] = (
+            state.env_key or "GROQ_API_KEY"
+        )
     if active_pid in ("mistral", "deepseek", "openrouter-remote", "cohere", "baseten"):
         # All Authorization presets use Bearer scheme via env var
         default_env = {
@@ -204,7 +246,9 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
             "cohere": "COHERE_API_KEY",
             "baseten": "BASETEN_API_KEY",
         }[active_pid]
-        cfg["model_providers"][active_pid]["env_http_headers"]["Authorization"] = state.env_key or default_env
+        cfg["model_providers"][active_pid]["env_http_headers"]["Authorization"] = (
+            state.env_key or default_env
+        )
 
     # Parse notify as CSV or JSON array
     notify_raw = getattr(args, "notify", "") or ""

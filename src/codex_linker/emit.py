@@ -45,7 +45,9 @@ def to_toml(cfg: Dict) -> str:
     w("project_doc_max_bytes", cfg.get("project_doc_max_bytes"))
     # TUI table
     tui_cfg = cfg.get("tui") or {}
-    if isinstance(tui_cfg, dict) and (tui_cfg.get("style") or ("notifications" in tui_cfg)):
+    if isinstance(tui_cfg, dict) and (
+        tui_cfg.get("style") or ("notifications" in tui_cfg)
+    ):
         lines.append("")
         lines.append("[tui]")
         if tui_cfg.get("style"):
@@ -131,7 +133,7 @@ def to_toml(cfg: Dict) -> str:
         if not pf:
             continue
         section_lines = []
-        for k in ("name", "base_url", "wire_api", "env_key"):
+        for k in ("name", "base_url", "wire_api", "env_key", "api_key_env_var"):
             if k in pf:
                 section_lines.append(f"{k} = {json.dumps(pf[k])}")
         for k in (
@@ -155,14 +157,19 @@ def to_toml(cfg: Dict) -> str:
                 section_lines.append(f"query_params = {{ {qp_items} }}")
         # Optional header maps
         if (
-            "http_headers" in pf and isinstance(pf["http_headers"], dict) and pf["http_headers"]
+            "http_headers" in pf
+            and isinstance(pf["http_headers"], dict)
+            and pf["http_headers"]
         ):
             pairs = ", ".join(
-                f"{json.dumps(k)} = {json.dumps(v)}" for k, v in pf["http_headers"].items()
+                f"{json.dumps(k)} = {json.dumps(v)}"
+                for k, v in pf["http_headers"].items()
             )
             section_lines.append(f"http_headers = {{ {pairs} }}")
         if (
-            "env_http_headers" in pf and isinstance(pf["env_http_headers"], dict) and pf["env_http_headers"]
+            "env_http_headers" in pf
+            and isinstance(pf["env_http_headers"], dict)
+            and pf["env_http_headers"]
         ):
             pairs = ", ".join(
                 f"{json.dumps(k)} = {json.dumps(v)}"
@@ -180,21 +187,13 @@ def to_toml(cfg: Dict) -> str:
         if not prf:
             continue
         section_lines = []
-        for k in (
-            "model",
-            "model_provider",
-            "model_context_window",
-            "model_max_output_tokens",
-            "approval_policy",
-        ):
-            if k in prf:
-                val = prf[k]
-                if isinstance(val, (int, float)):
-                    section_lines.append(f"{k} = {val}")
-                elif isinstance(val, bool):
-                    section_lines.append(f"{k} = {'true' if val else 'false'}")
-                else:
-                    section_lines.append(f"{k} = {json.dumps(val)}")
+        for k, val in prf.items():
+            if isinstance(val, (int, float)):
+                section_lines.append(f"{k} = {val}")
+            elif isinstance(val, bool):
+                section_lines.append(f"{k} = {'true' if val else 'false'}")
+            else:
+                section_lines.append(f"{k} = {json.dumps(val)}")
         if section_lines:
             lines.append("")
             lines.append(f"[profiles.{name}]")
