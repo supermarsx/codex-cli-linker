@@ -409,6 +409,14 @@ Additional handy short aliases:
 - `--base-url <URL>` — explicit OpenAI‑compatible base URL (e.g., `http://localhost:1234/v1`)
 - `--model <ID|substring>` - exact model id or a case-insensitive substring; ties break deterministically (alphabetical)
 - `--provider <ID>` — provider key for `[model_providers.<id>]` (e.g., `lmstudio`, `ollama`, `custom`)
+- Presets:
+  - `-or, --openrouter` → provider `openrouter-remote` (`https://openrouter.ai/api/v1`)
+  - `-an, --anthropic` → provider `anthropic` (`https://api.anthropic.com/v1`)
+  - `-az, --azure` → provider `azure` (`https://<resource>.openai.azure.com/<path>`)
+    - Optional: `--azure-resource <NAME>` and `--azure-path <PATH>` to synthesize `base_url`
+  - `-gq, --groq` → provider `groq` (`https://api.groq.com/openai/v1`)
+  - `-mi, --mistral` → provider `mistral` (`https://api.mistral.ai/v1`)
+  - `-ds, --deepseek` → provider `deepseek` (`https://api.deepseek.com/v1`)
 - `--profile <NAME>` — profile name for `[profiles.<name>]` (default deduced from provider)
 - `--api-key <VAL>` — dummy key to place in an env var
 - `--env-key-name <NAME>` — env var name that holds the API key (default `NULLKEY`)
@@ -514,6 +522,10 @@ Notes:
 - `--wire-api {chat,responses}` — wire protocol for the provider
 - `--http-header KEY=VAL` — static HTTP header (repeatable)
 - `--env-http-header KEY=ENV_VAR` — env‑sourced header (repeatable)
+- Authorization headers use Bearer tokens for these presets:
+  - OpenRouter (remote), Groq, Mistral, DeepSeek → `Authorization: Bearer <env value>`
+  - Anthropic → `x-api-key: <env value>`
+  - Azure OpenAI → `api-key: <env value>`
 - `--notify '["program","arg1",...]'` or `program,arg1,...` — top‑level `notify`
 - `--instructions <TEXT>` — top‑level `instructions`
 - `--trust-project <PATH>` — mark a project/worktree as trusted (repeatable)

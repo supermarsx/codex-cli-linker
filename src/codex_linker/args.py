@@ -182,6 +182,15 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         "--provider",
         help="Provider id (model_providers.<id>), default deduced",
     )
+    # Preset convenience flags
+    providers.add_argument("-or", "--openrouter", action="store_true", help="Preset: OpenRouter (https://openrouter.ai/api/v1)")
+    providers.add_argument("-an", "--anthropic", action="store_true", help="Preset: Anthropic (https://api.anthropic.com/v1)")
+    providers.add_argument("-az", "--azure", action="store_true", help="Preset: Azure OpenAI (https://<resource>.openai.azure.com/<path>)")
+    providers.add_argument("-gq", "--groq", action="store_true", help="Preset: Groq (https://api.groq.com/openai/v1)")
+    providers.add_argument("-mi", "--mistral", action="store_true", help="Preset: Mistral (https://api.mistral.ai/v1)")
+    providers.add_argument("-ds", "--deepseek", action="store_true", help="Preset: DeepSeek (https://api.deepseek.com/v1)")
+    providers.add_argument("--azure-resource", help="Azure resource name (e.g., myresource)")
+    providers.add_argument("--azure-path", help="Azure path (e.g., openai/v1)")
     providers.add_argument(
         "-l",
         "--providers",
@@ -567,6 +576,25 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     if getattr(ns, "openai_gpt", False):
         ns.provider = "openai"
         ns.preferred_auth_method = "chatgpt"
+    # Presets mapping
+    if getattr(ns, "openrouter", False):
+        ns.provider = ns.provider or "openrouter-remote"
+    if getattr(ns, "anthropic", False):
+        ns.provider = ns.provider or "anthropic"
+    if getattr(ns, "azure", False):
+        ns.provider = ns.provider or "azure"
+        # If resource or path provided, synthesize base_url
+        if getattr(ns, "azure_resource", None) or getattr(ns, "azure_path", None):
+            res = getattr(ns, "azure_resource", "") or ""
+            path = getattr(ns, "azure_path", "openai/v1") or "openai/v1"
+            if res:
+                ns.base_url = ns.base_url or f"https://{res}.openai.azure.com/{path}"
+    if getattr(ns, "groq", False):
+        ns.provider = ns.provider or "groq"
+    if getattr(ns, "mistral", False):
+        ns.provider = ns.provider or "mistral"
+    if getattr(ns, "deepseek", False):
+        ns.provider = ns.provider or "deepseek"
     # Normalize providers list
     provs = []
     if getattr(ns, "providers", None):
