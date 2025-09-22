@@ -390,7 +390,7 @@ Additional handy short aliases:
 - `-mp/--merge-profiles`, `-mc/--merge-config`, `-mO/--merge-overwrite`
 - `-mm/--manage-mcp`, `-mj/--mcp-json`
 - `-Na/--network-access`
-- `-Et/--exclude-tmpdir-env-var`, `-ET/--no-exclude-tmpdir-env-var`
+- `-Et/--exclude-tmpdir-env-var`
 - `-Es/--exclude-slash-tmp`, `-ES/--no-exclude-slash-tmp`
 - `-Wr/--writable-roots`
 - `-wa/--wire-api`
@@ -419,7 +419,7 @@ Additional handy short aliases:
 - `--approval-policy {untrusted,on-failure,on-request,never}` (default: `on-failure`)
 - `--sandbox-mode {read-only,workspace-write,danger-full-access}` (default: `workspace-write`)
 - `--network-access` — enable `sandbox_workspace_write.network_access` (omit to keep disabled)
-- `--exclude-tmpdir-env-var` / `--no-exclude-tmpdir-env-var` — exclude/include `$TMPDIR` from writable roots (workspace-write only)
+- `--exclude-tmpdir-env-var` — exclude `$TMPDIR` from writable roots (workspace-write only; omit to include by default)
 - `--exclude-slash-tmp` / `--no-exclude-slash-tmp` — exclude/include `/tmp` from writable roots (workspace-write only)
 - `--writable-roots <CSV>` — extra writable roots for workspace-write (e.g., `/workspace,/data`)
 - `--file-opener {vscode,vscode-insiders,windsurf,cursor,none}` (default: `vscode`)
