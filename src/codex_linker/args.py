@@ -333,13 +333,6 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Exclude $TMPDIR from writable roots under [sandbox_workspace_write]",
     )
     profiles.add_argument(
-        "-ET",
-        "--no-exclude-tmpdir-env-var",
-        dest="exclude_tmpdir_env_var",
-        action="store_false",
-        help="Include $TMPDIR as writable under [sandbox_workspace_write]",
-    )
-    profiles.add_argument(
         "-Es",
         "--exclude-slash-tmp",
         dest="exclude_slash_tmp",
