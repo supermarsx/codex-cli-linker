@@ -91,7 +91,13 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
         cfg["model_providers"][args.provider or state.provider]["query_params"] = {
             "api-version": args.azure_api_version
         }
-    extra = getattr(args, "providers_list", []) or []
+    # Include extra providers from CLI and from any profile overrides
+    extra = list(getattr(args, "providers_list", []) or [])
+    pov = getattr(args, "profile_overrides", {}) or {}
+    for _name, ov in pov.items():
+        pid = (ov.get("provider") or "").strip()
+        if pid and pid not in extra and pid != state.provider:
+            extra.append(pid)
     for pid in [p for p in extra if p and p != state.provider]:
         if pid.lower() == "lmstudio":
             base_u = DEFAULT_LMSTUDIO
@@ -138,6 +144,18 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
             "model_context_window": args.model_context_window or 0,
             "model_max_output_tokens": args.model_max_output_tokens or 0,
             "approval_policy": args.approval_policy,
+        }
+    # Apply per-profile overrides (interactive)
+    for name, ov in pov.items():
+        if not isinstance(ov, dict):
+            continue
+        pprov = (ov.get("provider") or state.provider).strip()
+        cfg.setdefault("profiles", {})[name] = {
+            "model": ov.get("model") or args.model or state.model or "gpt-5",
+            "model_provider": pprov or (args.provider or state.provider),
+            "model_context_window": int(ov.get("model_context_window") or args.model_context_window or 0),
+            "model_max_output_tokens": int(ov.get("model_max_output_tokens") or args.model_max_output_tokens or 0),
+            "approval_policy": ov.get("approval_policy") or args.approval_policy,
         }
     # Optional: MCP servers (top-level key mcp_servers)
     mcp = getattr(args, "mcp_servers", None) or {}

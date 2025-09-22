@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 import sys
+import os
 from typing import List, Optional, Dict, Any
 import json as _json
 import getpass
@@ -9,15 +10,107 @@ import getpass
 from .spec import DEFAULT_LMSTUDIO, DEFAULT_OLLAMA, DEFAULT_OPENAI
 from .detect import detect_base_url, list_models
 from .state import LinkerState
-from .ui import err, c, BOLD, CYAN, GRAY, info, warn, ok
+from .ui import err, c, BOLD, CYAN, GRAY, info, warn, ok, supports_color
 from .io_safe import AUTH_JSON, atomic_write_with_backup
 
 
+def _arrow_choice(prompt: str, options: List[str]) -> Optional[int]:
+    """Arrow-key navigable selector. Returns index or None if unsupported."""
+    if not hasattr(sys.stdin, "isatty") or not sys.stdin.isatty():
+        return None
+    try:
+        if os.name == "nt":
+            import msvcrt  # type: ignore
+        else:
+            import termios  # type: ignore
+            import tty  # type: ignore
+    except Exception:
+        return None
+
+    idx = 0
+    n = len(options)
+    use_color = supports_color() and not os.environ.get("NO_COLOR")
+
+    def draw():
+        print()
+        print(c(prompt, BOLD))
+        for i, opt in enumerate(options):
+            marker = "➤" if i == idx else " "
+            line = f" {marker} {opt}"
+            if use_color:
+                if i == idx:
+                    print(c(line, CYAN))
+                else:
+                    print(c(line, GRAY))
+            else:
+                print(line)
+
+    def read_key() -> str:
+        if os.name == "nt":
+            import msvcrt  # type: ignore
+            ch = msvcrt.getwch()
+            if ch in ("\r", "\n"):
+                return "ENTER"
+            if ch == "\x1b":
+                return "ESC"
+            if ch in ("\x00", "\xe0"):
+                ch2 = msvcrt.getwch()
+                mapping = {"H": "UP", "P": "DOWN", "K": "LEFT", "M": "RIGHT"}
+                return mapping.get(ch2, "")
+            return ch
+        else:
+            import termios  # type: ignore
+            import tty  # type: ignore
+            fd = sys.stdin.fileno()
+            old = termios.tcgetattr(fd)
+            try:
+                tty.setraw(fd)
+                ch1 = sys.stdin.read(1)
+                if ch1 in ("\r", "\n"):
+                    return "ENTER"
+                if ch1 != "\x1b":
+                    return ch1
+                ch2 = sys.stdin.read(1)
+                if ch2 != "[":
+                    return ""
+                ch3 = sys.stdin.read(1)
+                mapping = {"A": "UP", "B": "DOWN", "C": "RIGHT", "D": "LEFT"}
+                return mapping.get(ch3, "")
+            finally:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+    draw()
+    while True:
+        key = read_key()
+        if key == "ENTER":
+            print()
+            return idx
+        if key in ("UP", "k"):
+            idx = (idx - 1) % n
+        elif key in ("DOWN", "j"):
+            idx = (idx + 1) % n
+        elif key and key.isdigit():
+            d = int(key)
+            if 1 <= d <= n:
+                print()
+                return d - 1
+        # redraw in place
+        if supports_color():
+            sys.stdout.write(f"\x1b[{n+1}F")
+            sys.stdout.flush()
+        draw()
+
+
 def prompt_choice(prompt: str, options: List[str]) -> int:
-    """Display a numbered list and return the selected zero-based index."""
+    """Display a list and return the selected zero-based index.
+
+    Uses arrow-key navigation on TTY; falls back to numeric input.
+    """
+    sel = _arrow_choice(prompt, options)
+    if sel is not None:
+        return sel
     for i, opt in enumerate(options, 1):
         print(f"  {i}. {opt}")
-
     while True:
         s = input(f"{prompt} [1-{len(options)}]: ").strip()
         if s.isdigit() and 1 <= int(s) <= len(options):
@@ -211,56 +304,118 @@ def interactive_prompts(args) -> None:
 
 
 def manage_profiles_interactive(args) -> None:
-    """Best-effort interactive manager for profiles to be written in this run.
-
-    This does not parse existing config files; it only adjusts the pending
-    set of profiles derived from args/state:
-      - Edit current profile name (args.profile)
-      - Add provider id to args.providers_list (emits extra profile)
-      - Remove provider id from args.providers_list
-    """
+    """Interactive manager for profiles: list, add, edit, remove."""
+    args.profile_overrides = getattr(args, "profile_overrides", {}) or {}
     while True:
         print()
-        print(c("Profile management:", BOLD))
-        curr = args.profile or "<auto>"
-        extras = ", ".join(args.providers_list or []) or "<none>"
-        info(f"Current profile: {curr}; Extra provider profiles: {extras}")
-        i = prompt_choice(
-            "Choose",
-            [
-                "Edit current profile name",
-                "Add extra provider profile",
-                "Remove extra provider profile",
-                "Done",
-            ],
-        )
+        print(c("Profiles:", BOLD))
+        # Build list: main current + overrides + providers_list
+        names = []
+        main_name = args.profile or "<auto>"
+        names.append(main_name)
+        for k in (args.profile_overrides or {}).keys():
+            if k not in names:
+                names.append(k)
+        for p in (args.providers_list or []):
+            if p not in names:
+                names.append(p)
+        for n in names:
+            print(c(f" - {n}", CYAN))
+        i = prompt_choice("Choose", ["Add profile", "Edit profile", "Remove profile", "Done"])
         if i == 0:
-            new_name = input("Enter new profile name: ").strip()
-            if new_name:
-                args.profile = new_name
-                ok_msg = f"Profile name set to {new_name}"
-                info(ok_msg)
+            name = input("Profile name: ").strip()
+            if not name:
+                continue
+            provider = input("Provider id (e.g., lmstudio, ollama, openai): ").strip() or (args.provider or "")
+            # start with minimal override
+            args.profile_overrides[name] = {
+                "provider": provider,
+                "model": "",
+                "model_context_window": 0,
+                "model_max_output_tokens": 0,
+                "approval_policy": args.approval_policy,
+            }
+            _edit_profile_entry_interactive(args, name)
         elif i == 1:
-            pid = input("Provider id to add (e.g., lmstudio, ollama, openai, custom): ").strip()
-            if pid and pid not in (args.providers_list or []):
-                arr = list(args.providers_list or [])
-                arr.append(pid)
-                args.providers_list = arr
-                info(f"Added provider profile: {pid}")
-        elif i == 2:
-            if not args.providers_list:
-                warn("No extra provider profiles to remove.")
+            if not names:
+                warn("No profiles to edit.")
+                continue
+            idx = prompt_choice("Edit which?", names)
+            target = names[idx]
+            if target == main_name:
+                # Edit main profile name only
+                newn = input("New profile name: ").strip()
+                if newn:
+                    args.profile = newn
             else:
-                idx = prompt_choice("Remove which?", list(args.providers_list))
-                pid = args.providers_list[idx]
-                args.providers_list = [p for p in args.providers_list if p != pid]
-                info(f"Removed provider profile: {pid}")
+                _edit_profile_entry_interactive(args, target)
+        elif i == 2:
+            if not names:
+                warn("No profiles to remove.")
+                continue
+            idx = prompt_choice("Remove which?", names)
+            target = names[idx]
+            if target in (args.profile_overrides or {}):
+                args.profile_overrides.pop(target, None)
+                info(f"Removed override: {target}")
+            elif target in (args.providers_list or []):
+                args.providers_list = [p for p in args.providers_list if p != target]
+                info(f"Removed provider profile: {target}")
+            elif target == main_name:
+                warn("Won't remove the current active profile; rename instead.")
         else:
             break
 
 
+def _edit_profile_entry_interactive(args, name: str) -> None:
+    ov = dict((getattr(args, "profile_overrides", {}) or {}).get(name) or {})
+    if not ov:
+        ov = {"provider": args.provider or "", "model": "", "model_context_window": 0, "model_max_output_tokens": 0, "approval_policy": args.approval_policy}
+    while True:
+        print()
+        print(c(f"Edit profile [{name}]", BOLD))
+        items = [
+            ("Provider", ov.get("provider") or ""),
+            ("Model", ov.get("model") or ""),
+            ("Context window", str(ov.get("model_context_window") or 0)),
+            ("Max output tokens", str(ov.get("model_max_output_tokens") or 0)),
+            ("Approval policy", ov.get("approval_policy") or args.approval_policy),
+        ]
+        for i, (lbl, val) in enumerate(items, 1):
+            print(f"  {i}. {lbl}: {val}")
+        act = prompt_choice("Action", ["Edit field", "Save", "Cancel"])
+        if act == 0:
+            s = input("Field number: ").strip()
+            if not s.isdigit():
+                continue
+            idx = int(s) - 1
+            if idx == 0:
+                ov["provider"] = input("Provider: ").strip() or ov.get("provider") or ""
+            elif idx == 1:
+                ov["model"] = input("Model: ").strip() or ov.get("model") or ""
+            elif idx == 2:
+                try:
+                    ov["model_context_window"] = int(input("Context window: ").strip() or "0")
+                except Exception:
+                    pass
+            elif idx == 3:
+                try:
+                    ov["model_max_output_tokens"] = int(input("Max output tokens: ").strip() or "0")
+                except Exception:
+                    pass
+            elif idx == 4:
+                i2 = prompt_choice("Approval policy", ["untrusted", "on-failure", "on-request", "never"])
+                ov["approval_policy"] = ["untrusted", "on-failure", "on-request", "never"][i2]
+        elif act == 1:
+            args.profile_overrides[name] = ov
+            ok("Saved.")
+            return
+        else:
+            return
+
+
 def interactive_settings_editor(state: LinkerState, args) -> str:
-    """Unified list-based editor for common settings.
+    """Unified list-based editor for common settings with a management hub.
 
     Returns one of: "write", "overwrite", "write_and_launch", "quit".
     Mutates args/state in-place based on user selections.
@@ -268,6 +423,19 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
     while True:
         print()
         print(c("Interactive settings:", BOLD))
+        hub = prompt_choice(
+            "Start with",
+            ["Manage profiles", "Manage MCP servers", "Edit run settings", "Proceed"],
+        )
+        if hub == 0:
+            manage_profiles_interactive(args)
+            continue
+        if hub == 1:
+            manage_mcp_servers_interactive(args)
+            continue
+        if hub == 3:
+            # proceed to write
+            return "write"
         items = [
             ("Profile name", args.profile or state.profile or state.provider or "<auto>"),
             ("Provider", args.provider or state.provider or "<auto>"),
@@ -552,34 +720,13 @@ def manage_mcp_servers_interactive(args) -> None:
                     kv = ", ".join(f"{k}={v}" for k, v in env.items())
                     print(c(f"    env: {kv}", GRAY))
                 print(c(f"    startup_timeout_ms: {to_ms}", GRAY))
-        i = prompt_choice(
-            "Choose",
-            ["Add server", "Edit server", "Remove server", "Done"],
-        )
+        i = prompt_choice("Choose", ["Add server", "Edit server", "Remove server", "Done"])
         if i == 0:
             name = input("Server name (identifier): ").strip()
             if not name:
                 continue
-            current: Dict[str, Any] = {
-                "command": "npx",
-                "args": ["-y", "mcp-server"],
-                "env": {},
-            }
-            cmd = input(f"Command [{current['command']}]: ").strip() or current["command"]
-            a = _input_list_csv("Args CSV [-y, mcp-server]:", ["-y", "mcp-server"])
-            env = _input_env_kv("Env CSV (KEY=VAL, ...):", {})
-            to_ms = input("startup_timeout_ms [10000]: ").strip()
-            try:
-                timeout = int(to_ms) if to_ms else 10000
-            except Exception:
-                timeout = 10000
-            entry: Dict[str, Any] = {"command": cmd, "args": a, "env": env}
-            if timeout != 10000:
-                entry["startup_timeout_ms"] = timeout
-            args.mcp_servers = dict(args.mcp_servers or {})
-            args.mcp_servers[name] = entry
-            ok_msg = f"Added mcp server '{name}'"
-            info(ok_msg)
+            entry: Dict[str, Any] = {"command": "npx", "args": ["-y", "mcp-server"], "env": {}}
+            _edit_mcp_entry_interactive(args, name, entry, creating=True)
         elif i == 1:
             if not names:
                 warn("No servers to edit.")
@@ -587,27 +734,7 @@ def manage_mcp_servers_interactive(args) -> None:
             idx = prompt_choice("Edit which?", names)
             name = names[idx]
             curr = dict((args.mcp_servers or {}).get(name) or {})
-            cmd = input(f"Command [{curr.get('command','npx')}]: ").strip() or curr.get("command", "npx")
-            a = _input_list_csv(
-                f"Args CSV [{', '.join(curr.get('args') or ['-y','mcp-server'])}]:",
-                curr.get("args") or ["-y", "mcp-server"],
-            )
-            env = _input_env_kv(
-                "Env CSV (KEY=VAL, ...):",
-                curr.get("env") or {},
-            )
-            to_ms = input(
-                f"startup_timeout_ms [{curr.get('startup_timeout_ms', 10000)}]: "
-            ).strip()
-            try:
-                timeout = int(to_ms) if to_ms else int(curr.get("startup_timeout_ms", 10000))
-            except Exception:
-                timeout = int(curr.get("startup_timeout_ms", 10000))
-            entry: Dict[str, Any] = {"command": cmd, "args": a, "env": env}
-            if timeout != 10000:
-                entry["startup_timeout_ms"] = timeout
-            args.mcp_servers[name] = entry
-            info(f"Updated mcp server '{name}'")
+            _edit_mcp_entry_interactive(args, name, curr or {"command": "npx", "args": ["-y", "mcp-server"], "env": {}}, creating=False)
         elif i == 2:
             if not names:
                 warn("No servers to remove.")
@@ -620,6 +747,48 @@ def manage_mcp_servers_interactive(args) -> None:
             info(f"Removed mcp server '{name}'")
         else:
             break
+
+
+def _edit_mcp_entry_interactive(args, name: str, entry: Dict[str, Any], creating: bool) -> None:
+    curr = dict(entry)
+    while True:
+        print()
+        print(c(f"Edit MCP server [{name}]", BOLD))
+        items = [
+            ("Command", curr.get("command", "npx")),
+            ("Args (CSV)", ", ".join(curr.get("args") or [])),
+            ("Env (CSV KEY=VAL)", ", ".join(f"{k}={v}" for k, v in (curr.get("env") or {}).items())),
+            ("Startup timeout (ms)", str(curr.get("startup_timeout_ms", 10000))),
+        ]
+        for i, (lbl, val) in enumerate(items, 1):
+            print(f"  {i}. {lbl}: {val}")
+        act = prompt_choice("Action", ["Edit field", "Save", "Cancel"])
+        if act == 0:
+            s = input("Field number: ").strip()
+            if not s.isdigit():
+                continue
+            idx = int(s) - 1
+            if idx == 0:
+                curr["command"] = input("Command: ").strip() or curr.get("command", "npx")
+            elif idx == 1:
+                curr["args"] = _input_list_csv("Args CSV: ", curr.get("args") or ["-y", "mcp-server"])
+            elif idx == 2:
+                curr["env"] = _input_env_kv("Env CSV (KEY=VAL,...): ", curr.get("env") or {})
+            elif idx == 3:
+                try:
+                    curr["startup_timeout_ms"] = int(input("Startup timeout (ms): ").strip() or "10000")
+                except Exception:
+                    pass
+        elif act == 1:
+            args.mcp_servers = dict(args.mcp_servers or {})
+            args.mcp_servers[name] = curr
+            if creating:
+                ok(f"Added mcp server '{name}'")
+            else:
+                ok(f"Updated mcp server '{name}'")
+            return
+        else:
+            return
 
 
 __all__ = [
