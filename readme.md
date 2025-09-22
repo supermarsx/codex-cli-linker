@@ -386,6 +386,18 @@ python3 codex-cli-linker.py [options]
 
 Tip: All options have short aliases (e.g., `-a` for `--auto`). Run `-h` to see the full list.
 
+Additional handy short aliases:
+- `-mp/--merge-profiles`, `-mc/--merge-config`, `-mO/--merge-overwrite`
+- `-mm/--manage-mcp`, `-mj/--mcp-json`
+- `-Na/--network-access`, `-Nn/--no-network-access`
+- `-Et/--exclude-tmpdir-env-var`, `-ET/--no-exclude-tmpdir-env-var`
+- `-Es/--exclude-slash-tmp`, `-ES/--no-exclude-slash-tmp`
+- `-Wr/--writable-roots`
+- `-wa/--wire-api`
+- `-Hh/--http-header`, `-He/--env-http-header`
+- `-Nt/--notify`, `-In/--instructions`, `-Tp/--trust-project`
+- `-Tn/--tui-notifications`, `-Tt/--tui-notification-types`
+
 **Connection & selection**
 - `--auto` — skip base‑URL prompt and auto‑detect a server
 - `--full-auto` — imply `--auto` and pick the first model with no prompts

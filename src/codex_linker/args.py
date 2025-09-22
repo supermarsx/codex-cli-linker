@@ -199,18 +199,21 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Preferred authentication method for provider",
     )
     providers.add_argument(
+        "-wa",
         "--wire-api",
         default="chat",
         choices=["chat", "responses"],
         help="Provider wire protocol",
     )
     providers.add_argument(
+        "-Hh",
         "--http-header",
         action="append",
         default=[],
         help="Static HTTP header (KEY=VAL). Repeat for multiple.",
     )
     providers.add_argument(
+        "-He",
         "--env-http-header",
         action="append",
         default=[],
@@ -257,16 +260,19 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Interactive: add/remove/edit profile entries before writing",
     )
     profiles.add_argument(
+        "-mp",
         "--merge-profiles",
         action="store_true",
         help="Merge generated [profiles.*] into existing config.toml (preserve others)",
     )
     profiles.add_argument(
+        "-mc",
         "--merge-config",
         action="store_true",
         help="Merge generated config into existing config.toml (append new sections, prompt on conflicts)",
     )
     profiles.add_argument(
+        "-mO",
         "--merge-overwrite",
         action="store_true",
         help="When merging, overwrite conflicting sections/keys without prompting",
@@ -274,11 +280,13 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
 
     # MCP servers
     mcp.add_argument(
+        "-mm",
         "--manage-mcp",
         action="store_true",
         help="Interactive: add/remove/edit mcp_servers entries before writing",
     )
     mcp.add_argument(
+        "-mj",
         "--mcp-json",
         help="JSON object for mcp_servers (e.g., '{""srv"": {""command"": ""npx"", ""args"": [""-y"", ""mcp-server""], ""env"": {""API_KEY"": ""v""}}}')",
     )
@@ -300,6 +308,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="OS sandbox policy (spec)",
     )
     profiles.add_argument(
+        "-Na",
         "--network-access",
         dest="network_access",
         action="store_true",
@@ -307,12 +316,14 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Enable network_access under [sandbox_workspace_write]",
     )
     profiles.add_argument(
+        "-Nn",
         "--no-network-access",
         dest="network_access",
         action="store_false",
         help="Disable network_access under [sandbox_workspace_write]",
     )
     profiles.add_argument(
+        "-Et",
         "--exclude-tmpdir-env-var",
         dest="exclude_tmpdir_env_var",
         action="store_true",
@@ -320,12 +331,14 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Exclude $TMPDIR from writable roots under [sandbox_workspace_write]",
     )
     profiles.add_argument(
+        "-ET",
         "--no-exclude-tmpdir-env-var",
         dest="exclude_tmpdir_env_var",
         action="store_false",
         help="Include $TMPDIR as writable under [sandbox_workspace_write]",
     )
     profiles.add_argument(
+        "-Es",
         "--exclude-slash-tmp",
         dest="exclude_slash_tmp",
         action="store_true",
@@ -333,6 +346,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Exclude /tmp from writable roots under [sandbox_workspace_write]",
     )
     profiles.add_argument(
+        "-ES",
         "--no-exclude-slash-tmp",
         dest="exclude_slash_tmp",
         action="store_false",
@@ -379,19 +393,23 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Maximum history size in bytes (0 uses default)",
     )
     profiles.add_argument(
+        "-Wr",
         "--writable-roots",
         help="Comma-separated extra writable roots for sandbox_workspace_write",
     )
     profiles.add_argument(
+        "-Nt",
         "--notify",
         help="Notification program (CSV or JSON array). Example: 'notify-send,Title,Body'",
     )
     profiles.add_argument(
+        "-In",
         "--instructions",
         default="",
         help="Instructions string (currently ignored by Codex)",
     )
     profiles.add_argument(
+        "-Tp",
         "--trust-project",
         action="append",
         default=[],
@@ -519,6 +537,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         "-T", "--tui", default="table", help="TUI style for interactive prompts"
     )
     other.add_argument(
+        "-Tn",
         "--tui-notifications",
         dest="tui_notifications",
         action="store_true",
@@ -526,6 +545,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Enable TUI desktop notifications",
     )
     other.add_argument(
+        "-Tt",
         "--tui-notification-types",
         help="Comma-separated notification types (agent-turn-complete,approval-requested)",
     )
