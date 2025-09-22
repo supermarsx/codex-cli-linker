@@ -187,6 +187,17 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
     elif getattr(args, "tui_notifications", None) is not None:
         cfg["tui"]["notifications"] = bool(args.tui_notifications)
 
+    # Apply provider-specific default headers for auth
+    active_pid = args.provider or state.provider
+    if active_pid in ("anthropic",):
+        cfg["model_providers"][active_pid]["env_http_headers"]["x-api-key"] = state.env_key or "ANTHROPIC_API_KEY"
+    if active_pid in ("azure",):
+        cfg["model_providers"][active_pid]["env_http_headers"]["api-key"] = state.env_key or "AZURE_OPENAI_API_KEY"
+    if active_pid in ("groq",):
+        cfg["model_providers"][active_pid]["env_http_headers"]["Authorization"] = state.env_key or "GROQ_API_KEY"
+    if active_pid in ("mistral", "deepseek", "openrouter-remote"):
+        cfg["model_providers"][active_pid]["env_http_headers"]["Authorization"] = state.env_key or ("MISTRAL_API_KEY" if active_pid=="mistral" else ("DEEPSEEK_API_KEY" if active_pid=="deepseek" else "OPENROUTER_API_KEY"))
+
     # Parse notify as CSV or JSON array
     notify_raw = getattr(args, "notify", "") or ""
     if notify_raw:
@@ -212,7 +223,10 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
             if k.strip():
                 hmap[k.strip()] = v.strip()
     if hmap:
-        cfg["model_providers"][args.provider or state.provider]["http_headers"] = hmap
+        prov = args.provider or state.provider
+        cur = cfg["model_providers"][prov].get("http_headers") or {}
+        cur.update(hmap)
+        cfg["model_providers"][prov]["http_headers"] = cur
     env_headers_list = getattr(args, "env_http_header", []) or []
     ehmap: Dict[str, Any] = {}
     for item in env_headers_list:
@@ -221,7 +235,10 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
             if k.strip():
                 ehmap[k.strip()] = v.strip()
     if ehmap:
-        cfg["model_providers"][args.provider or state.provider]["env_http_headers"] = ehmap
+        prov = args.provider or state.provider
+        cur = cfg["model_providers"][prov].get("env_http_headers") or {}
+        cur.update(ehmap)
+        cfg["model_providers"][prov]["env_http_headers"] = cur
     # Trusted projects
     trusts = getattr(args, "trust_project", []) or []
     if trusts:
