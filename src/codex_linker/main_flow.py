@@ -523,19 +523,38 @@ def main():
 
     if args.dry_run:
         if getattr(args, "diff", False):
-            # Show diffs versus existing files
+            # Show pretty color diffs versus existing files (fallback to unified diff on no-color)
             def show_diff(path: Path, new_text: str, label: str):
                 try:
                     old_text = path.read_text(encoding="utf-8") if path.exists() else ""
                 except Exception:
                     old_text = ""
-                diff = difflib.unified_diff(
-                    old_text.splitlines(keepends=True),
-                    new_text.splitlines(keepends=True),
-                    fromfile=str(path),
-                    tofile=f"{label} (proposed)",
-                )
-                sys.stdout.writelines(diff)
+
+                use_color = supports_color() and not os.environ.get("NO_COLOR")
+                if use_color:
+                    old = old_text.splitlines()
+                    new = new_text.splitlines()
+                    print()
+                    print(c(f"≡ Diff: {path} → {label}", CYAN))
+                    for line in difflib.ndiff(old, new):
+                        if line.startswith("- "):
+                            print(c("- " + line[2:], RED))
+                        elif line.startswith("+ "):
+                            print(c("+ " + line[2:], GREEN))
+                        elif line.startswith("? "):
+                            # Hints: alignment markers; de-emphasize
+                            print(c("? " + line[2:], GRAY))
+                        else:
+                            # Unchanged
+                            print(c("  " + line[2:], GRAY))
+                else:
+                    diff = difflib.unified_diff(
+                        old_text.splitlines(keepends=True),
+                        new_text.splitlines(keepends=True),
+                        fromfile=str(path),
+                        tofile=f"{label} (proposed)",
+                    )
+                    sys.stdout.writelines(diff)
 
             show_diff(config_toml, toml_out, "config.toml")
             if args.json:
