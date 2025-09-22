@@ -30,9 +30,9 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
         "file_opener": args.file_opener,
         "sandbox_workspace_write": {
             "writable_roots": [],
-            "network_access": False,
-            "exclude_tmpdir_env_var": False,
-            "exclude_slash_tmp": False,
+            "network_access": bool(args.network_access) if args.network_access is not None else False,
+            "exclude_tmpdir_env_var": bool(args.exclude_tmpdir_env_var) if getattr(args, "exclude_tmpdir_env_var", None) is not None else False,
+            "exclude_slash_tmp": bool(args.exclude_slash_tmp) if getattr(args, "exclude_slash_tmp", None) is not None else False,
         },
         "model_reasoning_effort": args.reasoning_effort,
         "model_reasoning_summary": args.reasoning_summary,
@@ -131,6 +131,26 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
             "model_max_output_tokens": args.model_max_output_tokens or 0,
             "approval_policy": args.approval_policy,
         }
+    # Optional: MCP servers (top-level key mcp_servers)
+    mcp = getattr(args, "mcp_servers", None) or {}
+    if isinstance(mcp, dict) and mcp:
+        # Minimal normalization: ensure args list for each server when string provided
+        norm: Dict[str, Any] = {}
+        for name, entry in mcp.items():
+            if not isinstance(entry, dict):
+                continue
+            cmd = entry.get("command") or "npx"
+            a = entry.get("args")
+            if isinstance(a, str):
+                a_list = [s.strip() for s in a.split(",") if s.strip()]
+            else:
+                a_list = list(a or [])
+            env = entry.get("env") or {}
+            out: Dict[str, Any] = {"command": cmd, "args": a_list, "env": env}
+            if isinstance(entry.get("startup_timeout_ms"), int):
+                out["startup_timeout_ms"] = int(entry["startup_timeout_ms"])  # type: ignore[index]
+            cfg.setdefault("mcp_servers", {})[name] = out
+        # If none valid after normalization, do not emit key
     return cfg
 
 

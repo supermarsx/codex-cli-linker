@@ -7,13 +7,23 @@ import time
 from pathlib import Path
 from .args import parse_args
 from .config_utils import merge_config_defaults, apply_saved_state
-from .prompts import pick_base_url, pick_model_interactive, interactive_prompts
+from .prompts import (
+    pick_base_url,
+    pick_model_interactive,
+    interactive_prompts,
+    interactive_settings_editor,
+    manage_profiles_interactive,
+    manage_mcp_servers_interactive,
+    prompt_choice,
+    prompt_yes_no,
+)
 from .logging_utils import configure_logging, log_event
 from .render import build_config_dict
 from .emit import to_toml, to_json, to_yaml
 from .detect import list_models, try_auto_context_window
 from .io_safe import (
     CODEX_HOME,
+    AUTH_JSON,
     atomic_write_with_backup,
     delete_all_backups,
     remove_config,
@@ -188,6 +198,41 @@ def main():
     )
     defaults = parse_args([])
     merge_config_defaults(args, defaults)
+
+    # Unique mode: only set OPENAI_API_KEY and exit
+    if getattr(args, "set_openai_key", False):
+        import getpass
+        import json
+
+        key_val = args.api_key or ""
+        if not key_val:
+            try:
+                key_val = getpass.getpass("Enter OPENAI_API_KEY (input hidden): ").strip()
+            except Exception as exc:  # pragma: no cover
+                err(f"Could not read input: {exc}")
+                sys.exit(2)
+        if not key_val:
+            err("No API key provided; aborting.")
+            sys.exit(2)
+
+        # Ensure CODEX_HOME exists and write ~/.codex/auth.json with OPENAI_API_KEY
+        home.mkdir(parents=True, exist_ok=True)
+        current: dict = {}
+        if AUTH_JSON.exists():
+            try:
+                current = json.loads(AUTH_JSON.read_text(encoding="utf-8"))
+                if not isinstance(current, dict):
+                    current = {}
+            except Exception:
+                current = {}
+        current["OPENAI_API_KEY"] = key_val
+
+        text = json.dumps(current, indent=2) + "\n"
+        atomic_write_with_backup(AUTH_JSON, text)
+        log_event("openai_key_only", path=str(AUTH_JSON), stored=True)
+        ok(f"Updated {AUTH_JSON} with OPENAI_API_KEY")
+        warn("Never commit this file; it contains a secret.")
+        return
     # Hard-disable auto launch regardless of flags
     args.launch = False
     # Determine state file path
@@ -250,29 +295,50 @@ def main():
                 sources=",".join(update_sources),
             )
 
-    # Base URL: auto-detect or prompt
+    # Base URL: explicit for OpenAI, else auto-detect or prompt
     picker = getattr(
         sys.modules.get("codex_cli_linker"), "pick_base_url", pick_base_url
     )
-    if args.auto:
-        base = args.base_url or picker(state, True)
+    preferred_provider = (args.provider or "").strip().lower()
+    if preferred_provider == "openai" and not args.base_url:
+        from .spec import DEFAULT_OPENAI
+
+        base = DEFAULT_OPENAI
     else:
-        if getattr(args, "yes", False) and not args.base_url:
-            err("--yes provided but no --base-url; refusing to prompt.")
-            sys.exit(2)
-        base = args.base_url or picker(state, False)
+        if args.auto:
+            base = args.base_url or picker(state, True)
+        else:
+            if getattr(args, "yes", False) and not args.base_url:
+                err("--yes provided but no --base-url; refusing to prompt.")
+                sys.exit(2)
+            base = args.base_url or picker(state, False)
     state.base_url = base
 
     # Infer a safe default provider from the base URL (localhost:1234 → lmstudio, 11434 → ollama, otherwise 'custom').
     default_provider = resolve_provider(base)
     state.provider = args.provider or default_provider
+    # If provider is OpenAI and no base provided, normalize to default OpenAI endpoint
+    if state.provider == "openai" and not state.base_url:
+        from .spec import DEFAULT_OPENAI
+
+        state.base_url = DEFAULT_OPENAI
     if state.provider == "custom":
         state.provider = (
             input("Provider id to use in model_providers (e.g., myprovider): ").strip()
             or "custom"
         )
 
-    state.profile = args.profile or state.profile or state.provider
+    # If targeting OpenAI interactively, allow choosing auth method (API vs ChatGPT)
+    if state.provider == "openai" and not args.auto and not getattr(args, "yes", False):
+        print()
+        print(c("OpenAI authentication method:", CYAN))
+        idx = prompt_choice("Select", ["API key (preferred_auth_method=apikey)", "ChatGPT (preferred_auth_method=chatgpt)"])
+        args.preferred_auth_method = "apikey" if idx == 0 else "chatgpt"
+
+    if args.provider:
+        state.profile = args.profile or args.provider
+    else:
+        state.profile = args.profile or state.profile or state.provider
     state.api_key = args.api_key or state.api_key or "sk-local"
     # Optional: store provided API key in OS keychain (never required)
     if args.api_key and args.keychain and args.keychain != "none":
@@ -286,11 +352,75 @@ def main():
     if "env_key_name" in getattr(args, "_explicit", set()):
         state.env_key = args.env_key_name
     else:
-        state.env_key = (
-            state.env_key or "NULLKEY"
-        )  # pragma: no cover (default path exercised via state)
+        # Default env var name: OPENAI_API_KEY for OpenAI; otherwise leave placeholder
+        if state.provider == "openai":
+            if not state.env_key or state.env_key == "NULLKEY":
+                state.env_key = "OPENAI_API_KEY"
+        else:
+            state.env_key = state.env_key or "NULLKEY"
 
-    # Model selection: interactive unless provided
+    # In interactive OpenAI API-key mode, offer to set/update OPENAI_API_KEY in auth.json
+    if (
+        state.provider == "openai"
+        and (args.preferred_auth_method or "apikey") == "apikey"
+        and not getattr(args, "yes", False)
+        and not getattr(args, "dry_run", False)
+    ):
+        import json
+        import getpass
+
+        existing_val = ""
+        if AUTH_JSON.exists():
+            try:
+                data = json.loads(AUTH_JSON.read_text(encoding="utf-8"))
+                if isinstance(data, dict):
+                    existing_val = str(data.get("OPENAI_API_KEY") or "")
+            except Exception:
+                existing_val = ""
+        if existing_val:
+            do_update = prompt_yes_no(
+                f"Found existing OPENAI_API_KEY in {AUTH_JSON.name}. Update it?",
+                default=False,
+            )
+        else:
+            do_update = prompt_yes_no(
+                f"Set OPENAI_API_KEY now in {AUTH_JSON.name}?", default=True
+            )
+        if do_update:
+            try:
+                new_key = getpass.getpass(
+                    "Enter OPENAI_API_KEY (input hidden): "
+                ).strip()
+            except Exception as exc:  # pragma: no cover
+                err(f"Could not read input: {exc}")
+                sys.exit(2)
+            if new_key:
+                # Write to ~/.codex/auth.json
+                home.mkdir(parents=True, exist_ok=True)
+                data = {}
+                if AUTH_JSON.exists():
+                    try:
+                        data = json.loads(AUTH_JSON.read_text(encoding="utf-8"))
+                        if not isinstance(data, dict):
+                            data = {}
+                    except Exception:
+                        data = {}
+                data["OPENAI_API_KEY"] = new_key
+                atomic_write_with_backup(AUTH_JSON, json.dumps(data, indent=2) + "\n")
+                ok(f"Updated {AUTH_JSON} with OPENAI_API_KEY")
+                warn("Never commit this file; it contains a secret.")
+
+    # Offer unified interactive editor unless full-auto is requested
+    interactive_action = None
+    if not args.full_auto:
+        # Always show editor even in --auto to allow adjustments
+        interactive_action = interactive_settings_editor(state, args)
+        if interactive_action == "quit":
+            info("Aborted without writing.")
+            return
+        if interactive_action == "overwrite":
+            args.overwrite_profile = True
+    # Model selection: interactive unless provided. For OpenAI, avoid /models fetch and prompt freeform.
     if args.model:
         target = args.model
         chosen = target
@@ -298,7 +428,7 @@ def main():
             lm = getattr(
                 sys.modules.get("codex_cli_linker"), "list_models", list_models
             )
-            models = lm(state.base_url)
+            models = [] if state.provider == "openai" else lm(state.base_url)
             if target in models:
                 chosen = target
             else:
@@ -311,7 +441,7 @@ def main():
             pass
         state.model = chosen
         log_event("model_selected", provider=state.provider, model=state.model)
-    elif args.auto and args.model_index is not None:
+    elif args.auto and args.model_index is not None and state.provider != "openai":
         try:
             lm = getattr(
                 sys.modules.get("codex_cli_linker"), "list_models", list_models
@@ -327,19 +457,36 @@ def main():
             err(str(e))
             sys.exit(2)
     else:
-        if getattr(args, "yes", False):
-            err(
-                "--yes provided but no model specified; use --model or --model-index with --auto."
-            )
-            sys.exit(2)
-        try:
-            state.model = pick_model_interactive(state.base_url, state.model or None)
-        except Exception as e:
-            err(str(e))
-            sys.exit(2)
+        if state.provider == "openai":
+            # In OpenAI mode, prompt a simple model id (no network call)
+            if getattr(args, "yes", False):
+                # Choose a sensible default if fully non-interactive
+                state.model = state.model or args.model or "gpt-4o-mini"
+            else:
+                print()
+                print(c("Enter OpenAI model id (e.g., gpt-4o, gpt-4o-mini):", CYAN))
+                entered = input("Model id: ").strip()
+                state.model = entered or state.model or "gpt-4o-mini"
+            log_event("model_selected", provider=state.provider, model=state.model)
+        else:
+            if getattr(args, "yes", False):
+                err(
+                    "--yes provided but no model specified; use --model or --model-index with --auto."
+                )
+                sys.exit(2)
+            try:
+                state.model = pick_model_interactive(state.base_url, state.model or None)
+            except Exception as e:
+                err(str(e))
+                sys.exit(2)
 
-    if not args.auto:
-        interactive_prompts(args)
+    if not args.full_auto:
+        # Keep legacy extra prompts minimal for now, since editor handled main knobs
+        pass
+        if getattr(args, "manage_profiles", False):
+            manage_profiles_interactive(args)
+        if getattr(args, "manage_mcp", False):
+            manage_mcp_servers_interactive(args)
 
     state.approval_policy = args.approval_policy
     state.sandbox_mode = args.sandbox_mode
@@ -406,9 +553,58 @@ def main():
         # Ensure home dir exists
         home.mkdir(parents=True, exist_ok=True)
 
+        # Optional safety: prevent overwriting an existing profile unless allowed
+        import re as _re
+        if config_toml.exists() and not getattr(args, "overwrite_profile", False):
+            try:
+                old_text = config_toml.read_text(encoding="utf-8")
+            except Exception:
+                old_text = ""
+            prof = (args.profile or state.profile or state.provider).strip()
+            if prof:
+                pattern = _re.compile(r"^\[profiles\.%s\]\s*$" % _re.escape(prof), _re.MULTILINE)
+                if pattern.search(old_text):
+                    if getattr(args, "yes", False):
+                        err(
+                            f"Profile '{prof}' exists. Pass --overwrite-profile or choose a new --profile."
+                        )
+                        sys.exit(2)
+                    else:
+                        if not prompt_yes_no(
+                            f"Profile '{prof}' exists in config.toml. Overwrite it?",
+                            default=False,
+                        ):
+                            err("Aborted to avoid overwriting existing profile.")
+                            sys.exit(2)
+
         # Always write TOML; JSON/YAML only if flags requested. Normalize blank lines and ensure trailing newline.
         t0 = time.time()
-        atomic_write_with_backup(config_toml, toml_out)
+        if getattr(args, "merge_profiles", False) and config_toml.exists():
+            try:
+                existing_text = config_toml.read_text(encoding="utf-8")
+            except Exception:
+                existing_text = ""
+            # Extract only [profiles.*] blocks from new output
+            import re as _re
+
+            profile_blocks = []
+            for m in _re.finditer(r"(?ms)^\[profiles\.([^\]]+)\]\s*.*?(?=^\[|\Z)", toml_out):
+                profile_blocks.append(m.group(0).rstrip())
+            # Remove same-named blocks from existing
+            merged_text = existing_text
+            for blk in profile_blocks:
+                header_m = _re.match(r"^\[profiles\.([^\]]+)\]", blk)
+                if not header_m:
+                    continue
+                name = header_m.group(1)
+                pat = _re.compile(rf"(?ms)^\[profiles\.{_re.escape(name)}\]\s*.*?(?=^\[|\Z)")
+                merged_text = pat.sub("", merged_text)
+            # Append new blocks at end
+            frag = ("\n\n" + "\n\n".join(profile_blocks) + "\n") if profile_blocks else ""
+            out_text = (merged_text.rstrip() + frag + "\n").lstrip("\n") if frag else toml_out
+            atomic_write_with_backup(config_toml, _re.sub(r"\n{3,}", "\n\n", out_text))
+        else:
+            atomic_write_with_backup(config_toml, toml_out)
         log_event(
             "write_config",
             provider=state.provider,
@@ -477,6 +673,12 @@ def main():
             cmd = f'code "{config_toml}"'
         info("Open config in your editor:")
         print(c(f"  {cmd}", CYAN))
+
+    # Respect no auto-launch policy: only print how to launch when requested
+    if interactive_action == "write_and_launch":
+        info("Launch Codex manually with:")
+        print(c(f"  npx codex --profile {state.profile}", CYAN))
+        print(c(f"  codex --profile {state.profile}", CYAN))
 
 
 __all__ = ["main"]

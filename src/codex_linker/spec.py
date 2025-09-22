@@ -10,6 +10,7 @@ DEFAULT_TGWUI = "http://localhost:5000/v1"  # Text-Gen-WebUI OpenAI plugin
 DEFAULT_TGI_8080 = "http://localhost:8080/v1"  # HF TGI shim
 DEFAULT_TGI_3000 = "http://localhost:3000/v1"
 DEFAULT_OPENROUTER_LOCAL = "http://localhost:7000/v1"
+DEFAULT_OPENAI = "https://api.openai.com/v1"
 
 COMMON_BASE_URLS: List[str] = [
     DEFAULT_LMSTUDIO,
@@ -28,6 +29,7 @@ PROVIDER_LABELS: Dict[str, str] = {
     "tgwui": "Text-Gen-WebUI",
     "tgi": "TGI",
     "openrouter": "OpenRouter Local",
+    "openai": "OpenAI",
 }
 
 __all__ = [
@@ -38,6 +40,7 @@ __all__ = [
     "DEFAULT_TGI_8080",
     "DEFAULT_TGI_3000",
     "DEFAULT_OPENROUTER_LOCAL",
+    "DEFAULT_OPENAI",
     "COMMON_BASE_URLS",
     "PROVIDER_LABELS",
 ]

@@ -15,6 +15,7 @@ CONFIG_TOML = CODEX_HOME / "config.toml"
 CONFIG_JSON = CODEX_HOME / "config.json"
 CONFIG_YAML = CODEX_HOME / "config.yaml"
 LINKER_JSON = CODEX_HOME / "linker_config.json"
+AUTH_JSON = CODEX_HOME / "auth.json"
 
 
 def backup(path: Path) -> Optional[Path]:
@@ -118,6 +119,7 @@ __all__ = [
     "CONFIG_JSON",
     "CONFIG_YAML",
     "LINKER_JSON",
+    "AUTH_JSON",
     "backup",
     "do_backup",
     "atomic_write_with_backup",

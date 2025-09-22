@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import inspect
 import sys
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
-from .spec import DEFAULT_LMSTUDIO, DEFAULT_OLLAMA
+from .spec import DEFAULT_LMSTUDIO, DEFAULT_OLLAMA, DEFAULT_OPENAI
 from .detect import detect_base_url, list_models
 from .state import LinkerState
 from .ui import err, c, BOLD, CYAN, info, warn
@@ -117,6 +117,7 @@ def pick_base_url(state: LinkerState, auto: bool) -> str:
     opts = [
         f"LM Studio default ({DEFAULT_LMSTUDIO})",
         f"Ollama default ({DEFAULT_OLLAMA})",
+        f"OpenAI API ({DEFAULT_OPENAI})",
         "Custom…",
         "Auto‑detect",
         f"Use last saved ({state.base_url})",
@@ -127,6 +128,8 @@ def pick_base_url(state: LinkerState, auto: bool) -> str:
         return DEFAULT_LMSTUDIO
     if choice.startswith("Ollama"):
         return DEFAULT_OLLAMA
+    if choice.startswith("OpenAI API"):
+        return DEFAULT_OPENAI
     if choice.startswith("Custom"):
         return input("Enter base URL (e.g., http://localhost:1234/v1): ").strip()
     if choice.startswith("Auto"):
@@ -204,10 +207,282 @@ def interactive_prompts(args) -> None:
     args.hide_agent_reasoning = not show
 
 
+def manage_profiles_interactive(args) -> None:
+    """Best-effort interactive manager for profiles to be written in this run.
+
+    This does not parse existing config files; it only adjusts the pending
+    set of profiles derived from args/state:
+      - Edit current profile name (args.profile)
+      - Add provider id to args.providers_list (emits extra profile)
+      - Remove provider id from args.providers_list
+    """
+    while True:
+        print()
+        print(c("Profile management:", BOLD))
+        curr = args.profile or "<auto>"
+        extras = ", ".join(args.providers_list or []) or "<none>"
+        info(f"Current profile: {curr}; Extra provider profiles: {extras}")
+        i = prompt_choice(
+            "Choose",
+            [
+                "Edit current profile name",
+                "Add extra provider profile",
+                "Remove extra provider profile",
+                "Done",
+            ],
+        )
+        if i == 0:
+            new_name = input("Enter new profile name: ").strip()
+            if new_name:
+                args.profile = new_name
+                ok_msg = f"Profile name set to {new_name}"
+                info(ok_msg)
+        elif i == 1:
+            pid = input("Provider id to add (e.g., lmstudio, ollama, openai, custom): ").strip()
+            if pid and pid not in (args.providers_list or []):
+                arr = list(args.providers_list or [])
+                arr.append(pid)
+                args.providers_list = arr
+                info(f"Added provider profile: {pid}")
+        elif i == 2:
+            if not args.providers_list:
+                warn("No extra provider profiles to remove.")
+            else:
+                idx = prompt_choice("Remove which?", list(args.providers_list))
+                pid = args.providers_list[idx]
+                args.providers_list = [p for p in args.providers_list if p != pid]
+                info(f"Removed provider profile: {pid}")
+        else:
+            break
+
+
+def interactive_settings_editor(state: LinkerState, args) -> str:
+    """Unified list-based editor for common settings.
+
+    Returns one of: "write", "overwrite", "write_and_launch", "quit".
+    Mutates args/state in-place based on user selections.
+    """
+    while True:
+        print()
+        print(c("Interactive settings:", BOLD))
+        items = [
+            ("Profile name", args.profile or state.profile or state.provider or "<auto>"),
+            ("Provider", args.provider or state.provider or "<auto>"),
+            ("Base URL", state.base_url or args.base_url or "<auto>"),
+            ("Model", args.model or state.model or "<pick>"),
+            ("Auth (OpenAI)", getattr(args, "preferred_auth_method", "apikey")),
+            ("Approval policy", args.approval_policy),
+            ("Sandbox mode", args.sandbox_mode),
+            ("Network access", "true" if getattr(args, "network_access", None) else "false"),
+            (
+                "Exclude $TMPDIR",
+                "true" if getattr(args, "exclude_tmpdir_env_var", None) else "false",
+            ),
+            ("Exclude /tmp", "true" if getattr(args, "exclude_slash_tmp", None) else "false"),
+            ("Manage profiles…", "open"),
+            ("Manage MCP servers…", "open"),
+        ]
+        for i, (label, val) in enumerate(items, 1):
+            print(f"  {i}. {label}: {val}")
+        print()
+        action_idx = prompt_choice(
+            "Select item to edit or action",
+            [
+                "Edit item (enter number)",
+                "Write",
+                "Overwrite + Write",
+                "Write and launch (print cmd)",
+                "Quit (no write)",
+            ],
+        )
+        if action_idx == 0:
+            s = input("Item number: ").strip()
+            if not s.isdigit():
+                continue
+            idx = int(s) - 1
+            if idx < 0 or idx >= len(items):
+                continue
+            label = items[idx][0]
+            if label == "Profile name":
+                newp = input("Profile name: ").strip()
+                if newp:
+                    args.profile = newp
+            elif label == "Provider":
+                newprov = input("Provider id (e.g., lmstudio, ollama, openai, custom): ").strip()
+                if newprov:
+                    args.provider = newprov
+                    state.provider = newprov
+            elif label == "Base URL":
+                # Reuse base URL picker
+                state.base_url = pick_base_url(state, False)
+            elif label == "Model":
+                # Model picker requires a base_url; prompt if missing
+                if not state.base_url:
+                    state.base_url = pick_base_url(state, False)
+                try:
+                    state.model = pick_model_interactive(state.base_url, state.model or None)
+                except Exception as e:
+                    err(str(e))
+            elif label == "Auth (OpenAI)":
+                i2 = prompt_choice("OpenAI auth method", ["apikey", "chatgpt"])
+                args.preferred_auth_method = "apikey" if i2 == 0 else "chatgpt"
+            elif label == "Approval policy":
+                i2 = prompt_choice("Choose", ["untrusted", "on-failure"])
+                args.approval_policy = "untrusted" if i2 == 0 else "on-failure"
+            elif label == "Sandbox mode":
+                i2 = prompt_choice(
+                    "Choose", ["read-only", "workspace-write", "danger-full-access"]
+                )
+                args.sandbox_mode = [
+                    "read-only",
+                    "workspace-write",
+                    "danger-full-access",
+                ][i2]
+            elif label == "Network access":
+                i2 = prompt_choice("Network access", ["true", "false"])
+                args.network_access = True if i2 == 0 else False
+            elif label == "Exclude $TMPDIR":
+                i2 = prompt_choice("Exclude $TMPDIR", ["true", "false"])
+                args.exclude_tmpdir_env_var = True if i2 == 0 else False
+            elif label == "Exclude /tmp":
+                i2 = prompt_choice("Exclude /tmp", ["true", "false"])
+                args.exclude_slash_tmp = True if i2 == 0 else False
+            elif label == "Manage profiles…":
+                manage_profiles_interactive(args)
+            elif label == "Manage MCP servers…":
+                manage_mcp_servers_interactive(args)
+            continue
+        elif action_idx == 1:
+            return "write"
+        elif action_idx == 2:
+            return "overwrite"
+        elif action_idx == 3:
+            return "write_and_launch"
+        else:
+            return "quit"
+
+
+def _input_list_csv(prompt: str, default: Optional[List[str]] = None) -> List[str]:
+    raw = input(f"{prompt} ").strip()
+    if not raw and default is not None:
+        return list(default)
+    if not raw:
+        return []
+    return [s.strip() for s in raw.split(",") if s.strip()]
+
+
+def _input_env_kv(prompt: str, default: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+    raw = input(f"{prompt} ").strip()
+    if not raw and default is not None:
+        return dict(default)
+    env: Dict[str, str] = {}
+    if not raw:
+        return env
+    for pair in raw.split(","):
+        if "=" in pair:
+            k, v = pair.split("=", 1)
+            k = k.strip()
+            v = v.strip()
+            if k:
+                env[k] = v
+    return env
+
+
+def manage_mcp_servers_interactive(args) -> None:
+    """Interactive editor for args.mcp_servers, written under top-level key mcp_servers.
+
+    Each server entry supports keys: command (str), args (list[str]), env (map),
+    and optional startup_timeout_ms (int, default 10000).
+    """
+    def list_servers() -> List[str]:
+        return sorted(list((args.mcp_servers or {}).keys()))
+
+    while True:
+        names = list_servers()
+        print()
+        print(c("MCP servers:", BOLD))
+        if not names:
+            info("(none)")
+        else:
+            for n in names:
+                info(f" - {n}")
+        i = prompt_choice(
+            "Choose",
+            ["Add server", "Edit server", "Remove server", "Done"],
+        )
+        if i == 0:
+            name = input("Server name (identifier): ").strip()
+            if not name:
+                continue
+            current: Dict[str, Any] = {
+                "command": "npx",
+                "args": ["-y", "mcp-server"],
+                "env": {},
+            }
+            cmd = input(f"Command [{current['command']}]: ").strip() or current["command"]
+            a = _input_list_csv("Args CSV [-y, mcp-server]:", ["-y", "mcp-server"])
+            env = _input_env_kv("Env CSV (KEY=VAL, ...):", {})
+            to_ms = input("startup_timeout_ms [10000]: ").strip()
+            try:
+                timeout = int(to_ms) if to_ms else 10000
+            except Exception:
+                timeout = 10000
+            entry: Dict[str, Any] = {"command": cmd, "args": a, "env": env}
+            if timeout != 10000:
+                entry["startup_timeout_ms"] = timeout
+            args.mcp_servers = dict(args.mcp_servers or {})
+            args.mcp_servers[name] = entry
+            ok_msg = f"Added mcp server '{name}'"
+            info(ok_msg)
+        elif i == 1:
+            if not names:
+                warn("No servers to edit.")
+                continue
+            idx = prompt_choice("Edit which?", names)
+            name = names[idx]
+            curr = dict((args.mcp_servers or {}).get(name) or {})
+            cmd = input(f"Command [{curr.get('command','npx')}]: ").strip() or curr.get("command", "npx")
+            a = _input_list_csv(
+                f"Args CSV [{', '.join(curr.get('args') or ['-y','mcp-server'])}]:",
+                curr.get("args") or ["-y", "mcp-server"],
+            )
+            env = _input_env_kv(
+                "Env CSV (KEY=VAL, ...):",
+                curr.get("env") or {},
+            )
+            to_ms = input(
+                f"startup_timeout_ms [{curr.get('startup_timeout_ms', 10000)}]: "
+            ).strip()
+            try:
+                timeout = int(to_ms) if to_ms else int(curr.get("startup_timeout_ms", 10000))
+            except Exception:
+                timeout = int(curr.get("startup_timeout_ms", 10000))
+            entry: Dict[str, Any] = {"command": cmd, "args": a, "env": env}
+            if timeout != 10000:
+                entry["startup_timeout_ms"] = timeout
+            args.mcp_servers[name] = entry
+            info(f"Updated mcp server '{name}'")
+        elif i == 2:
+            if not names:
+                warn("No servers to remove.")
+                continue
+            idx = prompt_choice("Remove which?", names)
+            name = names[idx]
+            m = dict(args.mcp_servers or {})
+            m.pop(name, None)
+            args.mcp_servers = m
+            info(f"Removed mcp server '{name}'")
+        else:
+            break
+
+
 __all__ = [
     "prompt_choice",
     "prompt_yes_no",
     "pick_base_url",
     "pick_model_interactive",
     "interactive_prompts",
+    "interactive_settings_editor",
+    "manage_profiles_interactive",
+    "manage_mcp_servers_interactive",
 ]
