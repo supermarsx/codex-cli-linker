@@ -25,6 +25,7 @@ from .spec import (
     DEFAULT_DEEPSEEK,
     DEFAULT_COHERE,
     DEFAULT_ANYTHINGLLM,
+    DEFAULT_JAN,
     DEFAULT_BASETEN,
 )
 
@@ -104,6 +105,7 @@ _PROVIDER_PREFIXES = {
     DEFAULT_BASETEN.rsplit("/v1", 1)[0]: "baseten",
     DEFAULT_OPENAI.rsplit("/v1", 1)[0]: "openai",
     DEFAULT_ANYTHINGLLM.rsplit("/v1", 1)[0]: "anythingllm",
+    DEFAULT_JAN.rsplit("/v1", 1)[0]: "jan",
 }
 
 
