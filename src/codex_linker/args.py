@@ -190,7 +190,8 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     providers.add_argument("-mi", "--mistral", action="store_true", help="Preset: Mistral (https://api.mistral.ai/v1)")
     providers.add_argument("-ds", "--deepseek", action="store_true", help="Preset: DeepSeek (https://api.deepseek.com/v1)")
     providers.add_argument("-ch", "--cohere", action="store_true", help="Preset: Cohere (https://api.cohere.com/v2)")
-    providers.add_argument("-bt", "--baseten", action="store_true", help="Preset: Baseten (https://inference.baseten.co/v1)")
+    providers.add_argument("-bt", "--baseten"
+    providers.add_argument("-al", "--anythingllm", action="store_true", help="Preset: AnythingLLM (http://localhost:3001/v1)"), action="store_true", help="Preset: Baseten (https://inference.baseten.co/v1)")
     providers.add_argument("-kb", "--koboldcpp", action="store_true", help="Preset: KoboldCpp (http://localhost:5000/v1)")
     providers.add_argument("--azure-resource", help="Azure resource name (e.g., myresource)")
     providers.add_argument("--azure-path", help="Azure path (e.g., openai/v1)")
@@ -567,6 +568,14 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
             data = json.loads(ns.mcp_json)
             if isinstance(data, dict):
                 ns.mcp_servers = data
+        except Exception:
+            pass
+    if getattr(ns, "anythingllm", False):
+        ns.provider = ns.provider or "anythingllm"
+        try:
+            from .spec import DEFAULT_ANYTHINGLLM  # type: ignore
+            if not getattr(ns, "base_url", None):
+                ns.base_url = DEFAULT_ANYTHINGLLM
         except Exception:
             pass
     # Convenience: --openai implies --provider openai
