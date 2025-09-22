@@ -546,6 +546,8 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     ns = p.parse_args(argv)
     # Initialize mcp servers container
     ns.mcp_servers = {}
+    # Initialize per-profile overrides container (interactive-only)
+    ns.profile_overrides = {}
     if getattr(ns, "mcp_json", None):
         try:
             import json
