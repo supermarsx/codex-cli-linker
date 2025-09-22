@@ -18,6 +18,11 @@ from .spec import (
     DEFAULT_TGI_3000,
     DEFAULT_OPENROUTER_LOCAL,
     DEFAULT_OPENAI,
+    DEFAULT_OPENROUTER,
+    DEFAULT_ANTHROPIC,
+    DEFAULT_GROQ,
+    DEFAULT_MISTRAL,
+    DEFAULT_DEEPSEEK,
 )
 
 try:  # pragma: no cover
@@ -87,6 +92,11 @@ _PROVIDER_PREFIXES = {
     DEFAULT_TGI_8080.rsplit("/v1", 1)[0]: "tgi",
     DEFAULT_TGI_3000.rsplit("/v1", 1)[0]: "tgi",
     DEFAULT_OPENROUTER_LOCAL.rsplit("/v1", 1)[0]: "openrouter",
+    DEFAULT_OPENROUTER.rsplit("/v1", 1)[0]: "openrouter-remote",
+    DEFAULT_ANTHROPIC.rsplit("/v1", 1)[0]: "anthropic",
+    DEFAULT_GROQ.rsplit("/v1", 1)[0]: "groq",
+    DEFAULT_MISTRAL.rsplit("/v1", 1)[0]: "mistral",
+    DEFAULT_DEEPSEEK.rsplit("/v1", 1)[0]: "deepseek",
     DEFAULT_OPENAI.rsplit("/v1", 1)[0]: "openai",
 }
 
@@ -96,6 +106,15 @@ def resolve_provider(base_url: str) -> str:
     for prefix, pid in _PROVIDER_PREFIXES.items():
         if base_url.startswith(prefix):
             return pid
+    # Azure pattern match
+    try:
+        from urllib.parse import urlparse
+
+        netloc = urlparse(base_url).netloc.lower()
+        if netloc.endswith(".openai.azure.com"):
+            return "azure"
+    except Exception:
+        pass
     return "custom"
 
 

@@ -7,7 +7,16 @@ from typing import List, Optional, Dict, Any
 import json as _json
 import getpass
 
-from .spec import DEFAULT_LMSTUDIO, DEFAULT_OLLAMA, DEFAULT_OPENAI
+from .spec import (
+    DEFAULT_LMSTUDIO,
+    DEFAULT_OLLAMA,
+    DEFAULT_OPENAI,
+    DEFAULT_OPENROUTER,
+    DEFAULT_ANTHROPIC,
+    DEFAULT_GROQ,
+    DEFAULT_MISTRAL,
+    DEFAULT_DEEPSEEK,
+)
 from .detect import detect_base_url, list_models
 from .state import LinkerState
 from .ui import err, c, BOLD, CYAN, GRAY, info, warn, ok, supports_color
@@ -214,6 +223,12 @@ def pick_base_url(state: LinkerState, auto: bool) -> str:
         f"LM Studio default ({DEFAULT_LMSTUDIO})",
         f"Ollama default ({DEFAULT_OLLAMA})",
         f"OpenAI API ({DEFAULT_OPENAI})",
+        f"OpenRouter ({DEFAULT_OPENROUTER})",
+        f"Anthropic ({DEFAULT_ANTHROPIC})",
+        f"Groq ({DEFAULT_GROQ})",
+        f"Mistral ({DEFAULT_MISTRAL})",
+        f"DeepSeek ({DEFAULT_DEEPSEEK})",
+        "Azure OpenAI (enter resource + path)",
         "Custom…",
         "Auto‑detect",
         f"Use last saved ({state.base_url})",
@@ -226,6 +241,24 @@ def pick_base_url(state: LinkerState, auto: bool) -> str:
         return DEFAULT_OLLAMA
     if choice.startswith("OpenAI API"):
         return DEFAULT_OPENAI
+    if choice.startswith("OpenRouter"):
+        return DEFAULT_OPENROUTER
+    if choice.startswith("Anthropic"):
+        return DEFAULT_ANTHROPIC
+    if choice.startswith("Groq"):
+        return DEFAULT_GROQ
+    if choice.startswith("Mistral"):
+        return DEFAULT_MISTRAL
+    if choice.startswith("DeepSeek"):
+        return DEFAULT_DEEPSEEK
+    if choice.startswith("Azure OpenAI"):
+        resource = input("Azure resource name (e.g., myres): ").strip()
+        path = input("Path (e.g., openai/v1): ").strip()
+        if not resource:
+            resource = "<resource>"
+        if not path:
+            path = "openai/v1"
+        return f"https://{resource}.openai.azure.com/{path}"
     if choice.startswith("Custom"):
         return input("Enter base URL (e.g., http://localhost:1234/v1): ").strip()
     if choice.startswith("Auto"):

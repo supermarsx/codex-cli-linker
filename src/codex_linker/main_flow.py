@@ -295,24 +295,28 @@ def main():
                 sources=",".join(update_sources),
             )
 
-    # Base URL: explicit for OpenAI, else auto-detect or prompt
+    # Base URL: Only run old pipeline for --full-auto. Otherwise defer to editor.
     picker = getattr(
         sys.modules.get("codex_cli_linker"), "pick_base_url", pick_base_url
     )
     preferred_provider = (args.provider or "").strip().lower()
-    if preferred_provider == "openai" and not args.base_url:
-        from .spec import DEFAULT_OPENAI
+    if args.full_auto:
+        if preferred_provider == "openai" and not args.base_url:
+            from .spec import DEFAULT_OPENAI
 
-        base = DEFAULT_OPENAI
-    else:
-        if args.auto:
-            base = args.base_url or picker(state, True)
+            base = DEFAULT_OPENAI
         else:
-            if getattr(args, "yes", False) and not args.base_url:
-                err("--yes provided but no --base-url; refusing to prompt.")
-                sys.exit(2)
-            base = args.base_url or picker(state, False)
-    state.base_url = base
+            if args.auto:
+                base = args.base_url or picker(state, True)
+            else:
+                if getattr(args, "yes", False) and not args.base_url:
+                    err("--yes provided but no --base-url; refusing to prompt.")
+                    sys.exit(2)
+                base = args.base_url or picker(state, False)
+        state.base_url = base
+    else:
+        # Non full-auto: do not detect/prompt here; editor will handle it
+        state.base_url = args.base_url or state.base_url or ""
 
     # Infer a safe default provider from the base URL (localhost:1234 → lmstudio, 11434 → ollama, otherwise 'custom').
     default_provider = resolve_provider(base)
@@ -352,12 +356,18 @@ def main():
     if "env_key_name" in getattr(args, "_explicit", set()):
         state.env_key = args.env_key_name
     else:
-        # Default env var name: OPENAI_API_KEY for OpenAI; otherwise leave placeholder
-        if state.provider == "openai":
-            if not state.env_key or state.env_key == "NULLKEY":
-                state.env_key = "OPENAI_API_KEY"
-        else:
-            state.env_key = state.env_key or "NULLKEY"
+        # Default env var names by provider
+        default_envs = {
+            "openai": "OPENAI_API_KEY",
+            "openrouter-remote": "OPENROUTER_API_KEY",
+            "anthropic": "ANTHROPIC_API_KEY",
+            "azure": "AZURE_OPENAI_API_KEY",
+            "groq": "GROQ_API_KEY",
+            "mistral": "MISTRAL_API_KEY",
+            "deepseek": "DEEPSEEK_API_KEY",
+        }
+        if not state.env_key or state.env_key == "NULLKEY":
+            state.env_key = default_envs.get(state.provider, state.env_key or "NULLKEY")
 
     # In interactive OpenAI API-key mode, offer to set/update OPENAI_API_KEY in auth.json
     if (
@@ -421,7 +431,7 @@ def main():
             return
         if interactive_action == "overwrite":
             args.overwrite_profile = True
-    # Model selection: interactive unless provided. For OpenAI, avoid /models fetch and prompt freeform.
+    # Model selection: Only old pipeline for full-auto. If explicit --model provided, respect it.
     if args.model:
         target = args.model
         chosen = target
@@ -442,7 +452,7 @@ def main():
             pass
         state.model = chosen
         log_event("model_selected", provider=state.provider, model=state.model)
-    elif args.auto and args.model_index is not None and state.provider != "openai":
+    elif args.full_auto and args.model_index is not None and state.provider != "openai":
         try:
             lm = getattr(
                 sys.modules.get("codex_cli_linker"), "list_models", list_models
@@ -457,29 +467,7 @@ def main():
         except Exception as e:
             err(str(e))
             sys.exit(2)
-    else:
-        if state.provider == "openai":
-            # In OpenAI mode, prompt a simple model id (no network call)
-            if getattr(args, "yes", False):
-                # Choose a sensible default if fully non-interactive
-                state.model = state.model or args.model or "gpt-4o-mini"
-            else:
-                print()
-                print(c("Enter OpenAI model id (e.g., gpt-4o, gpt-4o-mini):", CYAN))
-                entered = input("Model id: ").strip()
-                state.model = entered or state.model or "gpt-4o-mini"
-            log_event("model_selected", provider=state.provider, model=state.model)
-        else:
-            if getattr(args, "yes", False):
-                err(
-                    "--yes provided but no model specified; use --model or --model-index with --auto."
-                )
-                sys.exit(2)
-            try:
-                state.model = pick_model_interactive(state.base_url, state.model or None)
-            except Exception as e:
-                err(str(e))
-                sys.exit(2)
+    # Non full-auto: defer model selection to the editor; no legacy prompts here
 
     if not args.full_auto:
         # Keep legacy extra prompts minimal for now, since editor handled main knobs
