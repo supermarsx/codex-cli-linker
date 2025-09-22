@@ -43,7 +43,20 @@ def to_toml(cfg: Dict) -> str:
     w("model_context_window", cfg.get("model_context_window"))
     w("model_max_output_tokens", cfg.get("model_max_output_tokens"))
     w("project_doc_max_bytes", cfg.get("project_doc_max_bytes"))
-    w("tui", cfg.get("tui"))
+    # TUI table
+    tui_cfg = cfg.get("tui") or {}
+    if isinstance(tui_cfg, dict) and (tui_cfg.get("style") or ("notifications" in tui_cfg)):
+        lines.append("")
+        lines.append("[tui]")
+        if tui_cfg.get("style"):
+            lines.append("style = " + json.dumps(tui_cfg["style"]))
+        if "notifications" in tui_cfg:
+            nv = tui_cfg.get("notifications")
+            if isinstance(nv, list):
+                arr = ", ".join(json.dumps(x) for x in nv)
+                lines.append(f"notifications = [ {arr} ]")
+            elif isinstance(nv, bool):
+                lines.append("notifications = " + ("true" if nv else "false"))
     w("notify", cfg.get("notify"))
     w("instructions", cfg.get("instructions"))
     w("hide_agent_reasoning", cfg.get("hide_agent_reasoning"))

@@ -508,6 +508,23 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     other.add_argument(
         "-T", "--tui", default="table", help="TUI style for interactive prompts"
     )
+    other.add_argument(
+        "--tui-notifications",
+        dest="tui_notifications",
+        action="store_true",
+        default=None,
+        help="Enable TUI desktop notifications",
+    )
+    other.add_argument(
+        "--no-tui-notifications",
+        dest="tui_notifications",
+        action="store_false",
+        help="Disable TUI desktop notifications",
+    )
+    other.add_argument(
+        "--tui-notification-types",
+        help="Comma-separated notification types (agent-turn-complete,approval-requested)",
+    )
 
     if argv is None:
         argv = sys.argv[1:]

@@ -408,6 +408,8 @@ Tip: All options have short aliases (e.g., `-a` for `--auto`). Run `-h` to see t
 - `--writable-roots <CSV>` — extra writable roots for workspace-write (e.g., `/workspace,/data`)
 - `--file-opener {vscode,vscode-insiders,windsurf,cursor,none}` (default: `vscode`)
 - `--open-config` — after writing files, print the exact editor command to open `config.toml` (no auto-launch)
+- `--tui-notifications` / `--no-tui-notifications` — enable/disable desktop notifications in the TUI
+- `--tui-notification-types <CSV>` — filter to specific types: `agent-turn-complete,approval-requested`
 - `--reasoning-effort {minimal,low,medium,high}` (default: `low`)
 - `--reasoning-summary {auto,concise,detailed,none}` (default: `auto`)
 - `--verbosity {low,medium,high}` (default: `medium`)
@@ -529,6 +531,8 @@ At a glance, the script writes:
   - `hide_agent_reasoning`, `show_raw_agent_reasoning`, `model_supports_reasoning_summaries`
   - `preferred_auth_method`
   - `tools.web_search`
+  - `tui.style` — TUI style (e.g., `table`)
+  - `tui.notifications` — boolean to enable all notifications, or array of types
   - `disable_response_storage`
   - `history.persistence` & `history.max_bytes`
 
