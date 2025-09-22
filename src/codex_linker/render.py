@@ -29,7 +29,7 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
         "sandbox_mode": args.sandbox_mode,
         "file_opener": args.file_opener,
         "sandbox_workspace_write": {
-            "writable_roots": [],
+            "writable_roots": [p.strip() for p in (getattr(args, "writable_roots", "") or "").split(",") if p.strip()],
             "network_access": bool(args.network_access) if args.network_access is not None else False,
             "exclude_tmpdir_env_var": bool(args.exclude_tmpdir_env_var) if getattr(args, "exclude_tmpdir_env_var", None) is not None else False,
             "exclude_slash_tmp": bool(args.exclude_slash_tmp) if getattr(args, "exclude_slash_tmp", None) is not None else False,
@@ -42,6 +42,8 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
         "model_max_output_tokens": args.model_max_output_tokens or 0,
         "project_doc_max_bytes": args.project_doc_max_bytes,
         "tui": args.tui,
+        "notify": None,
+        "instructions": args.instructions,
         "hide_agent_reasoning": args.hide_agent_reasoning,
         "show_raw_agent_reasoning": args.show_raw_agent_reasoning,
         "model_supports_reasoning_summaries": args.model_supports_reasoning_summaries,
@@ -64,11 +66,13 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
                     resolved.capitalize(),
                 ),
                 "base_url": state.base_url.rstrip("/"),
-                "wire_api": "chat",
-                "api_key_env_var": state.env_key or "NULLKEY",
+                "wire_api": getattr(args, "wire_api", "chat"),
+                "env_key": state.env_key or "NULLKEY",
                 "request_max_retries": args.request_max_retries,
                 "stream_max_retries": args.stream_max_retries,
                 "stream_idle_timeout_ms": args.stream_idle_timeout_ms,
+                "http_headers": {},
+                "env_http_headers": {},
             }
         },
         "profiles": {
@@ -114,11 +118,13 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
         cfg["model_providers"][pid] = {
             "name": name,
             "base_url": base_u.rstrip("/"),
-            "wire_api": "chat",
-            "api_key_env_var": state.env_key,
+            "wire_api": getattr(args, "wire_api", "chat"),
+            "env_key": state.env_key,
             "request_max_retries": args.request_max_retries,
             "stream_max_retries": args.stream_max_retries,
             "stream_idle_timeout_ms": args.stream_idle_timeout_ms,
+            "http_headers": {},
+            "env_http_headers": {},
         }
         if args.azure_api_version and pid not in ("lmstudio", "ollama"):
             cfg["model_providers"][pid]["query_params"] = {
@@ -151,6 +157,45 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
                 out["startup_timeout_ms"] = int(entry["startup_timeout_ms"])  # type: ignore[index]
             cfg.setdefault("mcp_servers", {})[name] = out
         # If none valid after normalization, do not emit key
+    # Parse notify as CSV or JSON array
+    notify_raw = getattr(args, "notify", "") or ""
+    if notify_raw:
+        try:
+            import json as _json
+
+            if notify_raw.strip().startswith("["):
+                arr = _json.loads(notify_raw)
+                if isinstance(arr, list) and arr:
+                    cfg["notify"] = arr
+            else:
+                arr = [s.strip() for s in notify_raw.split(",") if s.strip()]
+                if arr:
+                    cfg["notify"] = arr
+        except Exception:
+            pass
+    # HTTP headers
+    headers_list = getattr(args, "http_header", []) or []
+    hmap: Dict[str, Any] = {}
+    for item in headers_list:
+        if "=" in str(item):
+            k, v = str(item).split("=", 1)
+            if k.strip():
+                hmap[k.strip()] = v.strip()
+    if hmap:
+        cfg["model_providers"][args.provider or state.provider]["http_headers"] = hmap
+    env_headers_list = getattr(args, "env_http_header", []) or []
+    ehmap: Dict[str, Any] = {}
+    for item in env_headers_list:
+        if "=" in str(item):
+            k, v = str(item).split("=", 1)
+            if k.strip():
+                ehmap[k.strip()] = v.strip()
+    if ehmap:
+        cfg["model_providers"][args.provider or state.provider]["env_http_headers"] = ehmap
+    # Trusted projects
+    trusts = getattr(args, "trust_project", []) or []
+    if trusts:
+        cfg["projects"] = {p: {"trust_level": "trusted"} for p in trusts}
     return cfg
 
 
