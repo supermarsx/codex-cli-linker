@@ -17,6 +17,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     profiles = p.add_argument_group("Profiles")
     backups = p.add_argument_group("Backups")
     keys = p.add_argument_group("Keys")
+    mcp = p.add_argument_group("MCP servers")
     file_mgmt = p.add_argument_group("File management")
     other = p.add_argument_group("Other")
 
@@ -63,6 +64,21 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         "-b",
         "--base-url",
         help="Explicit base URL (e.g., http://localhost:1234/v1)",
+    )
+    general.add_argument(
+        "--openai",
+        action="store_true",
+        help="Shortcut: target OpenAI API defaults (equivalent to --provider openai)",
+    )
+    general.add_argument(
+        "--openai-api",
+        action="store_true",
+        help="OpenAI (API key auth): implies --provider openai and preferred_auth_method=apikey",
+    )
+    general.add_argument(
+        "--openai-gpt",
+        action="store_true",
+        help="OpenAI (ChatGPT auth): implies --provider openai and preferred_auth_method=chatgpt",
     )
     general.add_argument(
         "-n",
@@ -213,6 +229,32 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     # Profiles
     profiles.add_argument("-p", "--profile", help="Profile name, default deduced")
     profiles.add_argument(
+        "--overwrite-profile",
+        action="store_true",
+        help="Allow overwriting an existing [profiles.<name>] in config.toml",
+    )
+    profiles.add_argument(
+        "--manage-profiles",
+        action="store_true",
+        help="Interactive: add/remove/edit profile entries before writing",
+    )
+    profiles.add_argument(
+        "--merge-profiles",
+        action="store_true",
+        help="Merge generated [profiles.*] into existing config.toml (preserve others)",
+    )
+
+    # MCP servers
+    mcp.add_argument(
+        "--manage-mcp",
+        action="store_true",
+        help="Interactive: add/remove/edit mcp_servers entries before writing",
+    )
+    mcp.add_argument(
+        "--mcp-json",
+        help="JSON object for mcp_servers (e.g., '{""srv"": {""command"": ""npx"", ""args"": [""-y"", ""mcp-server""], ""env"": {""API_KEY"": ""v""}}}')",
+    )
+    profiles.add_argument(
         "-c", "--config-url", help="URL to JSON file with default args"
     )
     profiles.add_argument(
@@ -226,8 +268,47 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         "-s",
         "--sandbox-mode",
         default="workspace-write",
-        choices=["read-only", "workspace-write"],
+        choices=["read-only", "workspace-write", "danger-full-access"],
         help="OS sandbox policy (spec)",
+    )
+    profiles.add_argument(
+        "--network-access",
+        dest="network_access",
+        action="store_true",
+        default=None,
+        help="Enable network_access under [sandbox_workspace_write]",
+    )
+    profiles.add_argument(
+        "--no-network-access",
+        dest="network_access",
+        action="store_false",
+        help="Disable network_access under [sandbox_workspace_write]",
+    )
+    profiles.add_argument(
+        "--exclude-tmpdir-env-var",
+        dest="exclude_tmpdir_env_var",
+        action="store_true",
+        default=None,
+        help="Exclude $TMPDIR from writable roots under [sandbox_workspace_write]",
+    )
+    profiles.add_argument(
+        "--no-exclude-tmpdir-env-var",
+        dest="exclude_tmpdir_env_var",
+        action="store_false",
+        help="Include $TMPDIR as writable under [sandbox_workspace_write]",
+    )
+    profiles.add_argument(
+        "--exclude-slash-tmp",
+        dest="exclude_slash_tmp",
+        action="store_true",
+        default=None,
+        help="Exclude /tmp from writable roots under [sandbox_workspace_write]",
+    )
+    profiles.add_argument(
+        "--no-exclude-slash-tmp",
+        dest="exclude_slash_tmp",
+        action="store_false",
+        help="Include /tmp as writable under [sandbox_workspace_write]",
     )
     profiles.add_argument(
         "-o",
@@ -317,6 +398,11 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     )
 
     # Keys
+    keys.add_argument(
+        "--set-openai-key",
+        action="store_true",
+        help="Unique mode: prompt for or use --api-key to set OPENAI_API_KEY, then exit",
+    )
     keys.add_argument("-k", "--api-key", help="API key to stash in env (dummy is fine)")
     keys.add_argument(
         "-E",
@@ -389,6 +475,27 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     if argv is None:
         argv = sys.argv[1:]
     ns = p.parse_args(argv)
+    # Initialize mcp servers container
+    ns.mcp_servers = {}
+    if getattr(ns, "mcp_json", None):
+        try:
+            import json
+
+            data = json.loads(ns.mcp_json)
+            if isinstance(data, dict):
+                ns.mcp_servers = data
+        except Exception:
+            pass
+    # Convenience: --openai implies --provider openai
+    if getattr(ns, "openai", False) and not getattr(ns, "provider", None):
+        ns.provider = "openai"
+    # Convenience: --openai-api and --openai-gpt set provider and auth method
+    if getattr(ns, "openai_api", False):
+        ns.provider = "openai"
+        ns.preferred_auth_method = "apikey"
+    if getattr(ns, "openai_gpt", False):
+        ns.provider = "openai"
+        ns.preferred_auth_method = "chatgpt"
     # Normalize providers list
     provs = []
     if getattr(ns, "providers", None):

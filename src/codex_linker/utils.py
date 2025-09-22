@@ -17,6 +17,7 @@ from .spec import (
     DEFAULT_TGI_8080,
     DEFAULT_TGI_3000,
     DEFAULT_OPENROUTER_LOCAL,
+    DEFAULT_OPENAI,
 )
 
 try:  # pragma: no cover
@@ -86,6 +87,7 @@ _PROVIDER_PREFIXES = {
     DEFAULT_TGI_8080.rsplit("/v1", 1)[0]: "tgi",
     DEFAULT_TGI_3000.rsplit("/v1", 1)[0]: "tgi",
     DEFAULT_OPENROUTER_LOCAL.rsplit("/v1", 1)[0]: "openrouter",
+    DEFAULT_OPENAI.rsplit("/v1", 1)[0]: "openai",
 }
 
 

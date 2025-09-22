@@ -72,6 +72,7 @@ DEFAULT_VLLM = _impl.DEFAULT_VLLM
 DEFAULT_TGWUI = _impl.DEFAULT_TGWUI
 DEFAULT_TGI_8080 = _impl.DEFAULT_TGI_8080
 DEFAULT_OPENROUTER_LOCAL = _impl.DEFAULT_OPENROUTER_LOCAL
+DEFAULT_OPENAI = _impl.DEFAULT_OPENAI
 PROVIDER_LABELS = _impl.PROVIDER_LABELS
 pkg_version = _impl.pkg_version
 find_codex_cmd = _impl.find_codex_cmd
@@ -81,6 +82,7 @@ CONFIG_TOML = _impl.CONFIG_TOML
 CONFIG_JSON = _impl.CONFIG_JSON
 CONFIG_YAML = _impl.CONFIG_YAML
 LINKER_JSON = _impl.LINKER_JSON
+AUTH_JSON = _impl.AUTH_JSON
 atomic_write_with_backup = _impl.atomic_write_with_backup
 delete_all_backups = _impl.delete_all_backups
 remove_config = _impl.remove_config
@@ -149,6 +151,7 @@ __all__ = [
     "DEFAULT_TGWUI",
     "DEFAULT_TGI_8080",
     "DEFAULT_OPENROUTER_LOCAL",
+    "DEFAULT_OPENAI",
     "PROVIDER_LABELS",
     "pkg_version",
     "find_codex_cmd",
@@ -159,6 +162,7 @@ __all__ = [
     "CONFIG_JSON",
     "CONFIG_YAML",
     "LINKER_JSON",
+    "AUTH_JSON",
     "atomic_write_with_backup",
     "delete_all_backups",
     "remove_config",

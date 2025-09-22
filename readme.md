@@ -188,6 +188,95 @@ python3 codex-cli-linker.py --doctor --doctor-detect-features --base-url http://
 python3 codex-cli-linker.py --config-url https://example.com/defaults.json --auto
 ```
 
+### OpenAI default linking mode
+
+Create a profile that targets the hosted OpenAI API (no local server required). You can either select it in the interactive base URL picker or use flags:
+
+```bash
+# Non-interactive example
+python3 codex-cli-linker.py --provider openai --auto --yes \
+  --model gpt-4o-mini --env-key-name OPENAI_API_KEY
+```
+
+Two OpenAI auth modes are supported; both set `provider=openai`:
+
+```bash
+# API-key mode (preferred_auth_method=apikey)
+python3 codex-cli-linker.py --openai-api --auto --yes --model gpt-4o-mini
+
+# ChatGPT mode (preferred_auth_method=chatgpt)
+python3 codex-cli-linker.py --openai-gpt --auto --yes --model gpt-4o-mini
+```
+
+In interactive mode, choose "OpenAI API (https://api.openai.com/v1)" when asked for the base URL.
+When provider is OpenAI, you'll be prompted to choose between API key and ChatGPT auth. If you choose API key mode, the tool offers to set/update your OPENAI_API_KEY in `~/.codex/auth.json` during the flow.
+
+### Set only OPENAI_API_KEY and quit
+
+If you just want to set an `OPENAI_API_KEY` in `~/.codex/auth.json` and exit (no config writes):
+
+```bash
+# Interactive prompt (input hidden)
+python3 codex-cli-linker.py --set-openai-key
+
+# Non-interactive: pass the key
+python3 codex-cli-linker.py --set-openai-key --api-key sk-...
+```
+
+Notes:
+- Writes `~/.codex/auth.json` and creates a timestamped backup if it exists.
+- Never commits user configs; keep `auth.json` private (contains secrets).
+- No other files are modified in this mode.
+
+### Profile management
+
+You can manage profiles before writing config:
+
+```bash
+# Interactive add/remove/edit of profiles during the run
+python3 codex-cli-linker.py --manage-profiles
+
+# Safety: prevent accidental overwrite of an existing [profiles.<name>]
+# (the tool will prompt unless --yes is used)
+python3 codex-cli-linker.py --profile myprofile   # will prompt if exists
+python3 codex-cli-linker.py --profile myprofile --overwrite-profile  # allow overwrite
+
+# Merge only the generated profiles into an existing config.toml (preserves other profiles)
+python3 codex-cli-linker.py --merge-profiles --profile myprofile --model llama-3.1-8b
+```
+
+### MCP servers
+
+Configure external MCP servers under the top-level `mcp_servers` key (not `mcpServers`). You can manage them interactively or pass a JSON blob:
+
+```bash
+# Interactive management
+python3 codex-cli-linker.py --manage-mcp
+
+# Non-interactive via JSON (example entry named "search")
+python3 codex-cli-linker.py --auto --yes --model gpt-4o-mini --provider openai \
+  --mcp-json '{
+    "search": {
+      "command": "npx",
+      "args": ["-y", "mcp-server"],
+      "env": {"API_KEY": "value"},
+      "startup_timeout_ms": 20000
+    }
+  }'
+```
+
+Config structure produced:
+
+```toml
+[mcp_servers.search]
+command = "npx"
+args = ["-y", "mcp-server"]
+startup_timeout_ms = 20000 # optional; default is 10000 when omitted
+
+[mcp_servers.search.env]
+API_KEY = "value"
+```
+
 
 ## Installation
 
@@ -312,7 +401,10 @@ Tip: All options have short aliases (e.g., `-a` for `--auto`). Run `-h` to see t
 
 **Behavior & UX**
 - `--approval-policy {untrusted,on-failure}` (default: `on-failure`)
-- `--sandbox-mode {read-only,workspace-write}` (default: `workspace-write`)
+- `--sandbox-mode {read-only,workspace-write,danger-full-access}` (default: `workspace-write`)
+- `--network-access` / `--no-network-access` — toggles `sandbox_workspace_write.network_access`
+- `--exclude-tmpdir-env-var` / `--no-exclude-tmpdir-env-var` — exclude/include `$TMPDIR` from writable roots (workspace-write only)
+- `--exclude-slash-tmp` / `--no-exclude-slash-tmp` — exclude/include `/tmp` from writable roots (workspace-write only)
 - `--file-opener {vscode,vscode-insiders}` (default: `vscode`)
 - `--open-config` — after writing files, print the exact editor command to open `config.toml` (no auto-launch)
 - `--reasoning-effort {minimal,low}` (default: `low`)
