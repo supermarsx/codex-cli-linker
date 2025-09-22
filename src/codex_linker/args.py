@@ -50,6 +50,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         "-v", "--verbose", action="store_true", help="Enable INFO/DEBUG logging"
     )
     general.add_argument(
+        "-ll",
         "--log-level",
         "--level",
         choices=["debug", "info", "warning", "error"],
@@ -66,16 +67,19 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Explicit base URL (e.g., http://localhost:1234/v1)",
     )
     general.add_argument(
+        "-oa",
         "--openai",
         action="store_true",
         help="Shortcut: target OpenAI API defaults (equivalent to --provider openai)",
     )
     general.add_argument(
+        "-oA",
         "--openai-api",
         action="store_true",
         help="OpenAI (API key auth): implies --provider openai and preferred_auth_method=apikey",
     )
     general.add_argument(
+        "-og",
         "--openai-gpt",
         action="store_true",
         help="OpenAI (ChatGPT auth): implies --provider openai and preferred_auth_method=chatgpt",
@@ -90,16 +94,19 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         "-V", "--version", action="store_true", help="Print version and exit"
     )
     general.add_argument(
+        "-dr",
         "--doctor",
         action="store_true",
         help="Run preflight diagnostics (connectivity, permissions), then exit",
     )
     general.add_argument(
+        "-cu",
         "--check-updates",
         action="store_true",
         help="Check for new releases on GitHub and PyPI, then exit",
     )
     general.add_argument(
+        "-nuc",
         "--no-update-check",
         action="store_true",
         help="Skip automatic update checks",
@@ -250,11 +257,13 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     # Profiles
     profiles.add_argument("-p", "--profile", help="Profile name, default deduced")
     profiles.add_argument(
+        "-op",
         "--overwrite-profile",
         action="store_true",
         help="Allow overwriting an existing [profiles.<name>] in config.toml",
     )
     profiles.add_argument(
+        "-mP",
         "--manage-profiles",
         action="store_true",
         help="Interactive: add/remove/edit profile entries before writing",
@@ -442,21 +451,25 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
 
     # Backups
     backups.add_argument(
+        "-db",
         "--delete-all-backups",
         action="store_true",
         help="Remove all *.bak files under CODEX_HOME",
     )
     backups.add_argument(
+        "-dc",
         "--confirm-delete-backups",
         action="store_true",
         help="Actually delete backups when --delete-all-backups is used",
     )
     backups.add_argument(
+        "-rc",
         "--remove-config",
         action="store_true",
         help="Backup and remove existing config files",
     )
     backups.add_argument(
+        "-rN",
         "--remove-config-no-bak",
         action="store_true",
         help="Remove config files without creating backups",
@@ -464,6 +477,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
 
     # Keys
     keys.add_argument(
+        "-sK",
         "--set-openai-key",
         action="store_true",
         help="Unique mode: prompt for or use --api-key to set OPENAI_API_KEY, then exit",
@@ -476,6 +490,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Env var name that holds the API key (default: NULLKEY)",
     )
     keys.add_argument(
+        "-kc",
         "--keychain",
         choices=[
             "none",
@@ -515,11 +530,13 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Path to linker state JSON (default: $CODEX_HOME/linker_config.json)",
     )
     file_mgmt.add_argument(
+        "-ws",
         "--workspace-state",
         action="store_true",
         help="Use .codex-linker.json in the current directory for state (overrides CODEX_HOME)",
     )
     file_mgmt.add_argument(
+        "-oc",
         "--open-config",
         action="store_true",
         help="After writing files, print a command to open config.toml in the selected editor (no auto-launch)",

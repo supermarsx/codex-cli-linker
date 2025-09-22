@@ -397,6 +397,10 @@ Additional handy short aliases:
 - `-Hh/--http-header`, `-He/--env-http-header`
 - `-Nt/--notify`, `-In/--instructions`, `-Tp/--trust-project`
 - `-Tn/--tui-notifications`, `-Tt/--tui-notification-types`
+- `-oa/--openai`, `-oA/--openai-api`, `-og/--openai-gpt`
+- `-dr/--doctor`, `-cu/--check-updates`, `-nuc/--no-update-check`
+- `-ll/--log-level`, `-rc/--remove-config`, `-rN/--remove-config-no-bak`, `-db/--delete-all-backups`, `-dc/--confirm-delete-backups`
+- `-ws/--workspace-state`, `-oc/--open-config`, `-sK/--set-openai-key`, `-kc/--keychain`, `-op/--overwrite-profile`, `-mP/--manage-profiles`
 
 **Connection & selection**
 - `--auto` — skip base‑URL prompt and auto‑detect a server
