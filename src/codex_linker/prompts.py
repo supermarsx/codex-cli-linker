@@ -65,14 +65,16 @@ def _arrow_choice(prompt: str, options: List[str]) -> Optional[int]:
     def draw():
         # Render header and options without inserting an extra blank line each redraw
         print(c(prompt, BOLD))
+        palette = [RED, YELLOW, GREEN, CYAN, BLUE, MAGENTA]
         for i, opt in enumerate(options):
             marker = "➤" if i == idx else " "
             line = f" {marker} {opt}"
             if use_color:
+                col = palette[i % len(palette)] if palette else CYAN
                 if i == idx:
-                    print(c(line, CYAN))
+                    print(c(line, col + BOLD))
                 else:
-                    print(c(line, GRAY))
+                    print(c(line, col))
             else:
                 print(line)
 
@@ -167,7 +169,13 @@ def prompt_choice(prompt: str, options: List[str]) -> int:
     if sel is not None:
         return sel
     for i, opt in enumerate(options, 1):
-        print(f"  {i}. {opt}")
+        use_color = supports_color() and not os.environ.get("NO_COLOR")
+        if use_color:
+            palette = [RED, YELLOW, GREEN, CYAN, BLUE, MAGENTA]
+            col = palette[(i - 1) % len(palette)]
+            print(c(f"  {i}. {opt}", col))
+        else:
+            print(f"  {i}. {opt}")
     while True:
         s = _safe_input(f"{prompt} [1-{len(options)}]: ").strip()
         if s.isdigit() and 1 <= int(s) <= len(options):
@@ -498,6 +506,33 @@ def manage_profiles_interactive(args) -> None:
                     "Provider id (e.g., lmstudio, ollama, openai): "
                 ).strip() or (args.provider or "")
             # start with minimal override
+            # For third-party online providers, prompt for API key and env name
+            try:
+                online = {"openai","openrouter-remote","anthropic","azure","groq","mistral","deepseek","cohere","baseten"}
+                if (provider in online) and (getattr(args, "preferred_auth_method", "apikey") == "apikey"):
+                    current = getattr(args, "env_key_name", "NULLKEY") or "NULLKEY"
+                    if current in ("", "NULLKEY"):
+                        args.env_key_name = _default_env_key_for_profile(provider, name)
+                    try:
+                        secret = getpass.getpass(f"Enter API key for {provider} (env {args.env_key_name}) [leave blank to skip]: ").strip()
+                    except Exception:
+                        secret = input(f"Enter API key for {provider} (env {args.env_key_name}) [leave blank to skip]: ").strip()
+                    if secret:
+                        import json as _json
+                        try:
+                            data = {}
+                            if AUTH_JSON.exists():
+                                data = _json.loads(AUTH_JSON.read_text(encoding='utf-8')) or {}
+                                if not isinstance(data, dict):
+                                    data = {}
+                            data[args.env_key_name] = secret
+                            atomic_write_with_backup(AUTH_JSON, _json.dumps(data, indent=2) + "\n")
+                            ok(f"Updated {AUTH_JSON} with {args.env_key_name}")
+                            warn("Never commit this file; it contains a secret.")
+                        except Exception as e:
+                            err(f"Could not update {AUTH_JSON}: {e}")
+            except Exception:
+                pass
             args.profile_overrides[name] = {
                 "provider": provider,
                 "model": "",
@@ -531,6 +566,16 @@ def manage_profiles_interactive(args) -> None:
                         f"  Max output tokens: {int(ov.get('model_max_output_tokens') or 0)}"
                     )
                     print(f"  Approval policy: {ov.get('approval_policy','')}")
+                    print(f"  File opener: {ov.get('file_opener','')}")
+                    print(f"  Reasoning effort: {ov.get('model_reasoning_effort','')}")
+                    print(f"  Reasoning summary: {ov.get('model_reasoning_summary','')}")
+                    print(f"  Verbosity: {ov.get('model_verbosity','')}")
+                    print(
+                        f"  Disable response storage: {str(ov.get('disable_response_storage', False)).lower()}"
+                    )
+                    print(f"  Sandbox mode: {ov.get('sandbox_mode','')}")
+                    print(f"  ChatGPT base URL: {ov.get('chatgpt_base_url','')}")
+                    print(f"  Preferred auth method: {ov.get('preferred_auth_method','')}")
                     # loop back to offer editing/saving
                 else:
                     ok("Saved.")
@@ -589,6 +634,17 @@ def _edit_profile_entry_interactive(args, name: str) -> None:
             ("Context window", str(ov.get("model_context_window") or 0)),
             ("Max output tokens", str(ov.get("model_max_output_tokens") or 0)),
             ("Approval policy", ov.get("approval_policy") or args.approval_policy),
+            ("File opener", ov.get("file_opener") or ""),
+            ("Reasoning effort", ov.get("model_reasoning_effort") or ""),
+            ("Reasoning summary", ov.get("model_reasoning_summary") or ""),
+            ("Verbosity", ov.get("model_verbosity") or ""),
+            (
+                "Disable response storage",
+                "true" if ov.get("disable_response_storage") else "false",
+            ),
+            ("Sandbox mode", ov.get("sandbox_mode") or ""),
+            ("ChatGPT base URL", ov.get("chatgpt_base_url") or ""),
+            ("Preferred auth method", ov.get("preferred_auth_method") or ""),
         ]
         for i, (lbl, val) in enumerate(items, 1):
             print(f"  {i}. {lbl}: {val}")
@@ -673,6 +729,38 @@ def _edit_profile_entry_interactive(args, name: str) -> None:
                     "on-request",
                     "never",
                 ][i2]
+            elif idx == 5:
+                i2 = prompt_choice(
+                    "File opener",
+                    ["vscode", "vscode-insiders", "windsurf", "cursor", "none"],
+                )
+                ov["file_opener"] = [
+                    "vscode",
+                    "vscode-insiders",
+                    "windsurf",
+                    "cursor",
+                    "none",
+                ][i2]
+            elif idx == 6:
+                i2 = prompt_choice("Reasoning effort", ["minimal", "low", "medium", "high", "auto"])
+                ov["model_reasoning_effort"] = ["minimal", "low", "medium", "high", "auto"][i2]
+            elif idx == 7:
+                i2 = prompt_choice("Reasoning summary", ["auto", "concise", "detailed", "none"])
+                ov["model_reasoning_summary"] = ["auto", "concise", "detailed", "none"][i2]
+            elif idx == 8:
+                i2 = prompt_choice("Verbosity", ["low", "medium", "high"])
+                ov["model_verbosity"] = ["low", "medium", "high"][i2]
+            elif idx == 9:
+                i2 = prompt_choice("Disable response storage", ["true", "false"])
+                ov["disable_response_storage"] = True if i2 == 0 else False
+            elif idx == 10:
+                i2 = prompt_choice("Sandbox mode", ["read-only", "workspace-write", "danger-full-access"])
+                ov["sandbox_mode"] = ["read-only", "workspace-write", "danger-full-access"][i2]
+            elif idx == 11:
+                ov["chatgpt_base_url"] = _safe_input("ChatGPT base URL: ").strip()
+            elif idx == 12:
+                i2 = prompt_choice("Preferred auth method", ["apikey", "chatgpt"])
+                ov["preferred_auth_method"] = ["apikey", "chatgpt"][i2]
         elif act == 1:
             # Edit all fields in sequence
             ov["provider"] = _safe_input("Provider: ").strip() or ov.get("provider") or ""
@@ -816,6 +904,17 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
                 ("Reasoning effort", args.reasoning_effort),
                 ("Reasoning summary", args.reasoning_summary),
                 ("Verbosity", args.verbosity),
+                ("Hide agent reasoning", "true" if getattr(args, "hide_agent_reasoning", False) else "false"),
+                (
+                    "Show raw agent reasoning",
+                    "true" if getattr(args, "show_raw_agent_reasoning", False) else "false",
+                ),
+                (
+                    "Model supports reasoning summaries",
+                    "true"
+                    if getattr(args, "model_supports_reasoning_summaries", False)
+                    else "false",
+                ),
                 (
                     "Disable response storage",
                     "true" if args.disable_response_storage else "false",
@@ -827,6 +926,10 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
                 ("ChatGPT base URL", args.chatgpt_base_url or ""),
                 ("Azure api-version", args.azure_api_version or ""),
                 (
+                    "Project doc max bytes",
+                    str(getattr(args, "project_doc_max_bytes", 0) or 0),
+                ),
+                (
                     "HTTP headers (CSV KEY=VAL)",
                     ",".join(getattr(args, "http_header", []) or []) or "",
                 ),
@@ -836,6 +939,25 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
                 ),
                 ("Notify (CSV or JSON array)", getattr(args, "notify", "") or ""),
                 ("Instructions", args.instructions or ""),
+                (
+                    "Experimental resume",
+                    getattr(args, "experimental_resume", "") or "",
+                ),
+                (
+                    "Experimental instructions file",
+                    getattr(args, "experimental_instructions_file", "") or "",
+                ),
+                (
+                    "Experimental: use exec command tool",
+                    "true"
+                    if getattr(args, "experimental_use_exec_command_tool", False)
+                    else "false",
+                ),
+                (
+                    "Responses originator header override",
+                    getattr(args, "responses_originator_header_internal_override", "")
+                    or "",
+                ),
                 (
                     "Trusted projects (CSV)",
                     ",".join(getattr(args, "trust_project", []) or []) or "",
@@ -944,8 +1066,8 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
                     ok(f"Updated {AUTH_JSON} with OPENAI_API_KEY")
                     warn("Never commit this file; it contains a secret.")
             elif label == "Approval policy":
-                i2 = prompt_choice("Choose", ["untrusted", "on-failure"])
-                args.approval_policy = "untrusted" if i2 == 0 else "on-failure"
+                i2 = prompt_choice("Choose", ["untrusted", "on-failure", "on-request", "never"])
+                args.approval_policy = ["untrusted", "on-failure", "on-request", "never"][i2]
             elif label == "Sandbox mode":
                 i2 = prompt_choice(
                     "Choose", ["read-only", "workspace-write", "danger-full-access"]
@@ -1001,6 +1123,17 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
             elif label == "Verbosity":
                 i2 = prompt_choice("Verbosity", ["low", "medium", "high"])
                 args.verbosity = ["low", "medium", "high"][i2]
+            elif label == "Hide agent reasoning":
+                i2 = prompt_choice("Hide agent reasoning", ["true", "false"])
+                args.hide_agent_reasoning = True if i2 == 0 else False
+            elif label == "Show raw agent reasoning":
+                i2 = prompt_choice("Show raw agent reasoning", ["true", "false"])
+                args.show_raw_agent_reasoning = True if i2 == 0 else False
+            elif label == "Model supports reasoning summaries":
+                i2 = prompt_choice(
+                    "Model supports reasoning summaries", ["true", "false"]
+                )
+                args.model_supports_reasoning_summaries = True if i2 == 0 else False
             elif label == "Disable response storage":
                 i2 = prompt_choice("Disable response storage", ["true", "false"])
                 args.disable_response_storage = True if i2 == 0 else False
@@ -1024,6 +1157,13 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
                 args.chatgpt_base_url = input("ChatGPT base URL: ").strip()
             elif label == "Azure api-version":
                 args.azure_api_version = input("Azure api-version: ").strip()
+            elif label == "Project doc max bytes":
+                try:
+                    args.project_doc_max_bytes = int(
+                        input("Project doc max bytes: ").strip() or "0"
+                    )
+                except Exception:
+                    pass
             elif label == "HTTP headers (CSV KEY=VAL)":
                 raw = input("Headers CSV: ").strip()
                 args.http_header = [s.strip() for s in raw.split(",") if s.strip()]
@@ -1034,6 +1174,19 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
                 args.notify = input("Notify (CSV or JSON array): ").strip()
             elif label == "Instructions":
                 args.instructions = input("Instructions: ").strip()
+            elif label == "Experimental resume":
+                args.experimental_resume = input("Experimental resume: ").strip()
+            elif label == "Experimental instructions file":
+                args.experimental_instructions_file = input(
+                    "Experimental instructions file: "
+                ).strip()
+            elif label == "Experimental: use exec command tool":
+                i2 = prompt_choice("Use exec command tool", ["true", "false"])
+                args.experimental_use_exec_command_tool = True if i2 == 0 else False
+            elif label == "Responses originator header override":
+                args.responses_originator_header_internal_override = input(
+                    "Responses originator header override: "
+                ).strip()
             elif label == "Trusted projects (CSV)":
                 raw = input("Trusted projects CSV: ").strip()
                 args.trust_project = [s.strip() for s in raw.split(",") if s.strip()]
@@ -1235,4 +1388,152 @@ __all__ = [
     "interactive_settings_editor",
     "manage_profiles_interactive",
     "manage_mcp_servers_interactive",
+    "manage_providers_interactive",
 ]
+
+
+
+
+
+
+def _default_env_key_for_profile(provider: str, profile: str) -> str:
+    prov = (provider or 'custom').upper().replace('-', '_')
+    prof = (profile or 'default').upper().replace('-', '_')
+    return f"{prov}_{prof}_API_KEY"
+
+
+def manage_providers_interactive(args) -> None:
+    """Interactive manager for global model providers (add/edit/remove)."""
+    if not hasattr(args, "providers_list") or args.providers_list is None:
+        args.providers_list = []
+    if not hasattr(args, "provider_overrides") or args.provider_overrides is None:
+        args.provider_overrides = {}
+    while True:
+        print()
+        print(c("Providers:", BOLD))
+        # Build list from current provider, overrides and providers_list
+        names = []
+        if getattr(args, "provider", None):
+            names.append(args.provider)
+        for k in (getattr(args, "provider_overrides", {}) or {}).keys():
+            if k not in names:
+                names.append(k)
+        for p in (getattr(args, "providers_list", []) or []):
+            if p not in names:
+                names.append(p)
+        for n in names:
+            ov = (args.provider_overrides or {}).get(n) or {}
+            base = ov.get("base_url", "")
+            print(f" - {n} {c(base, GRAY) if base else ''}")
+        choice = prompt_choice(
+            "Choose",
+            [
+                "Add provider",
+                "Edit provider",
+                "Remove provider",
+                "Done",
+            ],
+        )
+        if choice == 0:
+            pid = _safe_input("Provider id (e.g., openai, groq, custom): ").strip()
+            if not pid:
+                continue
+            base = _safe_input("Base URL (blank to skip): ").strip()
+            # Env key
+            default_env = f"{pid.upper().replace('-', '_')}_API_KEY"
+            envk = _safe_input(f"Env key name [{default_env}]: ").strip() or default_env
+            # Optional API key secret write
+            try:
+                secret = getpass.getpass(f"Enter API key for {pid} (env {envk}) [blank to skip]: ").strip()
+            except Exception:
+                secret = _safe_input(f"Enter API key for {pid} (env {envk}) [blank to skip]: ").strip()
+            if secret:
+                try:
+                    import json as _json
+
+                    data = {}
+                    if AUTH_JSON.exists():
+                        data = _json.loads(AUTH_JSON.read_text(encoding="utf-8")) or {}
+                        if not isinstance(data, dict):
+                            data = {}
+                    data[envk] = secret
+                    atomic_write_with_backup(AUTH_JSON, _json.dumps(data, indent=2) + "\n")
+                    ok(f"Updated {AUTH_JSON} with {envk}")
+                    warn("Never commit this file; it contains a secret.")
+                except Exception as e:
+                    err(f"Could not update {AUTH_JSON}: {e}")
+            args.provider_overrides[pid] = {"base_url": base, "env_key": envk}
+            if pid not in args.providers_list and pid != getattr(args, "provider", None):
+                args.providers_list.append(pid)
+            ok(f"Saved provider '{pid}'")
+        elif choice == 1:
+            if not names:
+                warn("No providers to edit.")
+                continue
+            idx = prompt_choice("Edit which?", names)
+            pid = names[idx]
+            ov = dict((args.provider_overrides or {}).get(pid) or {})
+            print()
+            print(c(f"Edit provider [{pid}]", BOLD))
+            print(f"  1. Base URL: {ov.get('base_url','')}")
+            print(f"  2. Env key: {ov.get('env_key','')}")
+            print(f"  3. Wire API: {ov.get('wire_api', getattr(args, 'wire_api', 'chat'))}")
+            act = prompt_choice("Action", ["Edit field", "Save", "Cancel"])
+            if act == 0:
+                s = _safe_input("Field number: ").strip()
+                if not s.isdigit():
+                    continue
+                fi = int(s)
+                if fi == 1:
+                    ov["base_url"] = _safe_input("Base URL: ").strip()
+                elif fi == 2:
+                    ov["env_key"] = _safe_input("Env key name: ").strip() or ov.get("env_key", "")
+                    # Optionally set new secret
+                    try:
+                        secret = getpass.getpass(f"Enter API key for {pid} (env {ov['env_key']}) [blank to skip]: ").strip()
+                    except Exception:
+                        secret = _safe_input(f"Enter API key for {pid} (env {ov['env_key']}) [blank to skip]: ").strip()
+                    if secret:
+                        try:
+                            import json as _json
+
+                            data = {}
+                            if AUTH_JSON.exists():
+                                data = _json.loads(AUTH_JSON.read_text(encoding="utf-8")) or {}
+                                if not isinstance(data, dict):
+                                    data = {}
+                            data[ov["env_key"]] = secret
+                            atomic_write_with_backup(
+                                AUTH_JSON, _json.dumps(data, indent=2) + "\n"
+                            )
+                            ok(f"Updated {AUTH_JSON} with {ov['env_key']}")
+                            warn("Never commit this file; it contains a secret.")
+                        except Exception as e:
+                            err(f"Could not update {AUTH_JSON}: {e}")
+                elif fi == 3:
+                    wi = prompt_choice("Wire API", ["chat", "responses"])
+                    ov["wire_api"] = ["chat", "responses"][wi]
+            if act == 1:
+                args.provider_overrides[pid] = ov
+                ok("Saved.")
+            # cancel returns to list
+        elif choice == 2:
+            if not names:
+                warn("No providers to remove.")
+                continue
+            idx = prompt_choice("Remove which?", names)
+            pid = names[idx]
+            if pid == getattr(args, "provider", None):
+                warn("Won't remove the current active provider; change provider first.")
+                continue
+            if prompt_yes_no(f"Remove provider '{pid}'?", default=False):
+                (args.provider_overrides or {}).pop(pid, None)
+                if pid in (args.providers_list or []):
+                    args.providers_list = [p for p in args.providers_list if p != pid]
+                info(f"Removed provider: {pid}")
+            else:
+                info("Removal cancelled.")
+        else:
+            break
+
+
