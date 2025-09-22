@@ -604,7 +604,82 @@ def main():
             out_text = (merged_text.rstrip() + frag + "\n").lstrip("\n") if frag else toml_out
             atomic_write_with_backup(config_toml, _re.sub(r"\n{3,}", "\n\n", out_text))
         else:
-            atomic_write_with_backup(config_toml, toml_out)
+            # Optional full-config merge with conflict checks
+            if getattr(args, "merge_config", False) and config_toml.exists():
+                try:
+                    existing_text = config_toml.read_text(encoding="utf-8")
+                except Exception:
+                    existing_text = ""
+                import re as _re
+                new_text = toml_out
+                merged = existing_text
+                conflicts = []
+                # Root keys
+                root_lines = []
+                for line in new_text.splitlines():
+                    if line.strip().startswith("["):
+                        break
+                    if line.strip().startswith("#") or not line.strip():
+                        continue
+                    if "=" in line:
+                        k = line.split("=", 1)[0].strip()
+                        root_lines.append((k, line))
+                for k, line in root_lines:
+                    if _re.search(rf"(?m)^\s*{_re.escape(k)}\s*=", existing_text):
+                        conflicts.append(k)
+                    else:
+                        merged = merged.rstrip() + "\n" + line + "\n"
+                # Simple sections
+                for sec in ("tools", "history", "sandbox_workspace_write", "tui"):
+                    m = _re.search(rf"(?ms)^\[{_re.escape(sec)}\]\s*.*?(?=^\[|\Z)", new_text)
+                    if not m:
+                        continue
+                    if _re.search(rf"(?m)^\[{_re.escape(sec)}\]\s*$", existing_text):
+                        conflicts.append(f"[{sec}]")
+                    else:
+                        merged = merged.rstrip() + "\n\n" + m.group(0).rstrip() + "\n"
+                # Namespaced tables
+                def merge_ns(prefix: str):
+                    nonlocal merged
+                    for m2 in _re.finditer(rf"(?ms)^\[{_re.escape(prefix)}\.([^\]]+)\]\s*.*?(?=^\[|\Z)", new_text):
+                        name = m2.group(1)
+                        hdr_pat = rf"(?m)^\[{_re.escape(prefix)}\.{_re.escape(name)}\]\s*$"
+                        if _re.search(hdr_pat, existing_text):
+                            conflicts.append(f"[{prefix}.{name}]")
+                        else:
+                            merged = merged.rstrip() + "\n\n" + m2.group(0).rstrip() + "\n"
+                for pf in ("model_providers", "profiles", "mcp_servers"):
+                    merge_ns(pf)
+                if conflicts and not getattr(args, "merge_overwrite", False):
+                    if getattr(args, "yes", False):
+                        err("Merge conflicts detected; re-run with --merge-overwrite to replace them.")
+                        sys.exit(2)
+                    info("Merge conflicts detected (will overwrite if confirmed):")
+                    for citem in conflicts:
+                        print(c(f"  {citem}", CYAN))
+                    if not prompt_yes_no("Overwrite conflicting entries?", default=False):
+                        err("Aborting merge to avoid overwriting.")
+                        sys.exit(2)
+                # Overwrite conflicts
+                for citem in conflicts:
+                    if citem.startswith("["):
+                        sec = citem.strip("[]")
+                        pat = _re.compile(rf"(?ms)^\[{_re.escape(sec)}\]\s*.*?(?=^\[|\Z)")
+                        merged = pat.sub("", merged)
+                        m3 = _re.search(pat, new_text)
+                        if m3:
+                            merged = merged.rstrip() + "\n\n" + m3.group(0).rstrip() + "\n"
+                    else:
+                        pat = _re.compile(rf"(?m)^\s*{_re.escape(citem)}\s*=.*$")
+                        merged = pat.sub("", merged)
+                        for k, line in root_lines:
+                            if k == citem:
+                                merged = merged.rstrip() + "\n" + line + "\n"
+                                break
+                out_text = _re.sub(r"\n{3,}", "\n\n", merged).strip() + "\n"
+                atomic_write_with_backup(config_toml, out_text)
+            else:
+                atomic_write_with_backup(config_toml, toml_out)
         log_event(
             "write_config",
             provider=state.provider,

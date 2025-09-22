@@ -279,6 +279,28 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
                 "true" if getattr(args, "exclude_tmpdir_env_var", None) else "false",
             ),
             ("Exclude /tmp", "true" if getattr(args, "exclude_slash_tmp", None) else "false"),
+            ("Writable roots (CSV)", getattr(args, "writable_roots", "") or ""),
+            ("File opener", args.file_opener),
+            ("Context window", str(args.model_context_window or 0)),
+            ("Max output tokens", str(args.model_max_output_tokens or 0)),
+            ("Reasoning effort", args.reasoning_effort),
+            ("Reasoning summary", args.reasoning_summary),
+            ("Verbosity", args.verbosity),
+            ("Disable response storage", "true" if args.disable_response_storage else "false"),
+            ("History persistence", "none" if args.no_history else "save-all"),
+            ("History max bytes", str(args.history_max_bytes or 0)),
+            ("Tools: web_search", "true" if args.tools_web_search else "false"),
+            ("Wire API", getattr(args, "wire_api", "chat")),
+            ("ChatGPT base URL", args.chatgpt_base_url or ""),
+            ("Azure api-version", args.azure_api_version or ""),
+            ("HTTP headers (CSV KEY=VAL)", ",".join(getattr(args, "http_header", []) or []) or ""),
+            ("Env HTTP headers (CSV KEY=ENV)", ",".join(getattr(args, "env_http_header", []) or []) or ""),
+            ("Notify (CSV or JSON array)", getattr(args, "notify", "") or ""),
+            ("Instructions", args.instructions or ""),
+            ("Trusted projects (CSV)", ",".join(getattr(args, "trust_project", []) or []) or ""),
+            ("Env key name", getattr(args, "env_key_name", "NULLKEY")),
+            ("TUI notifications", "custom" if getattr(args, "tui_notification_types", "") else ("true" if getattr(args, "tui_notifications", None) else "false")),
+            ("TUI notification types (CSV)", getattr(args, "tui_notification_types", "") or ""),
             ("Manage profiles…", "open"),
             ("Manage MCP servers…", "open"),
         ]
@@ -347,6 +369,79 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
             elif label == "Exclude /tmp":
                 i2 = prompt_choice("Exclude /tmp", ["true", "false"])
                 args.exclude_slash_tmp = True if i2 == 0 else False
+            elif label == "Writable roots (CSV)":
+                args.writable_roots = input("Writable roots CSV: ").strip()
+            elif label == "File opener":
+                i2 = prompt_choice("File opener", ["vscode", "vscode-insiders", "windsurf", "cursor", "none"])
+                args.file_opener = ["vscode", "vscode-insiders", "windsurf", "cursor", "none"][i2]
+            elif label == "Context window":
+                try:
+                    args.model_context_window = int(input("Context window: ").strip() or "0")
+                except Exception:
+                    pass
+            elif label == "Max output tokens":
+                try:
+                    args.model_max_output_tokens = int(input("Max output tokens: ").strip() or "0")
+                except Exception:
+                    pass
+            elif label == "Reasoning effort":
+                i2 = prompt_choice("Effort", ["minimal", "low", "medium", "high"])
+                args.reasoning_effort = ["minimal", "low", "medium", "high"][i2]
+            elif label == "Reasoning summary":
+                i2 = prompt_choice("Summary", ["auto", "concise", "detailed", "none"])
+                args.reasoning_summary = ["auto", "concise", "detailed", "none"][i2]
+            elif label == "Verbosity":
+                i2 = prompt_choice("Verbosity", ["low", "medium", "high"])
+                args.verbosity = ["low", "medium", "high"][i2]
+            elif label == "Disable response storage":
+                i2 = prompt_choice("Disable response storage", ["true", "false"])
+                args.disable_response_storage = True if i2 == 0 else False
+            elif label == "History persistence":
+                i2 = prompt_choice("History persistence", ["save-all", "none"])
+                args.no_history = True if i2 == 1 else False
+            elif label == "History max bytes":
+                try:
+                    args.history_max_bytes = int(input("History max bytes: ").strip() or "0")
+                except Exception:
+                    pass
+            elif label == "Tools: web_search":
+                i2 = prompt_choice("tools.web_search", ["true", "false"])
+                args.tools_web_search = True if i2 == 0 else False
+            elif label == "Wire API":
+                i2 = prompt_choice("Wire API", ["chat", "responses"])
+                args.wire_api = ["chat", "responses"][i2]
+            elif label == "ChatGPT base URL":
+                args.chatgpt_base_url = input("ChatGPT base URL: ").strip()
+            elif label == "Azure api-version":
+                args.azure_api_version = input("Azure api-version: ").strip()
+            elif label == "HTTP headers (CSV KEY=VAL)":
+                raw = input("Headers CSV: ").strip()
+                args.http_header = [s.strip() for s in raw.split(",") if s.strip()]
+            elif label == "Env HTTP headers (CSV KEY=ENV)":
+                raw = input("Env headers CSV: ").strip()
+                args.env_http_header = [s.strip() for s in raw.split(",") if s.strip()]
+            elif label == "Notify (CSV or JSON array)":
+                args.notify = input("Notify (CSV or JSON array): ").strip()
+            elif label == "Instructions":
+                args.instructions = input("Instructions: ").strip()
+            elif label == "Trusted projects (CSV)":
+                raw = input("Trusted projects CSV: ").strip()
+                args.trust_project = [s.strip() for s in raw.split(",") if s.strip()]
+            elif label == "Env key name":
+                args.env_key_name = input("Env key name: ").strip() or args.env_key_name
+            elif label == "TUI notifications":
+                i2 = prompt_choice("TUI notifications", ["disabled", "enabled (all)", "filter types"])
+                if i2 == 0:
+                    args.tui_notifications = False
+                    args.tui_notification_types = ""
+                elif i2 == 1:
+                    args.tui_notifications = True
+                    args.tui_notification_types = ""
+                else:
+                    args.tui_notifications = None
+                    args.tui_notification_types = input("Types CSV (agent-turn-complete,approval-requested): ").strip()
+            elif label == "TUI notification types (CSV)":
+                args.tui_notification_types = input("Types CSV (agent-turn-complete,approval-requested): ").strip()
             elif label == "Manage profiles…":
                 manage_profiles_interactive(args)
             elif label == "Manage MCP servers…":
