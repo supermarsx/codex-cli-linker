@@ -267,6 +267,8 @@ def pick_base_url(state: LinkerState, auto: bool) -> str:
         return DEFAULT_ANYTHINGLLM
     if choice.startswith("Jan AI"):
         return DEFAULT_JAN
+    if choice.startswith("llama.cpp"):
+        return DEFAULT_LLAMACPP
     if choice.startswith("Azure OpenAI"):
         resource = input("Azure resource name (e.g., myres): ").strip()
         path = input("Path (e.g., openai/v1): ").strip()
