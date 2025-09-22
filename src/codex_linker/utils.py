@@ -24,6 +24,7 @@ from .spec import (
     DEFAULT_MISTRAL,
     DEFAULT_DEEPSEEK,
     DEFAULT_COHERE,
+    DEFAULT_BASETEN,
 )
 
 try:  # pragma: no cover
@@ -99,6 +100,7 @@ _PROVIDER_PREFIXES = {
     DEFAULT_MISTRAL.rsplit("/v1", 1)[0]: "mistral",
     DEFAULT_DEEPSEEK.rsplit("/v1", 1)[0]: "deepseek",
     DEFAULT_COHERE.rsplit("/v2", 1)[0]: "cohere",
+    DEFAULT_BASETEN.rsplit("/v1", 1)[0]: "baseten",
     DEFAULT_OPENAI.rsplit("/v1", 1)[0]: "openai",
 }
 

@@ -366,6 +366,7 @@ def main():
             "mistral": "MISTRAL_API_KEY",
             "deepseek": "DEEPSEEK_API_KEY",
             "cohere": "COHERE_API_KEY",
+            "baseten": "BASETEN_API_KEY",
         }
         if not state.env_key or state.env_key == "NULLKEY":
             state.env_key = default_envs.get(state.provider, state.env_key or "NULLKEY")

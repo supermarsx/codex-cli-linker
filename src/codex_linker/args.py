@@ -190,6 +190,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     providers.add_argument("-mi", "--mistral", action="store_true", help="Preset: Mistral (https://api.mistral.ai/v1)")
     providers.add_argument("-ds", "--deepseek", action="store_true", help="Preset: DeepSeek (https://api.deepseek.com/v1)")
     providers.add_argument("-ch", "--cohere", action="store_true", help="Preset: Cohere (https://api.cohere.com/v2)")
+    providers.add_argument("-bt", "--baseten", action="store_true", help="Preset: Baseten (https://inference.baseten.co/v1)")
     providers.add_argument("--azure-resource", help="Azure resource name (e.g., myresource)")
     providers.add_argument("--azure-path", help="Azure path (e.g., openai/v1)")
     providers.add_argument(
@@ -598,6 +599,8 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         ns.provider = ns.provider or "deepseek"
     if getattr(ns, "cohere", False):
         ns.provider = ns.provider or "cohere"
+    if getattr(ns, "baseten", False):
+        ns.provider = ns.provider or "baseten"
     # Normalize providers list
     provs = []
     if getattr(ns, "providers", None):

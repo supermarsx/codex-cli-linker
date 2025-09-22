@@ -17,6 +17,7 @@ from .spec import (
     DEFAULT_MISTRAL,
     DEFAULT_DEEPSEEK,
     DEFAULT_COHERE,
+    DEFAULT_BASETEN,
 )
 from .detect import detect_base_url, list_models
 from .state import LinkerState
@@ -230,6 +231,7 @@ def pick_base_url(state: LinkerState, auto: bool) -> str:
         f"Mistral ({DEFAULT_MISTRAL})",
         f"DeepSeek ({DEFAULT_DEEPSEEK})",
         f"Cohere ({DEFAULT_COHERE})",
+        f"Baseten ({DEFAULT_BASETEN})",
         "Azure OpenAI (enter resource + path)",
         "Custom…",
         "Auto‑detect",
@@ -255,6 +257,8 @@ def pick_base_url(state: LinkerState, auto: bool) -> str:
         return DEFAULT_DEEPSEEK
     if choice.startswith("Cohere"):
         return DEFAULT_COHERE
+    if choice.startswith("Baseten"):
+        return DEFAULT_BASETEN
     if choice.startswith("Azure OpenAI"):
         resource = input("Azure resource name (e.g., myres): ").strip()
         path = input("Path (e.g., openai/v1): ").strip()

@@ -16,6 +16,7 @@ DEFAULT_GROQ = "https://api.groq.com/openai/v1"
 DEFAULT_MISTRAL = "https://api.mistral.ai/v1"
 DEFAULT_DEEPSEEK = "https://api.deepseek.com/v1"
 DEFAULT_COHERE = "https://api.cohere.com/v2"
+DEFAULT_BASETEN = "https://inference.baseten.co/v1"
 DEFAULT_OPENAI = "https://api.openai.com/v1"
 
 COMMON_BASE_URLS: List[str] = [
@@ -32,6 +33,7 @@ COMMON_BASE_URLS: List[str] = [
     DEFAULT_MISTRAL,
     DEFAULT_DEEPSEEK,
     DEFAULT_COHERE,
+    DEFAULT_BASETEN,
 ]
 
 PROVIDER_LABELS: Dict[str, str] = {
@@ -48,6 +50,7 @@ PROVIDER_LABELS: Dict[str, str] = {
     "mistral": "Mistral",
     "deepseek": "DeepSeek",
     "cohere": "Cohere",
+    "baseten": "Baseten",
     "openai": "OpenAI",
 }
 
@@ -65,6 +68,7 @@ __all__ = [
     "DEFAULT_MISTRAL",
     "DEFAULT_DEEPSEEK",
     "DEFAULT_COHERE",
+    "DEFAULT_BASETEN",
     "DEFAULT_OPENAI",
     "COMMON_BASE_URLS",
     "PROVIDER_LABELS",
