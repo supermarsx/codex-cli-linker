@@ -47,7 +47,7 @@ from .ui import (
     BLUE,
     MAGENTA,
 )
-from .io_safe import AUTH_JSON, atomic_write_with_backup
+from .io_safe import AUTH_JSON, atomic_write_with_backup, write_auth_json_merge
 
 
 def _safe_input(prompt: str) -> str:
@@ -576,13 +576,7 @@ def manage_profiles_interactive(args) -> None:
                     if secret:
                         import json as _json
                         try:
-                            data = {}
-                            if AUTH_JSON.exists():
-                                data = _json.loads(AUTH_JSON.read_text(encoding='utf-8')) or {}
-                                if not isinstance(data, dict):
-                                    data = {}
-                            data[args.env_key_name] = secret
-                            atomic_write_with_backup(AUTH_JSON, _json.dumps(data, indent=2) + "\n")
+                            write_auth_json_merge(AUTH_JSON, {args.env_key_name: secret})
                             ok(f"Updated {AUTH_JSON} with {args.env_key_name}")
                             warn("Never commit this file; it contains a secret.")
                         except Exception as e:
@@ -1259,18 +1253,7 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
                     err(f"Could not read input: {exc}")
                     new_key = ""
                 if new_key:
-                    current = {}
-                    if AUTH_JSON.exists():
-                        try:
-                            current = _json.loads(AUTH_JSON.read_text(encoding="utf-8"))
-                            if not isinstance(current, dict):
-                                current = {}
-                        except Exception:
-                            current = {}
-                    current["OPENAI_API_KEY"] = new_key
-                    atomic_write_with_backup(
-                        AUTH_JSON, _json.dumps(current, indent=2) + "\n"
-                    )
+                    write_auth_json_merge(AUTH_JSON, {"OPENAI_API_KEY": new_key})
                     ok(f"Updated {AUTH_JSON} with OPENAI_API_KEY")
                     warn("Never commit this file; it contains a secret.")
             elif label == "Approval policy":
@@ -1467,18 +1450,7 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
                         err(f"Could not read input: {exc}")
                         new_key = ""
                     if new_key:
-                        current = {}
-                        if AUTH_JSON.exists():
-                            try:
-                                current = _json.loads(AUTH_JSON.read_text(encoding="utf-8"))
-                                if not isinstance(current, dict):
-                                    current = {}
-                            except Exception:
-                                current = {}
-                        current["OPENAI_API_KEY"] = new_key
-                        atomic_write_with_backup(
-                            AUTH_JSON, _json.dumps(current, indent=2) + "\n"
-                        )
+                        write_auth_json_merge(AUTH_JSON, {"OPENAI_API_KEY": new_key})
                         ok(f"Updated {AUTH_JSON} with OPENAI_API_KEY")
                         warn("Never commit this file; it contains a secret.")
                 elif label == "Approval policy":
@@ -1983,13 +1955,7 @@ def manage_providers_interactive(args) -> None:
                 try:
                     import json as _json
 
-                    data = {}
-                    if AUTH_JSON.exists():
-                        data = _json.loads(AUTH_JSON.read_text(encoding="utf-8")) or {}
-                        if not isinstance(data, dict):
-                            data = {}
-                    data[envk] = secret
-                    atomic_write_with_backup(AUTH_JSON, _json.dumps(data, indent=2) + "\n")
+                    write_auth_json_merge(AUTH_JSON, {envk: secret})
                     ok(f"Updated {AUTH_JSON} with {envk}")
                     warn("Never commit this file; it contains a secret.")
                 except Exception as e:
@@ -2140,15 +2106,7 @@ def manage_providers_interactive(args) -> None:
                         try:
                             import json as _json
 
-                            data = {}
-                            if AUTH_JSON.exists():
-                                data = _json.loads(AUTH_JSON.read_text(encoding="utf-8")) or {}
-                                if not isinstance(data, dict):
-                                    data = {}
-                            data[ov["env_key"]] = secret
-                            atomic_write_with_backup(
-                                AUTH_JSON, _json.dumps(data, indent=2) + "\n"
-                            )
+                            write_auth_json_merge(AUTH_JSON, {ov["env_key"]: secret})
                             ok(f"Updated {AUTH_JSON} with {ov['env_key']}")
                             warn("Never commit this file; it contains a secret.")
                         except Exception as e:

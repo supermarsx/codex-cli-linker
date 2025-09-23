@@ -6,7 +6,7 @@ import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any
 
 from .ui import info, warn, ok
 
@@ -68,6 +68,62 @@ def atomic_write_with_backup(path: Path, text: str) -> Optional[Path]:
         raise
 
 
+def atomic_write(path: Path, text: str) -> None:
+    """Atomically write UTF-8 text to `path` with fsync (no backup)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmppath = tempfile.mkstemp(
+        prefix=path.name + ".", suffix=".tmp", dir=str(path.parent)
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except Exception:
+                pass
+        os.replace(tmppath, path)
+    except Exception:
+        try:
+            os.remove(tmppath)
+        except Exception:
+            pass
+        raise
+
+
+def write_auth_json_merge(path: Path, kv: Dict[str, Any]) -> bool:
+    """Merge one or more keys into auth.json.
+
+    Returns True if any existing key value was overwritten (changed), False if
+    only new keys were added or values were identical. Only creates a backup
+    when overwriting; otherwise writes without backup.
+    """
+    try:
+        import json as _json
+        current: Dict[str, Any] = {}
+        if path.exists():
+            try:
+                current = _json.loads(path.read_text(encoding="utf-8")) or {}
+                if not isinstance(current, dict):
+                    current = {}
+            except Exception:
+                current = {}
+        changed_overwrite = False
+        out = dict(current)
+        for k, v in kv.items():
+            if k in current and current.get(k) != v:
+                changed_overwrite = True
+            out[k] = v
+        text = _json.dumps(out, indent=2) + "\n"
+        if changed_overwrite:
+            atomic_write_with_backup(path, text)
+        else:
+            atomic_write(path, text)
+        return changed_overwrite
+    except Exception:
+        raise
+
+
 def remove_config(no_backup: bool) -> None:
     """Remove config files, optionally creating .bak backups."""
     paths = [CONFIG_TOML, CONFIG_JSON, CONFIG_YAML]
@@ -123,6 +179,8 @@ __all__ = [
     "backup",
     "do_backup",
     "atomic_write_with_backup",
+    "atomic_write",
+    "write_auth_json_merge",
     "remove_config",
     "delete_all_backups",
 ]
