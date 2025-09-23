@@ -661,6 +661,30 @@ def _edit_profile_entry_interactive(args, name: str) -> None:
             ("Sandbox mode", ov.get("sandbox_mode") or ""),
             ("ChatGPT base URL", ov.get("chatgpt_base_url") or ""),
             ("Preferred auth method", ov.get("preferred_auth_method") or ""),
+            (
+                "Hide agent reasoning",
+                "true" if ov.get("hide_agent_reasoning") else "false",
+            ),
+            (
+                "Show raw agent reasoning",
+                "true" if ov.get("show_raw_agent_reasoning") else "false",
+            ),
+            (
+                "Model supports reasoning summaries",
+                "true" if ov.get("model_supports_reasoning_summaries") else "false",
+            ),
+            (
+                "History persistence",
+                (ov.get("history_persistence") or ("none" if getattr(args, "no_history", False) else "save-all")),
+            ),
+            (
+                "History max bytes",
+                str(ov.get("history_max_bytes") if ov.get("history_max_bytes") is not None else (getattr(args, "history_max_bytes", 0) or 0)),
+            ),
+            (
+                "Tools: web_search",
+                "true" if ov.get("tools_web_search") else "false",
+            ),
         ]
         for i, (lbl, val) in enumerate(items, 1):
             print(f"  {i}. {lbl}: {val}")
@@ -777,6 +801,26 @@ def _edit_profile_entry_interactive(args, name: str) -> None:
             elif idx == 12:
                 i2 = prompt_choice("Preferred auth method", ["apikey", "chatgpt"])
                 ov["preferred_auth_method"] = ["apikey", "chatgpt"][i2]
+            elif idx == 13:
+                i2 = prompt_choice("Hide agent reasoning", ["true", "false"])
+                ov["hide_agent_reasoning"] = True if i2 == 0 else False
+            elif idx == 14:
+                i2 = prompt_choice("Show raw agent reasoning", ["true", "false"])
+                ov["show_raw_agent_reasoning"] = True if i2 == 0 else False
+            elif idx == 15:
+                i2 = prompt_choice("Model supports reasoning summaries", ["true", "false"])
+                ov["model_supports_reasoning_summaries"] = True if i2 == 0 else False
+            elif idx == 16:
+                i2 = prompt_choice("History persistence", ["save-all", "none"])
+                ov["history_persistence"] = ["save-all", "none"][i2]
+            elif idx == 17:
+                try:
+                    ov["history_max_bytes"] = int(_safe_input("History max bytes: ").strip() or "0")
+                except Exception:
+                    pass
+            elif idx == 18:
+                i2 = prompt_choice("tools.web_search", ["true", "false"])
+                ov["tools_web_search"] = True if i2 == 0 else False
         elif act == 1:
             # Edit all fields in sequence
             ov["provider"] = _safe_input("Provider: ").strip() or ov.get("provider") or ""
