@@ -222,14 +222,26 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
     # Optional: MCP servers (top-level key mcp_servers)
     mcp = getattr(args, "mcp_servers", None) or {}
     if isinstance(mcp, dict) and mcp:
-        # Minimal normalization: ensure args list for each server when string provided
+        # Minimal normalization: ensure args list for each server; accept JSON array string
         for name, entry in mcp.items():
             if not isinstance(entry, dict):
                 continue
             cmd = entry.get("command") or "npx"
             a = entry.get("args")
+            a_list: list[str]
             if isinstance(a, str):
-                a_list = [s.strip() for s in a.split(",") if s.strip()]
+                a_str = a.strip()
+                try:
+                    if a_str.startswith("["):
+                        parsed = __import__("json").loads(a_str)
+                        if isinstance(parsed, list):
+                            a_list = [str(x) for x in parsed]
+                        else:
+                            a_list = [a_str] if a_str else []
+                    else:
+                        a_list = [s.strip() for s in a_str.split(",") if s.strip()]
+                except Exception:
+                    a_list = [s.strip() for s in a_str.split(",") if s.strip()]
             else:
                 a_list = list(a or [])
             env = entry.get("env") or {}
