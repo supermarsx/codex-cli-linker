@@ -195,10 +195,29 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
             "sandbox_mode",
             "chatgpt_base_url",
             "preferred_auth_method",
+            "hide_agent_reasoning",
+            "show_raw_agent_reasoning",
+            "model_supports_reasoning_summaries",
         ]
         for k in passthrough_keys:
             if k in ov and ov[k] not in (None, ""):
                 prof_dict[k] = ov[k]
+        # History per profile, if provided
+        hp = ov.get("history_persistence")
+        hb = ov.get("history_max_bytes")
+        hist: Dict[str, Any] = {}
+        if isinstance(hp, str) and hp:
+            hist["persistence"] = hp
+        if hb is not None:
+            try:
+                hist["max_bytes"] = int(hb)
+            except Exception:
+                pass
+        if hist:
+            prof_dict["history"] = hist
+        # Tools per profile, if provided
+        if "tools_web_search" in ov:
+            prof_dict["tools"] = {"web_search": bool(ov.get("tools_web_search"))}
         cfg.setdefault("profiles", {})[name] = prof_dict
     # Optional: MCP servers (top-level key mcp_servers)
     mcp = getattr(args, "mcp_servers", None) or {}
