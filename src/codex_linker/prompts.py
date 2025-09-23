@@ -12,6 +12,7 @@ from .spec import (
     DEFAULT_OLLAMA,
     DEFAULT_OPENAI,
     DEFAULT_OPENROUTER,
+    DEFAULT_OPENROUTER_LOCAL,
     DEFAULT_ANTHROPIC,
     DEFAULT_GROQ,
     DEFAULT_MISTRAL,
@@ -22,6 +23,9 @@ from .spec import (
     DEFAULT_ANYTHINGLLM,
     DEFAULT_JAN,
     DEFAULT_LLAMACPP,
+    DEFAULT_VLLM,
+    DEFAULT_TGWUI,
+    DEFAULT_TGI_8080,
     PROVIDER_LABELS,
 )
 from .detect import detect_base_url, list_models
@@ -339,11 +343,11 @@ def pick_base_url(state: LinkerState, auto: bool) -> str:
         return DEFAULT_LLAMACPP
     if choice.startswith("Azure OpenAI"):
         resource = _safe_input("Azure resource name (e.g., myres): ").strip()
-        path = _safe_input("Path (e.g., openai/v1): ").strip()
+        path = _safe_input("Path (e.g., openai): ").strip()
         if not resource:
             resource = "<resource>"
         if not path:
-            path = "openai/v1"
+            path = "openai"
         return f"https://{resource}.openai.azure.com/{path}"
     if choice.startswith("Custom"):
         return _safe_input("Enter base URL (e.g., http://localhost:1234/v1): ").strip()
@@ -428,16 +432,13 @@ def manage_profiles_interactive(args) -> None:
     while True:
         print()
         print(c("Profiles:", BOLD))
-        # Build list: main current + overrides + providers_list
+        # Build list: main current + profile overrides (providers are managed separately)
         names = []
         main_name = args.profile or "<auto>"
         names.append(main_name)
         for k in (args.profile_overrides or {}).keys():
             if k not in names:
                 names.append(k)
-        for p in args.providers_list or []:
-            if p not in names:
-                names.append(p)
         for n in names:
             print(c(f" - {n}", CYAN))
         i = prompt_choice(
@@ -1489,6 +1490,13 @@ def _input_env_kv(
     return env
 
 
+def _print_item_with_desc(label: str, value: Any, desc: str) -> None:
+    """Print a labeled value with a short description below it."""
+    print(f"  {label}: {value}")
+    if desc:
+        print(c(f"     – {desc}", GRAY))
+
+
 def manage_mcp_servers_interactive(args) -> None:
     """Interactive editor for args.mcp_servers, written under top-level key mcp_servers.
 
@@ -1637,6 +1645,37 @@ def _default_env_key_for_profile(provider: str, profile: str) -> str:
     return f"{prov}_{prof}_API_KEY"
 
 
+def _default_base_for_provider_id(pid: str) -> str:
+    """Return a sensible default base URL for a known provider id.
+
+    Falls back to empty string when unknown or when the provider requires
+    additional inputs (e.g., Azure).
+    """
+    pid = (pid or "").strip().lower()
+    mapping = {
+        "lmstudio": DEFAULT_LMSTUDIO,
+        "ollama": DEFAULT_OLLAMA,
+        "vllm": DEFAULT_VLLM,
+        "tgwui": DEFAULT_TGWUI,
+        "tgi": DEFAULT_TGI_8080,
+        "openrouter": DEFAULT_OPENROUTER_LOCAL,
+        "openrouter-remote": DEFAULT_OPENROUTER,
+        "anthropic": DEFAULT_ANTHROPIC,
+        "groq": DEFAULT_GROQ,
+        "mistral": DEFAULT_MISTRAL,
+        "deepseek": DEFAULT_DEEPSEEK,
+        "cohere": DEFAULT_COHERE,
+        "baseten": DEFAULT_BASETEN,
+        "koboldcpp": DEFAULT_KOBOLDCPP,
+        "anythingllm": DEFAULT_ANYTHINGLLM,
+        "jan": DEFAULT_JAN,
+        "llamacpp": DEFAULT_LLAMACPP,
+        "openai": DEFAULT_OPENAI,
+    }
+    # Azure requires resource/path; leave blank to prompt later
+    return mapping.get(pid, "")
+
+
 def manage_providers_interactive(args) -> None:
     """Interactive manager for global model providers (add/edit/remove)."""
     if not hasattr(args, "providers_list") or args.providers_list is None:
@@ -1670,12 +1709,51 @@ def manage_providers_interactive(args) -> None:
             ],
         )
         if choice == 0:
-            pid = _safe_input("Provider id (e.g., openai, groq, custom): ").strip()
-            if not pid:
-                continue
-            base = _safe_input("Base URL (blank to skip): ").strip()
+            # Add provider: choose from presets or enter custom
+            add_mode = prompt_choice("Add provider via", ["Choose preset", "Enter custom"])
+            if add_mode == 0:
+                # Build a stable list of known presets from PROVIDER_LABELS
+                preset_ids = sorted(PROVIDER_LABELS.keys(), key=lambda k: PROVIDER_LABELS[k].lower())
+                labels = []
+                for pid0 in preset_ids:
+                    default_base = _default_base_for_provider_id(pid0)
+                    label = f"{PROVIDER_LABELS[pid0]} ({pid0})"
+                    if default_base:
+                        label += f"  [{default_base}]"
+                    labels.append(label)
+                sel = prompt_choice("Preset", labels)
+                chosen_pid = preset_ids[sel]
+                # Allow renaming with prefilled name
+                default_pid = chosen_pid
+                pid = _safe_input(f"Provider id [{default_pid}]: ").strip() or default_pid
+                # Default display name comes from preset label; allow editing
+                default_name = PROVIDER_LABELS.get(chosen_pid, chosen_pid.capitalize())
+                print(c("Display name — shown in tools and UIs.", GRAY))
+                pname = _safe_input(f"Display name [{default_name}]: ").strip() or default_name
+                # Base URL defaults to known value or prompts for Azure specifics
+                if chosen_pid == "azure":
+                    resource = _safe_input("Azure resource name (e.g., myres): ").strip()
+                    print(c("Azure path — typically 'openai'.", GRAY))
+                    path = _safe_input("Path (e.g., openai) [openai]: ").strip() or "openai"
+                    base = f"https://{resource}.openai.azure.com/{path}" if resource else ""
+                    # Ask for api-version for Azure preset
+                    print(c("Azure api-version — required by Azure OpenAI (e.g., 2025-04-01-preview).", GRAY))
+                    apiver = _safe_input("Azure api-version (e.g., 2025-04-01-preview) [skip to omit]: ").strip()
+                else:
+                    default_base = _default_base_for_provider_id(chosen_pid)
+                    print(c("API base URL — OpenAI-compatible endpoint root (e.g., https://host:port/v1).", GRAY))
+                    base = _safe_input(f"Base URL [{default_base}]: ").strip() or default_base
+            else:
+                pid = _safe_input("Provider id (e.g., openai, groq, custom): ").strip()
+                if not pid:
+                    continue
+                print(c("Display name — shown in tools and UIs.", GRAY))
+                pname = _safe_input("Display name (optional): ").strip() or pid.capitalize()
+                print(c("API base URL — OpenAI-compatible endpoint root (e.g., https://host:port/v1).", GRAY))
+                base = _safe_input("Base URL (blank to skip): ").strip()
             # Env key
             default_env = f"{pid.upper().replace('-', '_')}_API_KEY"
+            print(c("Env key — name of environment variable that holds the API key.", GRAY))
             envk = _safe_input(f"Env key name [{default_env}]: ").strip() or default_env
             # Optional API key secret write
             try:
@@ -1697,7 +1775,77 @@ def manage_providers_interactive(args) -> None:
                     warn("Never commit this file; it contains a secret.")
                 except Exception as e:
                     err(f"Could not update {AUTH_JSON}: {e}")
-            args.provider_overrides[pid] = {"base_url": base, "env_key": envk}
+            # Start override with required keys, plus optional display name
+            override_entry = {"name": pname, "base_url": base, "env_key": envk}
+            # Wire API choice (chat|responses); default "responses" for Azure else "chat"
+            default_wire = "responses" if ((add_mode == 0 and chosen_pid == "azure") or pid == "azure") else "chat"
+            print(c("Wire API — choose 'chat' (Chat Completions) or 'responses' (Responses API).", GRAY))
+            wi = prompt_choice("Wire API", ["chat", "responses"])
+            override_entry["wire_api"] = ["chat", "responses"][wi]
+            # Query params: prefill Azure api-version if provided; allow editing
+            qpi = {}
+            if (add_mode == 0 and 'apiver' in locals() and apiver):
+                qpi = {"api-version": apiver}
+            # Let user add/override query params
+            print(c("Query params — URL query parameters (e.g., api-version for Azure).", GRAY))
+            qp_mode = prompt_choice("Query params", ["Keep defaults", "Edit (CSV KEY=VAL)"])
+            if qp_mode == 1:
+                qpi = _input_env_kv("Query params CSV (KEY=VAL,...): ", qpi)
+            if qpi:
+                override_entry["query_params"] = qpi
+            # HTTP headers: offer presets
+            print(c("HTTP headers — add static or env-sourced headers to each request.", GRAY))
+            hdr_mode = prompt_choice(
+                "HTTP headers",
+                [
+                    "None",
+                    "Preset: Azure api-key",
+                    "Preset: Anthropic x-api-key",
+                    "Preset: Authorization from env",
+                    "Custom (CSV KEY=VAL)",
+                ],
+            )
+            http_headers = {}
+            env_http_headers = {}
+            if hdr_mode == 1:
+                env_http_headers = {"api-key": envk}
+            elif hdr_mode == 2:
+                env_http_headers = {"x-api-key": envk}
+            elif hdr_mode == 3:
+                env_http_headers = {"Authorization": envk}
+            elif hdr_mode == 4:
+                http_headers = _input_env_kv("HTTP headers CSV (KEY=VAL,...): ", {})
+                env_http_headers = _input_env_kv("Env headers CSV (KEY=ENV,...): ", {})
+            if http_headers:
+                override_entry["http_headers"] = http_headers
+            if env_http_headers:
+                override_entry["env_http_headers"] = env_http_headers
+            # Per-provider retry & stream settings
+            try:
+                rr = _safe_input(
+                    f"Request max retries [{getattr(args, 'request_max_retries', 4)}]: "
+                ).strip()
+                if rr:
+                    override_entry["request_max_retries"] = int(rr)
+            except Exception:
+                pass
+            try:
+                sr = _safe_input(
+                    f"Stream max retries [{getattr(args, 'stream_max_retries', 10)}]: "
+                ).strip()
+                if sr:
+                    override_entry["stream_max_retries"] = int(sr)
+            except Exception:
+                pass
+            try:
+                idle = _safe_input(
+                    f"Stream idle timeout ms [{getattr(args, 'stream_idle_timeout_ms', 300000)}]: "
+                ).strip()
+                if idle:
+                    override_entry["stream_idle_timeout_ms"] = int(idle)
+            except Exception:
+                pass
+            args.provider_overrides[pid] = override_entry
             if pid not in args.providers_list and pid != getattr(args, "provider", None):
                 args.providers_list.append(pid)
             ok(f"Saved provider '{pid}'")
@@ -1710,9 +1858,21 @@ def manage_providers_interactive(args) -> None:
             ov = dict((args.provider_overrides or {}).get(pid) or {})
             print()
             print(c(f"Edit provider [{pid}]", BOLD))
-            print(f"  1. Base URL: {ov.get('base_url','')}")
-            print(f"  2. Env key: {ov.get('env_key','')}")
-            print(f"  3. Wire API: {ov.get('wire_api', getattr(args, 'wire_api', 'chat'))}")
+            items = [
+                ("Display name", ov.get("name", PROVIDER_LABELS.get(pid, pid.capitalize())), "Display name shown in tools and UIs."),
+                ("Base URL", ov.get("base_url", ""), "OpenAI-compatible API base URL (e.g., https://host:port/v1 or Azure https://<res>.openai.azure.com/openai)."),
+                ("Env key", ov.get("env_key", ""), "Environment variable name where the API key is stored."),
+                ("Wire API", ov.get("wire_api", getattr(args, "wire_api", "chat")), "Protocol used: 'chat' (Chat Completions) or 'responses' (Responses API)."),
+                ("Query params", ov.get("query_params", {}), "URL query parameters (e.g., api-version for Azure)."),
+                ("HTTP headers", ov.get("http_headers", {}), "Static HTTP headers to include with each request (KEY=VAL)."),
+                ("Env HTTP headers", ov.get("env_http_headers", {}), "HTTP headers sourced from environment variables (KEY=ENV)."),
+                ("Request max retries", str(ov.get("request_max_retries", getattr(args, "request_max_retries", 4))), "HTTP retry count for initial request (integer)."),
+                ("Stream max retries", str(ov.get("stream_max_retries", getattr(args, "stream_max_retries", 10))), "Retry count for SSE streaming (integer)."),
+                ("Stream idle timeout ms", str(ov.get("stream_idle_timeout_ms", getattr(args, "stream_idle_timeout_ms", 300000))), "SSE idle timeout in milliseconds (integer)."),
+            ]
+            for i2, (lbl, val, dsc) in enumerate(items, 1):
+                print(f"  {i2}.")
+                _print_item_with_desc(lbl, val, dsc)
             act = prompt_choice("Action", ["Edit field", "Save", "Cancel"])
             if act == 0:
                 s = _safe_input("Field number: ").strip()
@@ -1720,14 +1880,20 @@ def manage_providers_interactive(args) -> None:
                     continue
                 fi = int(s)
                 if fi == 1:
-                    ov["base_url"] = _safe_input("Base URL: ").strip()
+                    ov["name"] = _safe_input("Display name: ").strip() or ov.get("name", PROVIDER_LABELS.get(pid, pid.capitalize()))
                 elif fi == 2:
+                    ov["base_url"] = _safe_input("Base URL: ").strip()
+                elif fi == 3:
                     ov["env_key"] = _safe_input("Env key name: ").strip() or ov.get("env_key", "")
                     # Optionally set new secret
                     try:
-                        secret = getpass.getpass(f"Enter API key for {pid} (env {ov['env_key']}) [blank to skip]: ").strip()
+                        secret = getpass.getpass(
+                            f"Enter API key for {pid} (env {ov['env_key']}) [blank to skip]: "
+                        ).strip()
                     except Exception:
-                        secret = _safe_input(f"Enter API key for {pid} (env {ov['env_key']}) [blank to skip]: ").strip()
+                        secret = _safe_input(
+                            f"Enter API key for {pid} (env {ov['env_key']}) [blank to skip]: "
+                        ).strip()
                     if secret:
                         try:
                             import json as _json
@@ -1745,9 +1911,40 @@ def manage_providers_interactive(args) -> None:
                             warn("Never commit this file; it contains a secret.")
                         except Exception as e:
                             err(f"Could not update {AUTH_JSON}: {e}")
-                elif fi == 3:
+                elif fi == 4:
                     wi = prompt_choice("Wire API", ["chat", "responses"])
                     ov["wire_api"] = ["chat", "responses"][wi]
+                elif fi == 5:
+                    # Query params CSV
+                    oqp = ov.get("query_params", {}) or {}
+                    ov["query_params"] = _input_env_kv("Query params CSV (KEY=VAL,...): ", oqp)
+                elif fi == 6:
+                    oh = ov.get("http_headers", {}) or {}
+                    ov["http_headers"] = _input_env_kv("HTTP headers CSV (KEY=VAL,...): ", oh)
+                elif fi == 7:
+                    oeh = ov.get("env_http_headers", {}) or {}
+                    ov["env_http_headers"] = _input_env_kv("Env headers CSV (KEY=ENV,...): ", oeh)
+                elif fi == 8:
+                    try:
+                        ov["request_max_retries"] = int(
+                            _safe_input("Request max retries: ").strip() or str(ov.get("request_max_retries", getattr(args, "request_max_retries", 4)))
+                        )
+                    except Exception:
+                        pass
+                elif fi == 9:
+                    try:
+                        ov["stream_max_retries"] = int(
+                            _safe_input("Stream max retries: ").strip() or str(ov.get("stream_max_retries", getattr(args, "stream_max_retries", 10)))
+                        )
+                    except Exception:
+                        pass
+                elif fi == 10:
+                    try:
+                        ov["stream_idle_timeout_ms"] = int(
+                            _safe_input("Stream idle timeout ms: ").strip() or str(ov.get("stream_idle_timeout_ms", getattr(args, "stream_idle_timeout_ms", 300000)))
+                        )
+                    except Exception:
+                        pass
             if act == 1:
                 args.provider_overrides[pid] = ov
                 ok("Saved.")
