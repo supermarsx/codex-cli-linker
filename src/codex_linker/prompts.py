@@ -1533,6 +1533,23 @@ def _input_list_csv(prompt: str, default: Optional[List[str]] = None) -> List[st
     return [s.strip() for s in raw.split(",") if s.strip()]
 
 
+def _input_list_json(prompt: str, default: Optional[List[str]] = None) -> List[str]:
+    """Read a JSON array like ["-y", "mcp-server"]. Requires quotes."""
+    raw = input(f"{prompt} ").strip()
+    if not raw and default is not None:
+        return list(default)
+    if not raw:
+        return []
+    try:
+        arr = _json.loads(raw)
+        if isinstance(arr, list):
+            return [str(x) for x in arr]
+    except Exception:
+        pass
+    # Fallback: treat as single token when parsing fails
+    return [raw]
+
+
 def _input_env_kv(
     prompt: str, default: Optional[Dict[str, str]] = None
 ) -> Dict[str, str]:
@@ -1638,7 +1655,7 @@ def _edit_mcp_entry_interactive(
         print(c(f"Edit MCP server [{name}]", BOLD))
         items = [
             ("Command", curr.get("command", "npx")),
-            ("Args (CSV)", ", ".join(curr.get("args") or [])),
+            ("Args (JSON array)", _json.dumps(curr.get("args") or ["-y", "mcp-server"])),
             (
                 "Env (CSV KEY=VAL)",
                 ", ".join(f"{k}={v}" for k, v in (curr.get("env") or {}).items()),
@@ -1658,8 +1675,9 @@ def _edit_mcp_entry_interactive(
                     "command", "npx"
                 )
             elif idx == 1:
-                curr["args"] = _input_list_csv(
-                    "Args CSV: ", curr.get("args") or ["-y", "mcp-server"]
+                curr["args"] = _input_list_json(
+                    "Args JSON array (e.g., [\"-y\", \"mcp-server\"]): ",
+                    curr.get("args") or ["-y", "mcp-server"],
                 )
             elif idx == 2:
                 curr["env"] = _input_env_kv(
