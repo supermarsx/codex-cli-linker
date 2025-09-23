@@ -24,6 +24,7 @@ from .io_safe import (
     CODEX_HOME,
     AUTH_JSON,
     atomic_write_with_backup,
+    write_auth_json_merge,
     delete_all_backups,
     remove_config,
 )
