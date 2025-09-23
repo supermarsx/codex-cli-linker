@@ -901,19 +901,21 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
     while True:
         print()
         print(c("Interactive settings:", BOLD))
-        hub = prompt_choice(
-            "Start with",
-            [
-                "Manage profiles",
-                "Manage MCP servers",
-                "Manage providers",
-                "Manage global settings",
-                "Write",
-                "Overwrite + Write",
-                "Write and launch (print cmd)",
-                "Quit (no write)",
-            ],
-        )
+        try:
+            hub = prompt_choice(
+                "Start with",
+                [
+                    "Manage profiles",
+                    "Manage MCP servers",
+                    "Manage providers",
+                    "Manage global settings",
+                    "Actions…",
+                    "Quit (no write)",
+                ],
+            )
+        except KeyboardInterrupt:
+            _handle_ctrlc_in_hub()
+            continue
         if hub == 0:
             manage_profiles_interactive(args)
             continue
@@ -924,13 +926,29 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
             manage_providers_interactive(args)
             continue
         if hub == 4:
-            # Write from main menu
-            return "write"
+            # Actions submenu for write/launch
+            try:
+                act = prompt_choice(
+                    "Action",
+                    [
+                        "Write",
+                        "Overwrite + Write",
+                        "Write and launch (print cmd)",
+                        "Back",
+                    ],
+                )
+            except KeyboardInterrupt:
+                # Return to hub on Ctrl-C
+                continue
+            if act == 0:
+                return "write"
+            if act == 1:
+                return "overwrite"
+            if act == 2:
+                return "write_and_launch"
+            # Back to hub
+            continue
         if hub == 5:
-            return "overwrite"
-        if hub == 6:
-            return "write_and_launch"
-        if hub == 7:
             return "quit"
         items = [
             (
