@@ -898,135 +898,66 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
             ("Model", args.model or state.model or "<pick>"),
             ("Auth (OpenAI)", getattr(args, "preferred_auth_method", "apikey")),
         ]
-        # API key status (OpenAI only)
-        if (args.provider or state.provider) == "openai":
-            existing_key = ""
-            if AUTH_JSON.exists():
-                try:
-                    data = _json.loads(AUTH_JSON.read_text(encoding="utf-8"))
-                    if isinstance(data, dict):
-                        existing_key = str(data.get("OPENAI_API_KEY") or "")
-                except Exception:
-                    existing_key = ""
-            status = "set" if existing_key else "missing"
-            items.append(("API key (OPENAI_API_KEY)", status))
-        # Rest of settings
+        # General settings (restricted to general.conf.md fields; provider-only
+        # settings like wire_api/http headers/azure api-version are managed under providers)
         items.extend(
             [
-                ("Approval policy", args.approval_policy),
-                ("Sandbox mode", args.sandbox_mode),
+                ("Approval policy", args.approval_policy, "When to prompt for command approval."),
+                ("Sandbox mode", args.sandbox_mode, "OS sandbox policy."),
+                ("File opener", args.file_opener, "URI scheme for clickable citations (vscode, windsorf, etc.)."),
+                ("Context window", str(args.model_context_window or 0), "Context window tokens."),
+                ("Max output tokens", str(args.model_max_output_tokens or 0), "Maximum tokens in the model output."),
+                ("Reasoning effort", args.reasoning_effort, "Responses API reasoning effort (minimal|low|medium|high)."),
+                ("Reasoning summary", args.reasoning_summary, "Reasoning summaries (auto|concise|detailed|none)."),
+                ("Verbosity", args.verbosity, "GPT-5 responses verbosity (low|medium|high)."),
                 (
-                    "Network access",
-                    "true" if getattr(args, "network_access", None) else "false",
+                    "Hide agent reasoning",
+                    "true" if getattr(args, "hide_agent_reasoning", False) else "false",
+                    "Hide model reasoning events.",
                 ),
-                (
-                    "Exclude $TMPDIR",
-                    (
-                        "true"
-                        if getattr(args, "exclude_tmpdir_env_var", None)
-                        else "false"
-                    ),
-                ),
-                (
-                    "Exclude /tmp",
-                    "true" if getattr(args, "exclude_slash_tmp", None) else "false",
-                ),
-                ("Writable roots (CSV)", getattr(args, "writable_roots", "") or ""),
-                ("File opener", args.file_opener),
-                ("Context window", str(args.model_context_window or 0)),
-                ("Max output tokens", str(args.model_max_output_tokens or 0)),
-                ("Reasoning effort", args.reasoning_effort),
-                ("Reasoning summary", args.reasoning_summary),
-                ("Verbosity", args.verbosity),
-                ("Hide agent reasoning", "true" if getattr(args, "hide_agent_reasoning", False) else "false"),
                 (
                     "Show raw agent reasoning",
                     "true" if getattr(args, "show_raw_agent_reasoning", False) else "false",
+                    "Show raw reasoning when available.",
                 ),
                 (
                     "Model supports reasoning summaries",
-                    "true"
-                    if getattr(args, "model_supports_reasoning_summaries", False)
-                    else "false",
+                    "true" if getattr(args, "model_supports_reasoning_summaries", False) else "false",
+                    "Force-enable reasoning summaries.",
                 ),
-                (
-                    "Disable response storage",
-                    "true" if args.disable_response_storage else "false",
-                ),
-                ("History persistence", "none" if args.no_history else "save-all"),
-                ("History max bytes", str(args.history_max_bytes or 0)),
-                ("Tools: web_search", "true" if args.tools_web_search else "false"),
-                ("Wire API", getattr(args, "wire_api", "chat")),
-                ("ChatGPT base URL", args.chatgpt_base_url or ""),
-                ("Azure api-version", args.azure_api_version or ""),
-                (
-                    "Project doc max bytes",
-                    str(getattr(args, "project_doc_max_bytes", 0) or 0),
-                ),
-                (
-                    "HTTP headers (CSV KEY=VAL)",
-                    ",".join(getattr(args, "http_header", []) or []) or "",
-                ),
-                (
-                    "Env HTTP headers (CSV KEY=ENV)",
-                    ",".join(getattr(args, "env_http_header", []) or []) or "",
-                ),
-                ("Notify (CSV or JSON array)", getattr(args, "notify", "") or ""),
-                ("Instructions", args.instructions or ""),
-                (
-                    "Experimental resume",
-                    getattr(args, "experimental_resume", "") or "",
-                ),
-                (
-                    "Experimental instructions file",
-                    getattr(args, "experimental_instructions_file", "") or "",
-                ),
-                (
-                    "Experimental: use exec command tool",
-                    "true"
-                    if getattr(args, "experimental_use_exec_command_tool", False)
-                    else "false",
-                ),
-                (
-                    "Responses originator header override",
-                    getattr(args, "responses_originator_header_internal_override", "")
-                    or "",
-                ),
-                (
-                    "Trusted projects (CSV)",
-                    ",".join(getattr(args, "trust_project", []) or []) or "",
-                ),
-                ("Env key name", getattr(args, "env_key_name", "NULLKEY")),
+                ("History persistence", "none" if args.no_history else "save-all", "History persistence (save-all|none)."),
+                ("History max bytes", str(args.history_max_bytes or 0), "Maximum history size in bytes (0 uses default)."),
+                ("Tools: web_search", "true" if args.tools_web_search else "false", "Enable web search tool."),
+                ("ChatGPT base URL", args.chatgpt_base_url or "", "Base URL for ChatGPT auth flow."),
+                ("Project doc max bytes", str(getattr(args, "project_doc_max_bytes", 0) or 0), "Max bytes to read from project docs (AGENTS.md etc.)."),
+                ("Notify (CSV or JSON array)", getattr(args, "notify", "") or "", "Desktop notifications (CSV list or JSON array)."),
+                ("Experimental resume", getattr(args, "experimental_resume", "") or "", "Path to JSONL to resume from (internal/experimental)."),
+                ("Experimental instructions file", getattr(args, "experimental_instructions_file", "") or "", "Replace built-in instructions (experimental)."),
+                ("Experimental: use exec command tool", "true" if getattr(args, "experimental_use_exec_command_tool", False) else "false", "Use experimental exec command tool."),
+                ("Responses originator header override", getattr(args, "responses_originator_header_internal_override", "") or "", "Override responses originator header."),
                 (
                     "TUI notifications",
                     (
                         "custom"
                         if getattr(args, "tui_notification_types", "")
-                        else (
-                            "true"
-                            if getattr(args, "tui_notifications", None)
-                            else "false"
-                        )
+                        else ("true" if getattr(args, "tui_notifications", None) else "false")
                     ),
+                    "Enable all notifications or filter types.",
                 ),
-                (
-                    "TUI notification types (CSV)",
-                    getattr(args, "tui_notification_types", "") or "",
-                ),
-                ("Edit global config…", "open"),
-                ("Manage profiles…", "open"),
-                ("Manage MCP servers…", "open"),
+                ("TUI notification types (CSV)", getattr(args, "tui_notification_types", "") or "", "Notification types CSV (agent-turn-complete,approval-requested)."),
+                ("Manage profiles…", "open", "Open profile editor."),
+                ("Manage MCP servers…", "open", "Open MCP servers editor."),
             ]
         )
-        for i, (label, val) in enumerate(items, 1):
-            # Dim unchanged metadata for readability
-            show = f"  {i}. {label}: {val}"
-            print(
-                c(show, GRAY)
-                if "Manage" not in label
-                and label not in ("Profile name", "Provider", "Base URL", "Model")
-                else show
-            )
+        for i, item in enumerate(items, 1):
+            label = item[0]
+            val = item[1] if len(item) > 1 else ""
+            desc = item[2] if len(item) > 2 else ""
+            if "Manage" in label or label in ("Profile name", "Provider", "Base URL", "Model"):
+                print(f"  {i}. {label}: {val}")
+            else:
+                print(f"  {i}.")
+                _print_item_with_desc(label, val, desc)
         print()
         action_idx = prompt_choice(
             "Select edit action",
