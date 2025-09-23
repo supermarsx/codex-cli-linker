@@ -59,6 +59,13 @@ def _safe_input(prompt: str) -> str:
         sys.exit(0)
 
 
+def _is_null_input(s: str) -> bool:
+    try:
+        return s.strip().lower() == "null"
+    except Exception:
+        return False
+
+
 def _arrow_choice(prompt: str, options: List[str]) -> Optional[int]:
     """Arrow-key navigable selector. Returns index or None if unsupported."""
     if not hasattr(sys.stdin, "isatty") or not sys.stdin.isatty():
@@ -448,9 +455,36 @@ def manage_profiles_interactive(args) -> None:
             name = _safe_input("Profile name: ").strip()
             if not name:
                 continue
-            # Choose provider via preset or manual id
-            src = prompt_choice("Provider source", ["Pick from presets", "Enter id manually"])
+            # Choose provider via existing, presets, or manual (or go back to main)
+            src = prompt_choice(
+                "Provider source",
+                [
+                    "Choose from existing providers",
+                    "Pick from presets",
+                    "Enter id manually",
+                    "Go back to main menu",
+                ],
+            )
+            if src == 3:
+                # Return all the way to the main interactive hub
+                return
             if src == 0:
+                # From existing configured providers
+                names = []
+                if getattr(args, "provider", None):
+                    names.append(args.provider)
+                for k in (getattr(args, "provider_overrides", {}) or {}).keys():
+                    if k not in names:
+                        names.append(k)
+                for p in (getattr(args, "providers_list", []) or []):
+                    if p not in names:
+                        names.append(p)
+                if not names:
+                    warn("No providers configured yet; use presets or manual entry.")
+                    continue
+                pi = prompt_choice("Use which provider?", names)
+                provider = names[pi]
+            elif src == 1:
                 # Build preset list from PROVIDER_LABELS and add OpenAI auth variants
                 base_presets = sorted(
                     [(pid, lbl) for pid, lbl in PROVIDER_LABELS.items()],
@@ -459,8 +493,14 @@ def manage_profiles_interactive(args) -> None:
                 # Insert distinct OpenAI auth-mode presets
                 extended_presets = [("openai:api", "OpenAI (API Key)"), ("openai:chatgpt", "OpenAI (ChatGPT)")]
                 presets = extended_presets + base_presets
-                labels = [f"{lbl} ({pid.split(':')[0]})" if ':' in pid else f"{lbl} ({pid})" for pid, lbl in presets]
+                labels = [
+                    (f"{lbl} ({pid.split(':')[0]})" if ":" in pid else f"{lbl} ({pid})")
+                    for pid, lbl in presets
+                ]
+                labels.append("Go back to main menu")
                 sel = prompt_choice("Choose preset", labels)
+                if sel == len(labels) - 1:
+                    return
                 chosen = presets[sel][0]
                 # Map selection to provider + auth mode
                 if chosen == "openai:api":
@@ -469,12 +509,12 @@ def manage_profiles_interactive(args) -> None:
                     args.preferred_auth_method = "apikey"
                     if not getattr(args, "env_key_name", "") or getattr(args, "env_key_name", "") in ("", "NULLKEY"):
                         args.env_key_name = "OPENAI_API_KEY"
-                    if not getattr(args, "base_url", "").strip():
+                    if not ((getattr(args, "base_url", "") or "").strip()):
                         args.base_url = DEFAULT_OPENAI
                 elif chosen == "openai:chatgpt":
                     provider = "openai"
                     args.preferred_auth_method = "chatgpt"
-                    if not getattr(args, "base_url", "").strip():
+                    if not ((getattr(args, "base_url", "") or "").strip()):
                         args.base_url = DEFAULT_OPENAI
                 else:
                     provider = chosen
@@ -497,7 +537,7 @@ def manage_profiles_interactive(args) -> None:
                         "jan": DEFAULT_JAN,
                         "anythingllm": DEFAULT_ANYTHINGLLM,
                     }
-                    if not getattr(args, "base_url", "").strip():
+                    if not ((getattr(args, "base_url", "") or "").strip()):
                         if provider != "azure":  # Azure requires resource name
                             args.base_url = default_base_by_provider.get(provider, getattr(args, "base_url", ""))
                     # Env var defaults per provider
@@ -644,50 +684,46 @@ def _edit_profile_entry_interactive(args, name: str) -> None:
     while True:
         print()
         print(c(f"Edit profile [{name}]", BOLD))
+        # Build defaults reference for descriptions
+        df_approval = args.approval_policy
+        df_sandbox = args.sandbox_mode
+        df_file_opener = args.file_opener
+        df_reason_effort = getattr(args, "reasoning_effort", "")
+        df_reason_summary = getattr(args, "reasoning_summary", "")
+        df_verbosity = getattr(args, "verbosity", "")
+        df_disable_resp = False
+        df_chatgpt_base = getattr(args, "chatgpt_base_url", "") or ""
+        df_auth_method = getattr(args, "preferred_auth_method", "") or ""
+        df_hide = bool(getattr(args, "hide_agent_reasoning", False))
+        df_show_raw = bool(getattr(args, "show_raw_agent_reasoning", False))
+        df_supports_summ = bool(getattr(args, "model_supports_reasoning_summaries", False))
+        df_hist_p = "none" if getattr(args, "no_history", False) else "save-all"
+        df_hist_b = getattr(args, "history_max_bytes", 0) or 0
+        df_tools_ws = bool(getattr(args, "tools_web_search", False))
         items = [
-            ("Provider", ov.get("provider") or ""),
-            ("Model", ov.get("model") or ""),
-            ("Context window", str(ov.get("model_context_window") or 0)),
-            ("Max output tokens", str(ov.get("model_max_output_tokens") or 0)),
-            ("Approval policy", ov.get("approval_policy") or args.approval_policy),
-            ("File opener", ov.get("file_opener") or ""),
-            ("Reasoning effort", ov.get("model_reasoning_effort") or ""),
-            ("Reasoning summary", ov.get("model_reasoning_summary") or ""),
-            ("Verbosity", ov.get("model_verbosity") or ""),
-            (
-                "Disable response storage",
-                "true" if ov.get("disable_response_storage") else "false",
-            ),
-            ("Sandbox mode", ov.get("sandbox_mode") or ""),
-            ("ChatGPT base URL", ov.get("chatgpt_base_url") or ""),
-            ("Preferred auth method", ov.get("preferred_auth_method") or ""),
-            (
-                "Hide agent reasoning",
-                "true" if ov.get("hide_agent_reasoning") else "false",
-            ),
-            (
-                "Show raw agent reasoning",
-                "true" if ov.get("show_raw_agent_reasoning") else "false",
-            ),
-            (
-                "Model supports reasoning summaries",
-                "true" if ov.get("model_supports_reasoning_summaries") else "false",
-            ),
-            (
-                "History persistence",
-                (ov.get("history_persistence") or ("none" if getattr(args, "no_history", False) else "save-all")),
-            ),
-            (
-                "History max bytes",
-                str(ov.get("history_max_bytes") if ov.get("history_max_bytes") is not None else (getattr(args, "history_max_bytes", 0) or 0)),
-            ),
-            (
-                "Tools: web_search",
-                "true" if ov.get("tools_web_search") else "false",
-            ),
+            ("Provider", ov.get("provider") or "", f"Default: {args.provider or ''}"),
+            ("Model", ov.get("model") or "", f"Default: {getattr(args, 'model', '') or 'gpt-5'}"),
+            ("Context window", str(ov.get("model_context_window") or 0), "Default: 0"),
+            ("Max output tokens", str(ov.get("model_max_output_tokens") or 0), "Default: 0"),
+            ("Approval policy", ov.get("approval_policy") or df_approval, f"Default: {df_approval}"),
+            ("File opener", ov.get("file_opener") or "", f"Default: {df_file_opener}"),
+            ("Reasoning effort", ov.get("model_reasoning_effort") or "", f"Default: {df_reason_effort or 'minimal/low'}"),
+            ("Reasoning summary", ov.get("model_reasoning_summary") or "", f"Default: {df_reason_summary or 'auto'}"),
+            ("Verbosity", ov.get("model_verbosity") or "", f"Default: {df_verbosity or 'medium'}"),
+            ("Disable response storage", "true" if ov.get("disable_response_storage") else "false", f"Default: {'true' if df_disable_resp else 'false'}"),
+            ("Sandbox mode", ov.get("sandbox_mode") or "", f"Default: {df_sandbox}"),
+            ("ChatGPT base URL", ov.get("chatgpt_base_url") or "", f"Default: {df_chatgpt_base or '<empty>'}"),
+            ("Preferred auth method", ov.get("preferred_auth_method") or "", f"Default: {df_auth_method or 'apikey'}"),
+            ("Hide agent reasoning", "true" if ov.get("hide_agent_reasoning") else "false", f"Default: {'true' if df_hide else 'false'}"),
+            ("Show raw agent reasoning", "true" if ov.get("show_raw_agent_reasoning") else "false", f"Default: {'true' if df_show_raw else 'false'}"),
+            ("Model supports reasoning summaries", "true" if ov.get("model_supports_reasoning_summaries") else "false", f"Default: {'true' if df_supports_summ else 'false'}"),
+            ("History persistence", (ov.get("history_persistence") or df_hist_p), f"Default: {df_hist_p}"),
+            ("History max bytes", str(ov.get("history_max_bytes") if ov.get("history_max_bytes") is not None else df_hist_b), f"Default: {df_hist_b}"),
+            ("Tools: web_search", "true" if ov.get("tools_web_search") else "false", f"Default: {'true' if df_tools_ws else 'false'}"),
         ]
-        for i, (lbl, val) in enumerate(items, 1):
-            print(f"  {i}. {lbl}: {val}")
+        for i, (lbl, val, dsc) in enumerate(items, 1):
+            print(f"  {i}.")
+            _print_item_with_desc(lbl, val, dsc)
         act = prompt_choice("Action", ["Edit field", "Edit all fields", "Save", "Cancel"])
         if act == 0:
             s = input("Field number: ").strip()
@@ -695,7 +731,29 @@ def _edit_profile_entry_interactive(args, name: str) -> None:
                 continue
             idx = int(s) - 1
             if idx == 0:
-                ov["provider"] = _safe_input("Provider: ").strip() or ov.get("provider") or ""
+                # Choose provider from existing or enter manually
+                m = prompt_choice(
+                    "Set provider",
+                    ["Choose from existing providers", "Enter manually"],
+                )
+                if m == 0:
+                    names = []
+                    if getattr(args, "provider", None):
+                        names.append(args.provider)
+                    for k in (getattr(args, "provider_overrides", {}) or {}).keys():
+                        if k not in names:
+                            names.append(k)
+                    for p in (getattr(args, "providers_list", []) or []):
+                        if p not in names:
+                            names.append(p)
+                    if not names:
+                        warn("No providers configured; enter manually.")
+                        ov["provider"] = _safe_input("Provider: ").strip() or ov.get("provider") or ""
+                    else:
+                        pi = prompt_choice("Use which provider?", names)
+                        ov["provider"] = names[pi]
+                else:
+                    ov["provider"] = _safe_input("Provider: ").strip() or ov.get("provider") or ""
             elif idx == 1:
                 # Model: allow manual entry or auto-detect from server
                 mode = prompt_choice("Set model", ["Enter manually", "Auto-detect from server"])
@@ -719,13 +777,17 @@ def _edit_profile_entry_interactive(args, name: str) -> None:
                         err(f"Model detection failed: {e}")
             elif idx == 2:
                 # Context window: manual or auto-detect for current model
-                mode = prompt_choice("Set context window", ["Enter value", "Auto-detect for current model"])
+                mode = prompt_choice("Set context window", ["Enter value", "Auto-detect for current model", "Skip (no change)"])
                 if mode == 0:
-                    try:
-                        ov["model_context_window"] = int(_safe_input("Context window: ").strip() or "0")
-                    except Exception:
-                        pass
+                    s = _safe_input("Context window (blank to skip): ").strip()
+                    if s:
+                        try:
+                            ov["model_context_window"] = int(s)
+                        except Exception:
+                            pass
                 else:
+                    if mode == 2:
+                        continue
                     base = (getattr(args, "base_url", "") or "").strip()
                     if not base:
                         base = _safe_input("Base URL for detection (e.g., http://localhost:1234/v1): ").strip()
@@ -752,75 +814,127 @@ def _edit_profile_entry_interactive(args, name: str) -> None:
                     except Exception as e:
                         err(f"Context window detection failed: {e}")
             elif idx == 3:
-                try:
-                    ov["model_max_output_tokens"] = int(
-                        _safe_input("Max output tokens: ").strip() or "0"
-                    )
-                except Exception:
-                    pass
+                s = _safe_input("Max output tokens (blank to skip, 'null' to clear): ").strip()
+                if s:
+                    if _is_null_input(s):
+                        ov["model_max_output_tokens"] = ""
+                    else:
+                        try:
+                            ov["model_max_output_tokens"] = int(s)
+                        except Exception:
+                            pass
             elif idx == 4:
                 i2 = prompt_choice(
                     "Approval policy",
-                    ["untrusted", "on-failure", "on-request", "never"],
+                    ["untrusted", "on-failure", "on-request", "never", "Skip (no change)", "Set to null"],
                 )
-                ov["approval_policy"] = [
-                    "untrusted",
-                    "on-failure",
-                    "on-request",
-                    "never",
-                ][i2]
+                if i2 < 4:
+                    ov["approval_policy"] = [
+                        "untrusted",
+                        "on-failure",
+                        "on-request",
+                        "never",
+                    ][i2]
+                elif i2 == 5:
+                    ov["approval_policy"] = ""
             elif idx == 5:
                 i2 = prompt_choice(
                     "File opener",
-                    ["vscode", "vscode-insiders", "windsurf", "cursor", "none"],
+                    ["vscode", "vscode-insiders", "windsurf", "cursor", "none", "Skip (no change)", "Set to null"],
                 )
-                ov["file_opener"] = [
-                    "vscode",
-                    "vscode-insiders",
-                    "windsurf",
-                    "cursor",
-                    "none",
-                ][i2]
+                if i2 < 5:
+                    ov["file_opener"] = [
+                        "vscode",
+                        "vscode-insiders",
+                        "windsurf",
+                        "cursor",
+                        "none",
+                    ][i2]
+                elif i2 == 6:
+                    ov["file_opener"] = ""
             elif idx == 6:
-                i2 = prompt_choice("Reasoning effort", ["minimal", "low", "medium", "high", "auto"])
-                ov["model_reasoning_effort"] = ["minimal", "low", "medium", "high", "auto"][i2]
+                i2 = prompt_choice("Reasoning effort", ["minimal", "low", "medium", "high", "auto", "Skip (no change)", "Set to null"])
+                if i2 < 5:
+                    ov["model_reasoning_effort"] = ["minimal", "low", "medium", "high", "auto"][i2]
+                elif i2 == 6:
+                    ov["model_reasoning_effort"] = ""
             elif idx == 7:
-                i2 = prompt_choice("Reasoning summary", ["auto", "concise", "detailed", "none"])
-                ov["model_reasoning_summary"] = ["auto", "concise", "detailed", "none"][i2]
+                i2 = prompt_choice("Reasoning summary", ["auto", "concise", "detailed", "none", "Skip (no change)", "Set to null"])
+                if i2 < 4:
+                    ov["model_reasoning_summary"] = ["auto", "concise", "detailed", "none"][i2]
+                elif i2 == 5:
+                    ov["model_reasoning_summary"] = ""
             elif idx == 8:
-                i2 = prompt_choice("Verbosity", ["low", "medium", "high"])
-                ov["model_verbosity"] = ["low", "medium", "high"][i2]
+                i2 = prompt_choice("Verbosity", ["low", "medium", "high", "Skip (no change)", "Set to null"])
+                if i2 < 3:
+                    ov["model_verbosity"] = ["low", "medium", "high"][i2]
+                elif i2 == 4:
+                    ov["model_verbosity"] = ""
             elif idx == 9:
-                i2 = prompt_choice("Disable response storage", ["true", "false"])
-                ov["disable_response_storage"] = True if i2 == 0 else False
+                i2 = prompt_choice("Disable response storage", ["true", "false", "Skip (no change)", "Set to null"])
+                if i2 < 2:
+                    ov["disable_response_storage"] = True if i2 == 0 else False
+                elif i2 == 3:
+                    ov["disable_response_storage"] = ""
             elif idx == 10:
-                i2 = prompt_choice("Sandbox mode", ["read-only", "workspace-write", "danger-full-access"])
-                ov["sandbox_mode"] = ["read-only", "workspace-write", "danger-full-access"][i2]
+                i2 = prompt_choice("Sandbox mode", ["read-only", "workspace-write", "danger-full-access", "Skip (no change)", "Set to null"])
+                if i2 < 3:
+                    ov["sandbox_mode"] = ["read-only", "workspace-write", "danger-full-access"][i2]
+                elif i2 == 4:
+                    ov["sandbox_mode"] = ""
             elif idx == 11:
-                ov["chatgpt_base_url"] = _safe_input("ChatGPT base URL: ").strip()
+                s = _safe_input("ChatGPT base URL (blank to skip, 'null' to clear): ").strip()
+                if s:
+                    if _is_null_input(s):
+                        ov["chatgpt_base_url"] = ""
+                    else:
+                        ov["chatgpt_base_url"] = s
             elif idx == 12:
-                i2 = prompt_choice("Preferred auth method", ["apikey", "chatgpt"])
-                ov["preferred_auth_method"] = ["apikey", "chatgpt"][i2]
+                i2 = prompt_choice("Preferred auth method", ["apikey", "chatgpt", "Skip (no change)", "Set to null"])
+                if i2 < 2:
+                    ov["preferred_auth_method"] = ["apikey", "chatgpt"][i2]
+                elif i2 == 3:
+                    ov["preferred_auth_method"] = ""
             elif idx == 13:
-                i2 = prompt_choice("Hide agent reasoning", ["true", "false"])
-                ov["hide_agent_reasoning"] = True if i2 == 0 else False
+                i2 = prompt_choice("Hide agent reasoning", ["true", "false", "Set to null"])
+                if i2 == 2:
+                    ov["hide_agent_reasoning"] = ""
+                else:
+                    ov["hide_agent_reasoning"] = True if i2 == 0 else False
             elif idx == 14:
-                i2 = prompt_choice("Show raw agent reasoning", ["true", "false"])
-                ov["show_raw_agent_reasoning"] = True if i2 == 0 else False
+                i2 = prompt_choice("Show raw agent reasoning", ["true", "false", "Set to null"])
+                if i2 == 2:
+                    ov["show_raw_agent_reasoning"] = ""
+                else:
+                    ov["show_raw_agent_reasoning"] = True if i2 == 0 else False
             elif idx == 15:
-                i2 = prompt_choice("Model supports reasoning summaries", ["true", "false"])
-                ov["model_supports_reasoning_summaries"] = True if i2 == 0 else False
+                i2 = prompt_choice("Model supports reasoning summaries", ["true", "false", "Set to null"])
+                if i2 == 2:
+                    ov["model_supports_reasoning_summaries"] = ""
+                else:
+                    ov["model_supports_reasoning_summaries"] = True if i2 == 0 else False
             elif idx == 16:
-                i2 = prompt_choice("History persistence", ["save-all", "none"])
-                ov["history_persistence"] = ["save-all", "none"][i2]
+                i2 = prompt_choice("History persistence", ["save-all", "none", "Set to null"])
+                if i2 == 2:
+                    ov["history_persistence"] = ""
+                else:
+                    ov["history_persistence"] = ["save-all", "none"][i2]
             elif idx == 17:
-                try:
-                    ov["history_max_bytes"] = int(_safe_input("History max bytes: ").strip() or "0")
-                except Exception:
-                    pass
+                s = _safe_input("History max bytes (blank to skip, 'null' to clear): ").strip()
+                if s:
+                    if _is_null_input(s):
+                        ov["history_max_bytes"] = ""
+                    else:
+                        try:
+                            ov["history_max_bytes"] = int(s)
+                        except Exception:
+                            pass
             elif idx == 18:
-                i2 = prompt_choice("tools.web_search", ["true", "false"])
-                ov["tools_web_search"] = True if i2 == 0 else False
+                i2 = prompt_choice("tools.web_search", ["true", "false", "Set to null"])
+                if i2 == 2:
+                    ov["tools_web_search"] = ""
+                else:
+                    ov["tools_web_search"] = True if i2 == 0 else False
         elif act == 1:
             # Edit all fields in sequence
             ov["provider"] = _safe_input("Provider: ").strip() or ov.get("provider") or ""
@@ -1569,6 +1683,31 @@ def _input_env_kv(
     return env
 
 
+def _parse_brace_kv(raw: str) -> Dict[str, str]:
+    """Parse a curly-brace KV object like {k=v, a=b} into a dict.
+
+    Accepts input with or without surrounding braces. Whitespace is trimmed.
+    """
+    s = (raw or "").strip()
+    if not s:
+        return {}
+    if s.startswith("{") and s.endswith("}"):
+        s = s[1:-1]
+    out: Dict[str, str] = {}
+    for part in s.split(","):
+        if "=" in part:
+            k, v = part.split("=", 1)
+            k = k.strip()
+            v = v.strip()
+            # Values may be quoted; strip surrounding single or double quotes
+            if (v.startswith('"') and v.endswith('"')) or (v.startswith("'") and v.endswith("'")):
+                if len(v) >= 2:
+                    v = v[1:-1]
+            if k:
+                out[k] = v
+    return out
+
+
 def _print_item_with_desc(label: str, value: Any, desc: str) -> None:
     """Print a labeled value with a short description below it."""
     print(f"  {label}: {value}")
@@ -1860,17 +1999,20 @@ def manage_providers_interactive(args) -> None:
             # Wire API choice (chat|responses); default "responses" for Azure else "chat"
             default_wire = "responses" if ((add_mode == 0 and chosen_pid == "azure") or pid == "azure") else "chat"
             print(c("Wire API — choose 'chat' (Chat Completions) or 'responses' (Responses API).", GRAY))
-            wi = prompt_choice("Wire API", ["chat", "responses"])
-            override_entry["wire_api"] = ["chat", "responses"][wi]
+            wi = prompt_choice("Wire API", ["chat", "responses", "Skip (use default)"])
+            if wi < 2:
+                override_entry["wire_api"] = ["chat", "responses"][wi]
             # Query params: prefill Azure api-version if provided; allow editing
             qpi = {}
             if (add_mode == 0 and 'apiver' in locals() and apiver):
                 qpi = {"api-version": apiver}
             # Let user add/override query params
             print(c("Query params — URL query parameters (e.g., api-version for Azure).", GRAY))
-            qp_mode = prompt_choice("Query params", ["Keep defaults", "Edit (CSV KEY=VAL)"])
+            qp_mode = prompt_choice("Query params", ["Keep defaults", "Edit ({key=\"value\",...})"])
             if qp_mode == 1:
-                qpi = _input_env_kv("Query params CSV (KEY=VAL,...): ", qpi)
+                raw = _safe_input("Query params object (e.g., {api-version=\"2025-04-01-preview\"}): ").strip()
+                if raw:
+                    qpi = _parse_brace_kv(raw)
             if qpi:
                 override_entry["query_params"] = qpi
             # HTTP headers: offer presets
@@ -1938,17 +2080,37 @@ def manage_providers_interactive(args) -> None:
             ov = dict((args.provider_overrides or {}).get(pid) or {})
             print()
             print(c(f"Edit provider [{pid}]", BOLD))
+            # Provider defaults for descriptions
+            df_name = PROVIDER_LABELS.get(pid, pid.capitalize())
+            df_base = _default_base_for_provider_id(pid)
+            df_env_map = {
+                "openai": "OPENAI_API_KEY",
+                "openrouter-remote": "OPENROUTER_API_KEY",
+                "anthropic": "ANTHROPIC_API_KEY",
+                "azure": "AZURE_OPENAI_API_KEY",
+                "groq": "GROQ_API_KEY",
+                "mistral": "MISTRAL_API_KEY",
+                "deepseek": "DEEPSEEK_API_KEY",
+                "cohere": "COHERE_API_KEY",
+                "baseten": "BASETEN_API_KEY",
+            }
+            df_env = df_env_map.get(pid, f"{pid.upper().replace('-', '_')}_API_KEY")
+            df_wire = (ov.get("wire_api") or ("responses" if pid == "azure" else getattr(args, "wire_api", "chat")))
+            df_qp = (ov.get("query_params") or ({"api-version": getattr(args, "azure_api_version", "")} if pid == "azure" and getattr(args, "azure_api_version", "") else {}))
+            df_req = getattr(args, "request_max_retries", 4)
+            df_stream = getattr(args, "stream_max_retries", 10)
+            df_idle = getattr(args, "stream_idle_timeout_ms", 300000)
             items = [
-                ("Display name", ov.get("name", PROVIDER_LABELS.get(pid, pid.capitalize())), "Display name shown in tools and UIs."),
-                ("Base URL", ov.get("base_url", ""), "OpenAI-compatible API base URL (e.g., https://host:port/v1 or Azure https://<res>.openai.azure.com/openai)."),
-                ("Env key", ov.get("env_key", ""), "Environment variable name where the API key is stored."),
-                ("Wire API", ov.get("wire_api", getattr(args, "wire_api", "chat")), "Protocol used: 'chat' (Chat Completions) or 'responses' (Responses API)."),
-                ("Query params", ov.get("query_params", {}), "URL query parameters (e.g., api-version for Azure)."),
-                ("HTTP headers", ov.get("http_headers", {}), "Static HTTP headers to include with each request (KEY=VAL)."),
-                ("Env HTTP headers", ov.get("env_http_headers", {}), "HTTP headers sourced from environment variables (KEY=ENV)."),
-                ("Request max retries", str(ov.get("request_max_retries", getattr(args, "request_max_retries", 4))), "HTTP retry count for initial request (integer)."),
-                ("Stream max retries", str(ov.get("stream_max_retries", getattr(args, "stream_max_retries", 10))), "Retry count for SSE streaming (integer)."),
-                ("Stream idle timeout ms", str(ov.get("stream_idle_timeout_ms", getattr(args, "stream_idle_timeout_ms", 300000))), "SSE idle timeout in milliseconds (integer)."),
+                ("Display name", ov.get("name", df_name), f"Display name shown in tools and UIs. Default: {df_name}"),
+                ("Base URL", ov.get("base_url", ""), f"OpenAI-compatible API base URL. Default: {df_base or '<requires input>'}"),
+                ("Env key", ov.get("env_key", ""), f"Environment variable for API key. Default: {df_env}"),
+                ("Wire API", ov.get("wire_api", getattr(args, "wire_api", "chat")), f"Protocol: chat or responses. Default: {df_wire}"),
+                ("Query params", ov.get("query_params", {}), f"URL query parameters (e.g., api-version). Default: {df_qp if df_qp else '{}'}"),
+                ("HTTP headers", ov.get("http_headers", {}), "Static headers (KEY=VAL). Default: {}"),
+                ("Env HTTP headers", ov.get("env_http_headers", {}), "Env headers (KEY=ENV). Default: {}"),
+                ("Request max retries", str(ov.get("request_max_retries", df_req)), f"HTTP retry count. Default: {df_req}"),
+                ("Stream max retries", str(ov.get("stream_max_retries", df_stream)), f"SSE retries. Default: {df_stream}"),
+                ("Stream idle timeout ms", str(ov.get("stream_idle_timeout_ms", df_idle)), f"SSE idle timeout (ms). Default: {df_idle}"),
             ]
             for i2, (lbl, val, dsc) in enumerate(items, 1):
                 print(f"  {i2}.")
@@ -1995,15 +2157,39 @@ def manage_providers_interactive(args) -> None:
                     wi = prompt_choice("Wire API", ["chat", "responses"])
                     ov["wire_api"] = ["chat", "responses"][wi]
                 elif fi == 5:
-                    # Query params CSV
-                    oqp = ov.get("query_params", {}) or {}
-                    ov["query_params"] = _input_env_kv("Query params CSV (KEY=VAL,...): ", oqp)
+                    # Query params object with null/skip support
+                    raw = _safe_input("Query params object ({key=\"value\",...}) (blank=skip, 'null'=clear): ").strip()
+                    if raw:
+                        if _is_null_input(raw):
+                            ov["query_params"] = {}
+                        else:
+                            ov["query_params"] = _parse_brace_kv(raw)
                 elif fi == 6:
-                    oh = ov.get("http_headers", {}) or {}
-                    ov["http_headers"] = _input_env_kv("HTTP headers CSV (KEY=VAL,...): ", oh)
+                    raw = _safe_input("HTTP headers CSV (KEY=VAL,...) (blank=skip, 'null'=clear): ").strip()
+                    if raw:
+                        if _is_null_input(raw):
+                            ov.pop("http_headers", None)
+                        else:
+                            env: Dict[str,str] = {}
+                            for pair in raw.split(","):
+                                if "=" in pair:
+                                    k,v = pair.split("=",1)
+                                    if k.strip():
+                                        env[k.strip()] = v.strip()
+                            ov["http_headers"] = env
                 elif fi == 7:
-                    oeh = ov.get("env_http_headers", {}) or {}
-                    ov["env_http_headers"] = _input_env_kv("Env headers CSV (KEY=ENV,...): ", oeh)
+                    raw = _safe_input("Env headers CSV (KEY=ENV,...) (blank=skip, 'null'=clear): ").strip()
+                    if raw:
+                        if _is_null_input(raw):
+                            ov.pop("env_http_headers", None)
+                        else:
+                            env: Dict[str,str] = {}
+                            for pair in raw.split(","):
+                                if "=" in pair:
+                                    k,v = pair.split("=",1)
+                                    if k.strip():
+                                        env[k.strip()] = v.strip()
+                            ov["env_http_headers"] = env
                 elif fi == 8:
                     try:
                         ov["request_max_retries"] = int(
@@ -2047,5 +2233,3 @@ def manage_providers_interactive(args) -> None:
                 info("Removal cancelled.")
         else:
             break
-
-
