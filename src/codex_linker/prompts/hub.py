@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from ..state import LinkerState
 from ..ui import c, BOLD, info
-from .input_utils import prompt_choice
+from .input_utils import prompt_choice, fmt, set_emojis_enabled
 from .profiles import manage_profiles_interactive
 from .mcp import manage_mcp_servers_interactive
 from .providers import manage_providers_interactive
@@ -17,14 +17,17 @@ def _handle_ctrlc_in_hub() -> None:
         print()
         raise SystemExit(0)
     from ..ui import warn
+    from .input_utils import fmt
 
-    warn("Press Ctrl-C again to exit ⏹️  Returning to main menu… 🏠")
+    warn(fmt("Press Ctrl-C again to exit ⏹️  Returning to main menu… 🏠"))
 
 
 def interactive_settings_editor(state: LinkerState, args) -> str:
     while True:
         print()
-        print(c("Interactive settings ⚙️:", BOLD))
+        # Honor CLI toggle for emojis
+        set_emojis_enabled(not getattr(args, "no_emojis", False))
+        print(c(fmt("Interactive settings ⚙️:"), BOLD))
         try:
             hub = prompt_choice(
                 "Start with",
@@ -85,4 +88,3 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
             return "quit"
         # hub == 3: Global settings are handled in the old flow, keep loop
         continue
-

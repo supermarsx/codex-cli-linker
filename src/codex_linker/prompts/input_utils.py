@@ -18,6 +18,27 @@ from ..ui import (
     MAGENTA,
 )
 
+NO_EMOJIS = False
+_EMOJIS = {"👤","🧰","🔌","⚙️","🚀","🧭","❌","💾","📝","⬅️","🗑️","✏️","🏠","🏷️","✅","⏹️"}
+
+
+def set_emojis_enabled(enabled: bool) -> None:
+    """Enable or disable emojis globally for interactive prompts."""
+    global NO_EMOJIS
+    NO_EMOJIS = not enabled
+
+
+def fmt(text: str) -> str:
+    """Return text with emojis stripped when disabled."""
+    if not NO_EMOJIS:
+        return text
+    out = []
+    for ch in text:
+        if ch in _EMOJIS:
+            continue
+        out.append(ch)
+    return "".join(out)
+
 
 def _safe_input(prompt: str) -> str:
     """input() that propagates Ctrl-C so callers can decide behavior."""
@@ -58,11 +79,11 @@ def _arrow_choice(prompt: str, options: List[str]) -> Optional[int]:
     numbuf: str = ""
 
     def draw() -> None:
-        print(c(prompt, BOLD))
+        print(c(fmt(prompt), BOLD))
         palette = [RED, YELLOW, GREEN, CYAN, BLUE, MAGENTA]
         for i, opt in enumerate(options):
             marker = "➤" if i == idx else " "
-            line = f" {marker} {opt}"
+            line = f" {marker} {fmt(opt)}"
             if use_color:
                 col = palette[i % len(palette)] if palette else CYAN
                 if i == idx:
@@ -159,11 +180,11 @@ def prompt_choice(prompt: str, options: List[str]) -> int:
         if use_color:
             palette = [RED, YELLOW, GREEN, CYAN, BLUE, MAGENTA]
             col = palette[(i - 1) % len(palette)]
-            print(c(f"  {i}. {opt}", col))
+            print(c(f"  {i}. {fmt(opt)}", col))
         else:
-            print(f"  {i}. {opt}")
+            print(f"  {i}. {fmt(opt)}")
     while True:
-        s = _safe_input(f"{prompt} [1-{len(options)}]: ").strip()
+        s = _safe_input(f"{fmt(prompt)} [1-{len(options)}]: ").strip()
         if s.isdigit() and 1 <= int(s) <= len(options):
             return int(s) - 1
         err("Invalid choice.")
@@ -249,4 +270,3 @@ def _print_item_with_desc(label: str, value: Any, desc: str) -> None:
     print(f"  {label}: {value}")
     if desc:
         print(c(f"     – {desc}", GRAY))
-

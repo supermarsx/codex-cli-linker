@@ -26,7 +26,7 @@ from ..spec import (
 )
 from ..ui import c, BOLD, CYAN, GRAY, ok, info, warn, err
 from ..io_safe import AUTH_JSON, write_auth_json_merge
-from .input_utils import prompt_choice, _safe_input, _is_null_input, _parse_brace_kv
+from .input_utils import prompt_choice, _safe_input, _is_null_input, _parse_brace_kv, fmt
 
 
 def _default_base_for_provider_id(pid: str) -> str:
@@ -61,7 +61,7 @@ def manage_providers_interactive(args) -> None:
         args.provider_overrides = {}
     while True:
         print()
-        print(c("Providers 🔌:", BOLD))
+        print(c(fmt("Providers 🔌:"), BOLD))
         names: List[str] = []
         if getattr(args, "provider", None):
             names.append(args.provider)
@@ -385,4 +385,3 @@ def manage_providers_interactive(args) -> None:
                 info("Removal cancelled.")
         else:
             break
-

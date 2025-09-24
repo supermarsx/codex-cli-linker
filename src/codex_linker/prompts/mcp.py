@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import List, Dict, Any
 
 from ..ui import c, BOLD, CYAN, GRAY, info, warn, ok
-from .input_utils import prompt_choice, _input_list_json, _input_env_kv
+from .input_utils import prompt_choice, _input_list_json, _input_env_kv, fmt
 
 
 def manage_mcp_servers_interactive(args) -> None:
@@ -15,7 +15,7 @@ def manage_mcp_servers_interactive(args) -> None:
     while True:
         names = list_servers()
         print()
-        print(c("MCP servers 🧰:", BOLD))
+        print(c(fmt("MCP servers 🧰:"), BOLD))
         if not names:
             info("(none)")
         else:
@@ -114,4 +114,3 @@ def _edit_mcp_entry_interactive(args, name: str, entry: Dict[str, Any], creating
             raise KeyboardInterrupt
         else:
             return
-
