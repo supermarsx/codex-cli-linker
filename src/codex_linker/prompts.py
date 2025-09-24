@@ -49,6 +49,23 @@ from .ui import (
 )
 from .io_safe import AUTH_JSON, atomic_write_with_backup, write_auth_json_merge
 
+# Track Ctrl-C presses at the hub to support "double Ctrl-C to exit"
+_HUB_CTRL_C_COUNT = 0
+
+
+def _handle_ctrlc_in_hub() -> None:
+    """On first Ctrl-C at the hub, warn; on second, exit.
+
+    This avoids accidentally quitting the tool. Editors and nested flows should
+    catch KeyboardInterrupt and return to the hub.
+    """
+    global _HUB_CTRL_C_COUNT
+    _HUB_CTRL_C_COUNT += 1
+    if _HUB_CTRL_C_COUNT >= 2:
+        print()
+        sys.exit(0)
+    warn("Press Ctrl-C again to exit. Returning to main menu…")
+
 
 def _safe_input(prompt: str) -> str:
     """input() that exits cleanly on Ctrl-C during interactive flows."""
@@ -716,8 +733,10 @@ def _edit_profile_entry_interactive(args, name: str) -> None:
             ("Tools: web_search", "true" if ov.get("tools_web_search") else "false", f"Default: {'true' if df_tools_ws else 'false'}"),
         ]
         for i, (lbl, val, dsc) in enumerate(items, 1):
-            print(f"  {i}.")
-            _print_item_with_desc(lbl, val, dsc)
+            line = f"  {i}. {lbl}: {val}"
+            if dsc:
+                line += " " + c(f"[{dsc}]", GRAY)
+            print(line)
         act = prompt_choice("Action", ["Edit field", "Edit all fields", "Save", "Cancel"])
         if act == 0:
             s = input("Field number: ").strip()
@@ -1018,6 +1037,7 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
                     "Manage providers",
                     "Manage global settings",
                     "Actions…",
+                    "Legacy pipeline (guided)",
                     "Quit (no write)",
                 ],
             )
@@ -1057,6 +1077,8 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
             # Back to hub
             continue
         if hub == 5:
+            return "legacy"
+        if hub == 6:
             return "quit"
         items = [
             (
@@ -1141,7 +1163,7 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
                     "Env HTTP headers (CSV KEY=ENV)",
                     ",".join(getattr(args, "env_http_header", []) or []) or "",
                 ),
-                ("Notify (CSV or JSON array)", getattr(args, "notify", "") or ""),
+                ("Notify (JSON array)", getattr(args, "notify", "") or ""),
                 ("Instructions", args.instructions or ""),
                 (
                     "Experimental resume",
@@ -1361,8 +1383,14 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
             elif label == "Env HTTP headers (CSV KEY=ENV)":
                 raw = input("Env headers CSV: ").strip()
                 args.env_http_header = [s.strip() for s in raw.split(",") if s.strip()]
-            elif label == "Notify (CSV or JSON array)":
-                args.notify = input("Notify (CSV or JSON array): ").strip()
+            elif label == "Notify (JSON array)":
+                # Expect a JSON array like ["-y", "mcp-server"] (quoted values)
+                arr = _input_list_json("Notify (JSON array)", None)
+                # Store as JSON string to preserve quoting; render will handle it
+                try:
+                    args.notify = _json.dumps(arr)
+                except Exception:
+                    args.notify = ""
             elif label == "Instructions":
                 args.instructions = input("Instructions: ").strip()
             elif label == "Experimental resume":
@@ -1558,8 +1586,12 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
                 elif label == "Env HTTP headers (CSV KEY=ENV)":
                     raw = input("Env headers CSV: ").strip()
                     args.env_http_header = [s.strip() for s in raw.split(",") if s.strip()]
-                elif label == "Notify (CSV or JSON array)":
-                    args.notify = input("Notify (CSV or JSON array): ").strip()
+                elif label == "Notify (JSON array)":
+                    arr = _input_list_json("Notify (JSON array)")
+                    try:
+                        args.notify = _json.dumps(arr)
+                    except Exception:
+                        args.notify = ""
                 elif label == "Instructions":
                     args.instructions = input("Instructions: ").strip()
                 elif label == "Experimental resume":
@@ -1912,7 +1944,11 @@ def manage_providers_interactive(args) -> None:
                     if default_base:
                         label += f"  [{default_base}]"
                     labels.append(label)
+                labels.append("Go back to main menu")
                 sel = prompt_choice("Preset", labels)
+                if sel == len(labels) - 1:
+                    # Return all the way back to the interactive hub
+                    return
                 chosen_pid = preset_ids[sel]
                 # Allow renaming with prefilled name
                 default_pid = chosen_pid
@@ -1990,7 +2026,7 @@ def manage_providers_interactive(args) -> None:
                     "Preset: Azure api-key",
                     "Preset: Anthropic x-api-key",
                     "Preset: Authorization from env",
-                    "Custom (CSV KEY=VAL)",
+                    "Custom ({key=\"value\",...})",
                 ],
             )
             http_headers = {}
@@ -2002,8 +2038,13 @@ def manage_providers_interactive(args) -> None:
             elif hdr_mode == 3:
                 env_http_headers = {"Authorization": envk}
             elif hdr_mode == 4:
-                http_headers = _input_env_kv("HTTP headers CSV (KEY=VAL,...): ", {})
-                env_http_headers = _input_env_kv("Env headers CSV (KEY=ENV,...): ", {})
+                # Use brace-style key=value object with quoted values
+                http_raw = _safe_input("HTTP headers object ({Key=\"Value\",...}) [blank=skip]: ").strip()
+                if http_raw:
+                    http_headers = _parse_brace_kv(http_raw)
+                env_raw = _safe_input("Env headers object ({Header=\"ENV_VAR\",...}) [blank=skip]: ").strip()
+                if env_raw:
+                    env_http_headers = _parse_brace_kv(env_raw)
             if http_headers:
                 override_entry["http_headers"] = http_headers
             if env_http_headers:
@@ -2037,142 +2078,153 @@ def manage_providers_interactive(args) -> None:
             if pid not in args.providers_list and pid != getattr(args, "provider", None):
                 args.providers_list.append(pid)
             ok(f"Saved provider '{pid}'")
+
         elif choice == 1:
             if not names:
                 warn("No providers to edit.")
                 continue
             idx = prompt_choice("Edit which?", names)
             pid = names[idx]
-            ov = dict((args.provider_overrides or {}).get(pid) or {})
-            print()
-            print(c(f"Edit provider [{pid}]", BOLD))
-            # Provider defaults for descriptions
-            df_name = PROVIDER_LABELS.get(pid, pid.capitalize())
-            df_base = _default_base_for_provider_id(pid)
-            df_env_map = {
-                "openai": "OPENAI_API_KEY",
-                "openrouter-remote": "OPENROUTER_API_KEY",
-                "anthropic": "ANTHROPIC_API_KEY",
-                "azure": "AZURE_OPENAI_API_KEY",
-                "groq": "GROQ_API_KEY",
-                "mistral": "MISTRAL_API_KEY",
-                "deepseek": "DEEPSEEK_API_KEY",
-                "cohere": "COHERE_API_KEY",
-                "baseten": "BASETEN_API_KEY",
-            }
-            df_env = df_env_map.get(pid, f"{pid.upper().replace('-', '_')}_API_KEY")
-            df_wire = (ov.get("wire_api") or ("responses" if pid == "azure" else getattr(args, "wire_api", "chat")))
-            df_qp = (ov.get("query_params") or ({"api-version": getattr(args, "azure_api_version", "")} if pid == "azure" and getattr(args, "azure_api_version", "") else {}))
-            df_req = getattr(args, "request_max_retries", 4)
-            df_stream = getattr(args, "stream_max_retries", 10)
-            df_idle = getattr(args, "stream_idle_timeout_ms", 300000)
-            items = [
-                ("Display name", ov.get("name", df_name), f"Display name shown in tools and UIs. Default: {df_name}"),
-                ("Base URL", ov.get("base_url", ""), f"OpenAI-compatible API base URL. Default: {df_base or '<requires input>'}"),
-                ("Env key", ov.get("env_key", ""), f"Environment variable for API key. Default: {df_env}"),
-                ("Wire API", ov.get("wire_api", getattr(args, "wire_api", "chat")), f"Protocol: chat or responses. Default: {df_wire}"),
-                ("Query params", ov.get("query_params", {}), f"URL query parameters (e.g., api-version). Default: {df_qp if df_qp else '{}'}"),
-                ("HTTP headers", ov.get("http_headers", {}), "Static headers (KEY=VAL). Default: {}"),
-                ("Env HTTP headers", ov.get("env_http_headers", {}), "Env headers (KEY=ENV). Default: {}"),
-                ("Request max retries", str(ov.get("request_max_retries", df_req)), f"HTTP retry count. Default: {df_req}"),
-                ("Stream max retries", str(ov.get("stream_max_retries", df_stream)), f"SSE retries. Default: {df_stream}"),
-                ("Stream idle timeout ms", str(ov.get("stream_idle_timeout_ms", df_idle)), f"SSE idle timeout (ms). Default: {df_idle}"),
-            ]
-            for i2, (lbl, val, dsc) in enumerate(items, 1):
-                print(f"  {i2}.")
-                _print_item_with_desc(lbl, val, dsc)
-            act = prompt_choice("Action", ["Edit field", "Save", "Cancel"])
-            if act == 0:
-                s = _safe_input("Field number: ").strip()
-                if not s.isdigit():
-                    continue
-                fi = int(s)
-                if fi == 1:
-                    ov["name"] = _safe_input("Display name: ").strip() or ov.get("name", PROVIDER_LABELS.get(pid, pid.capitalize()))
-                elif fi == 2:
-                    ov["base_url"] = _safe_input("Base URL: ").strip()
-                elif fi == 3:
-                    ov["env_key"] = _safe_input("Env key name: ").strip() or ov.get("env_key", "")
-                    # Optionally set new secret
-                    try:
-                        secret = getpass.getpass(
-                            f"Enter API key for {pid} (env {ov['env_key']}) [blank to skip]: "
-                        ).strip()
-                    except Exception:
-                        secret = _safe_input(
-                            f"Enter API key for {pid} (env {ov['env_key']}) [blank to skip]: "
-                        ).strip()
-                    if secret:
+            # Loop inside this provider until save/cancel
+            while True:
+                ov = dict((args.provider_overrides or {}).get(pid) or {})
+                print()
+                print(c(f"Edit provider [{pid}]", BOLD))
+                # Provider defaults
+                df_name = PROVIDER_LABELS.get(pid, pid.capitalize())
+                df_base = _default_base_for_provider_id(pid)
+                df_env_map = {
+                    "openai": "OPENAI_API_KEY",
+                    "openrouter-remote": "OPENROUTER_API_KEY",
+                    "anthropic": "ANTHROPIC_API_KEY",
+                    "azure": "AZURE_OPENAI_API_KEY",
+                    "groq": "GROQ_API_KEY",
+                    "mistral": "MISTRAL_API_KEY",
+                    "deepseek": "DEEPSEEK_API_KEY",
+                    "cohere": "COHERE_API_KEY",
+                    "baseten": "BASETEN_API_KEY",
+                }
+                df_env = df_env_map.get(pid, f"{pid.upper().replace('-', '_')}_API_KEY")
+                df_wire = ov.get("wire_api") or ("responses" if pid == "azure" else getattr(args, "wire_api", "chat"))
+                df_qp = ov.get("query_params") or ({"api-version": getattr(args, "azure_api_version", "")} if pid == "azure" and getattr(args, "azure_api_version", "") else {})
+                df_req = getattr(args, "request_max_retries", 4)
+                df_stream = getattr(args, "stream_max_retries", 10)
+                df_idle = getattr(args, "stream_idle_timeout_ms", 300000)
+                items = [
+                    ("Display name", ov.get("name", df_name), f"Default: {df_name}"),
+                    ("Base URL", ov.get("base_url", ""), f"Default: {df_base or '<requires input>'}"),
+                    ("Env key", ov.get("env_key", ""), f"Default: {df_env}"),
+                    ("Wire API", ov.get("wire_api", getattr(args, "wire_api", "chat")), f"Default: {df_wire}"),
+                    ("Query params", ov.get("query_params", {}), f"Default: {df_qp if df_qp else '{}'}"),
+                    ("HTTP headers", ov.get("http_headers", {}), "Default: {}"),
+                    ("Env HTTP headers", ov.get("env_http_headers", {}), "Default: {}"),
+                    ("Request max retries", str(ov.get("request_max_retries", df_req)), f"Default: {df_req}"),
+                    ("Stream max retries", str(ov.get("stream_max_retries", df_stream)), f"Default: {df_stream}"),
+                    ("Stream idle timeout ms", str(ov.get("stream_idle_timeout_ms", df_idle)), f"Default: {df_idle}"),
+                ]
+                for i2, (lbl, val, dsc) in enumerate(items, 1):
+                    line = f"  {i2}. {lbl}: {val}"
+                    if dsc:
+                        line += " " + c(f"[{dsc}]", GRAY)
+                    print(line)
+                act = prompt_choice("Action", ["Edit field", "Rename provider id", "Save", "Cancel"])
+                if act == 0:
+                    s_in = _safe_input("Field number: ").strip()
+                    if not s_in.isdigit():
+                        continue
+                    fi = int(s_in)
+                    if fi == 1:
+                        ov["name"] = _safe_input("Display name: ").strip() or ov.get("name", df_name)
+                    elif fi == 2:
+                        s2 = _safe_input("Base URL (blank=skip, 'null'=empty): ").strip()
+                        if s2:
+                            ov["base_url"] = "" if _is_null_input(s2) else s2
+                    elif fi == 3:
+                        s2 = _safe_input("Env key name (blank=skip, 'null'=empty): ").strip()
+                        if s2:
+                            ov["env_key"] = "" if _is_null_input(s2) else s2
                         try:
-                            import json as _json
-
+                            secret = getpass.getpass(f"Enter API key for {pid} (env {ov['env_key']}) [blank to skip]: ").strip()
+                        except Exception:
+                            secret = _safe_input(f"Enter API key for {pid} (env {ov['env_key']}) [blank to skip]: ").strip()
+                        if secret:
                             write_auth_json_merge(AUTH_JSON, {ov["env_key"]: secret})
                             ok(f"Updated {AUTH_JSON} with {ov['env_key']}")
                             warn("Never commit this file; it contains a secret.")
-                        except Exception as e:
-                            err(f"Could not update {AUTH_JSON}: {e}")
-                elif fi == 4:
-                    wi = prompt_choice("Wire API", ["chat", "responses"])
-                    ov["wire_api"] = ["chat", "responses"][wi]
-                elif fi == 5:
-                    # Query params object with null/skip support
-                    raw = _safe_input("Query params object ({key=\"value\",...}) (blank=skip, 'null'=clear): ").strip()
-                    if raw:
-                        if _is_null_input(raw):
-                            ov["query_params"] = {}
+                    elif fi == 4:
+                        wi = prompt_choice("Wire API", ["chat", "responses", "Skip (no change)"])
+                        if wi < 2:
+                            ov["wire_api"] = ["chat", "responses"][wi]
+                        elif wi == 2:
+                            ov["wire_api"] = ""
+                    elif fi == 5:
+                        raw = _safe_input("Query params object ({key=\"value\",...}) (blank=skip, 'null'=clear): ").strip()
+                        if raw:
+                            ov["query_params"] = {} if _is_null_input(raw) else _parse_brace_kv(raw)
+                    elif fi == 6:
+                        raw = _safe_input("HTTP headers object ({Key=\"Value\",...}) (blank=skip, 'null'=clear): ").strip()
+                        if raw:
+                            if _is_null_input(raw):
+                                ov["http_headers"] = {}
+                            else:
+                                ov["http_headers"] = _parse_brace_kv(raw)
+                    elif fi == 7:
+                        raw = _safe_input("Env headers object ({Header=\"ENV_VAR\",...}) (blank=skip, 'null'=clear): ").strip()
+                        if raw:
+                            if _is_null_input(raw):
+                                ov["env_http_headers"] = {}
+                            else:
+                                ov["env_http_headers"] = _parse_brace_kv(raw)
+                    elif fi == 8:
+                        s2 = _safe_input("Request max retries (blank to skip): ").strip()
+                        if s2:
+                            try:
+                                ov["request_max_retries"] = int(s2)
+                            except Exception:
+                                pass
+                    elif fi == 9:
+                        s2 = _safe_input("Stream max retries (blank to skip): ").strip()
+                        if s2:
+                            try:
+                                ov["stream_max_retries"] = int(s2)
+                            except Exception:
+                                pass
+                    elif fi == 10:
+                        s2 = _safe_input("Stream idle timeout ms (blank to skip): ").strip()
+                        if s2:
+                            try:
+                                ov["stream_idle_timeout_ms"] = int(s2)
+                            except Exception:
+                                pass
+                    # keep editing loop
+                    args.provider_overrides[pid] = ov
+                    continue
+                elif act == 1:
+                    new_id = _safe_input(f"New provider id for '{pid}' (blank to cancel): ").strip()
+                    if new_id and new_id != pid:
+                        existing = set((args.provider_overrides or {}).keys()) | set(args.providers_list or [])
+                        if new_id in existing:
+                            warn(f"Provider id '{new_id}' already exists; rename cancelled.")
                         else:
-                            ov["query_params"] = _parse_brace_kv(raw)
-                elif fi == 6:
-                    raw = _safe_input("HTTP headers CSV (KEY=VAL,...) (blank=skip, 'null'=clear): ").strip()
-                    if raw:
-                        if _is_null_input(raw):
-                            ov.pop("http_headers", None)
-                        else:
-                            env: Dict[str,str] = {}
-                            for pair in raw.split(","):
-                                if "=" in pair:
-                                    k,v = pair.split("=",1)
-                                    if k.strip():
-                                        env[k.strip()] = v.strip()
-                            ov["http_headers"] = env
-                elif fi == 7:
-                    raw = _safe_input("Env headers CSV (KEY=ENV,...) (blank=skip, 'null'=clear): ").strip()
-                    if raw:
-                        if _is_null_input(raw):
-                            ov.pop("env_http_headers", None)
-                        else:
-                            env: Dict[str,str] = {}
-                            for pair in raw.split(","):
-                                if "=" in pair:
-                                    k,v = pair.split("=",1)
-                                    if k.strip():
-                                        env[k.strip()] = v.strip()
-                            ov["env_http_headers"] = env
-                elif fi == 8:
-                    try:
-                        ov["request_max_retries"] = int(
-                            _safe_input("Request max retries: ").strip() or str(ov.get("request_max_retries", getattr(args, "request_max_retries", 4)))
-                        )
-                    except Exception:
-                        pass
-                elif fi == 9:
-                    try:
-                        ov["stream_max_retries"] = int(
-                            _safe_input("Stream max retries: ").strip() or str(ov.get("stream_max_retries", getattr(args, "stream_max_retries", 10)))
-                        )
-                    except Exception:
-                        pass
-                elif fi == 10:
-                    try:
-                        ov["stream_idle_timeout_ms"] = int(
-                            _safe_input("Stream idle timeout ms: ").strip() or str(ov.get("stream_idle_timeout_ms", getattr(args, "stream_idle_timeout_ms", 300000)))
-                        )
-                    except Exception:
-                        pass
-            if act == 1:
-                args.provider_overrides[pid] = ov
-                ok("Saved.")
-            # cancel returns to list
+                            (args.provider_overrides or {})[new_id] = ov
+                            (args.provider_overrides or {}).pop(pid, None)
+                            args.providers_list = [new_id if x == pid else x for x in (args.providers_list or [])]
+                            if getattr(args, 'provider', None) == pid:
+                                args.provider = new_id
+                            pmap = getattr(args, 'profile_overrides', {}) or {}
+                            for pname, pov in pmap.items():
+                                if isinstance(pov, dict) and (pov.get('provider') or '') == pid:
+                                    pov['provider'] = new_id
+                            ok(f"Renamed provider id '{pid}' -> '{new_id}'")
+                            pid = new_id
+                    continue
+                elif act == 2:
+                    args.provider_overrides[pid] = ov
+                    ok("Saved.")
+                    break
+                else:
+                    break
+
         elif choice == 2:
             if not names:
                 warn("No providers to remove.")

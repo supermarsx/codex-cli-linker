@@ -469,6 +469,9 @@ def main():
                 return
             if interactive_action == "overwrite":
                 args.overwrite_profile = True
+            # Fast write mode: avoid legacy pipeline prompts; use current state/args
+            if interactive_action in ("write", "write_and_launch"):
+                setattr(args, "_fast_write", True)
     # Model selection: Only old pipeline for full-auto. If explicit --model provided, respect it.
     if args.model:
         target = args.model
@@ -510,7 +513,7 @@ def main():
             err(str(e))
             sys.exit(2)
     # Non full-auto legacy interactive: if no model was provided and no auto selection, prompt to pick
-    if (
+    if (not getattr(args, "_fast_write", False)) and (
         not args.full_auto
         and not args.auto
         and not args.model
@@ -547,7 +550,7 @@ def main():
     state.history_max_bytes = args.history_max_bytes
 
     # Auto-detect context window if not provided
-    if (args.model_context_window or 0) <= 0:
+    if (args.model_context_window or 0) <= 0 and not getattr(args, "_fast_write", False):
         try:
             tacw = getattr(
                 sys.modules.get("codex_cli_linker"),
