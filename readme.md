@@ -476,8 +476,9 @@ Additional handy short aliases:
 - OpenAI (API key): `codex-cli-linker.py --openai-api --auto --yes --model gpt-4o-mini`
 - OpenAI (ChatGPT): `codex-cli-linker.py --openai-gpt --auto --yes --model gpt-4o-mini`
 - Azure: `codex-cli-linker.py --azure --azure-resource <name> --azure-api-version 2025-04-01-preview --auto`
-- LM Studio: `codex-cli-linker.py --lmstudio --auto`
-- Ollama: `codex-cli-linker.py --ollama --auto`
+- LM Studio: `codex-cli-linker.py --openrouter --auto` (example preset; see Provider presets)
+- Continuous logs (no auto‑clear): add `--continuous` to any interactive run
+- ESC in menus: backs to the previous menu level
 - Experimental: `-U` `--experimental-resume`, `-I` `--experimental-instructions-file`, `-X` `--experimental-use-exec-command-tool`, `-O` `--responses-originator-header-internal-override`, `-M` `--preferred-auth-method`, `-W` `--tools-web-search`, `-z` `--azure-api-version`, `-K` `--request-max-retries`, `-S` `--stream-max-retries`, `-e` `--stream-idle-timeout-ms`
 
 Note: All single-letter shorts are already used; `--log-level` offers an alias `--level` for convenience. Use `--level info` (for example) or `-v` for a quick DEBUG/WARNING toggle.

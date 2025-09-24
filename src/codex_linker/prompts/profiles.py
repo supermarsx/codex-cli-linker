@@ -6,7 +6,7 @@ from typing import List, Dict, Any
 
 from ..spec import PROVIDER_LABELS, DEFAULT_OPENAI, DEFAULT_LMSTUDIO, DEFAULT_OLLAMA, DEFAULT_ANTHROPIC, DEFAULT_OPENROUTER, DEFAULT_GROQ, DEFAULT_MISTRAL, DEFAULT_DEEPSEEK, DEFAULT_COHERE, DEFAULT_BASETEN, DEFAULT_LLAMACPP, DEFAULT_KOBOLDCPP, DEFAULT_JAN, DEFAULT_ANYTHINGLLM
 from ..detect import list_models, try_auto_context_window
-from ..ui import c, BOLD, CYAN, GRAY, info, warn, ok, err
+from ..ui import c, BOLD, CYAN, GRAY, info, warn, ok, err, clear_screen
 from ..io_safe import AUTH_JSON, write_auth_json_merge
 from .input_utils import (prompt_choice, _safe_input, _is_null_input, fmt)
 from .profiles_edit import _edit_profile_entry_interactive
@@ -15,8 +15,13 @@ from .profiles_edit import _edit_profile_entry_interactive
 def manage_profiles_interactive(args) -> None:
     args.profile_overrides = getattr(args, "profile_overrides", {}) or {}
     while True:
+        if not getattr(args, "continuous", False):
+            try:
+                clear_screen()
+            except Exception:
+                pass
         print()
-        print(c(fmt("Profiles 👤:"), BOLD))
+        print(c(fmt("👤 Profiles:"), BOLD))
         names: List[str] = []
         main_name = args.profile or "<auto>"
         names.append(main_name)
@@ -28,10 +33,10 @@ def manage_profiles_interactive(args) -> None:
         i = prompt_choice(
             "Choose",
             [
-                "Add profile ➕",
-                "Edit profile ✏️",
-                "Remove profile 🗑️",
-                "Back to main menu 🏠",
+                "➕ Add profile",
+                "✏️ Edit profile",
+                "🗑️ Remove profile",
+                fmt("🏠 Back to main menu"),
             ],
         )
         if i == 0:
@@ -76,7 +81,7 @@ def manage_profiles_interactive(args) -> None:
                     for pid, lbl in presets
                 ]
                 labels.append("Go back to main menu")
-                sel = prompt_choice("Choose preset", labels)
+                sel = prompt_choice("🎛️ Choose preset", labels)
                 if sel == len(labels) - 1:
                     return
                 chosen = presets[sel][0]

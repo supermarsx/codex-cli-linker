@@ -698,6 +698,13 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         action="store_true",
         help="Disable emojis in interactive menus and prompts",
     )
+    other.add_argument(
+        "--continuous",
+        "--continous",
+        dest="continuous",
+        action="store_true",
+        help="Keep interactive output on screen (disable auto-clear between steps)",
+    )
 
     if argv is None:
         argv = sys.argv[1:]

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 from ..detect import list_models, try_auto_context_window
-from ..ui import c, BOLD, GRAY, warn, ok, err
+from ..ui import c, BOLD, GRAY, warn, ok, err, clear_screen
 from .input_utils import prompt_choice, _safe_input, _is_null_input
 
 
@@ -17,6 +17,11 @@ def _edit_profile_entry_interactive(args, name: str) -> None:
             "approval_policy": args.approval_policy,
         }
     while True:
+        if not getattr(args, "continuous", False):
+            try:
+                clear_screen()
+            except Exception:
+                pass
         print()
         print(c(f"Edit profile [{name}]", BOLD))
         df_approval = args.approval_policy
@@ -91,7 +96,28 @@ def _edit_profile_entry_interactive(args, name: str) -> None:
                 if mode == 0:
                     ov["model"] = _safe_input("Model: ").strip() or ov.get("model") or ""
                 else:
-                    base = (getattr(args, "base_url", "") or "").strip()
+                    # Use provider-specific base_url when available, else sensible default, else prompt
+                    pid = (ov.get("provider") or getattr(args, "provider", "")).strip()
+                    base = ""
+                    try:
+                        pov = getattr(args, "provider_overrides", {}) or {}
+                        if pid and pid in pov:
+                            base = (pov.get(pid, {}).get("base_url") or "").strip()
+                    except Exception:
+                        base = ""
+                    if not base:
+                        # Fallback default base per known provider ids
+                        mapping = {
+                            "lmstudio": getattr(__import__('codex_linker.spec', fromlist=['DEFAULT_LMSTUDIO']), 'DEFAULT_LMSTUDIO', ''),
+                            "ollama": getattr(__import__('codex_linker.spec', fromlist=['DEFAULT_OLLAMA']), 'DEFAULT_OLLAMA', ''),
+                            "vllm": getattr(__import__('codex_linker.spec', fromlist=['DEFAULT_VLLM']), 'DEFAULT_VLLM', ''),
+                            "tgwui": getattr(__import__('codex_linker.spec', fromlist=['DEFAULT_TGWUI']), 'DEFAULT_TGWUI', ''),
+                            "tgi": getattr(__import__('codex_linker.spec', fromlist=['DEFAULT_TGI_8080']), 'DEFAULT_TGI_8080', ''),
+                            "openrouter": getattr(__import__('codex_linker.spec', fromlist=['DEFAULT_OPENROUTER_LOCAL']), 'DEFAULT_OPENROUTER_LOCAL', ''),
+                            "openrouter-remote": getattr(__import__('codex_linker.spec', fromlist=['DEFAULT_OPENROUTER']), 'DEFAULT_OPENROUTER', ''),
+                            "openai": getattr(__import__('codex_linker.spec', fromlist=['DEFAULT_OPENAI']), 'DEFAULT_OPENAI', ''),
+                        }
+                        base = mapping.get(pid, (getattr(args, "base_url", "") or "").strip())
                     if not base:
                         base = _safe_input("Base URL for model list (e.g., http://localhost:1234/v1): ").strip()
                     try:
@@ -100,8 +126,15 @@ def _edit_profile_entry_interactive(args, name: str) -> None:
                         models = lm(base)
                         if models:
                             print(c("Available models:", BOLD))
-                            pick = prompt_choice("Choose model", models)
-                            ov["model"] = models[pick]
+                            # Provide models plus a custom entry
+                            options = list(models) + ["✍️ Enter custom model"]
+                            pick = prompt_choice("Choose model", options)
+                            if pick == len(options) - 1:
+                                custom = _safe_input("Model: ").strip()
+                                if custom:
+                                    ov["model"] = custom
+                            else:
+                                ov["model"] = models[pick]
                         else:
                             warn("No models returned; leaving model empty.")
                     except Exception as e:
@@ -312,4 +345,3 @@ def _edit_profile_entry_interactive(args, name: str) -> None:
             raise KeyboardInterrupt
         else:
             return
-
