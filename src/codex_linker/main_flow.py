@@ -472,6 +472,15 @@ def main():
             # Fast write mode: avoid legacy pipeline prompts; use current state/args
             if interactive_action in ("write", "write_and_launch"):
                 setattr(args, "_fast_write", True)
+            # Guided pipeline replaces legacy: run dedicated flow
+            if interactive_action == "legacy":
+                try:
+                    from .guided_pipeline import run_guided_pipeline
+
+                    run_guided_pipeline(state, args)
+                except Exception as e:
+                    err(str(e))
+                    sys.exit(2)
     # Model selection: Only old pipeline for full-auto. If explicit --model provided, respect it.
     if args.model:
         target = args.model

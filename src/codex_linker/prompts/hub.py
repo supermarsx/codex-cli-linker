@@ -37,7 +37,7 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
                     "Manage providers 🔌",
                     "Global settings ⚙️",
                     "Actions… 🚀",
-                    "Legacy pipeline (guided) 🧭",
+                    "Guided pipeline 🧭",
                     "Quit (no write) ❌",
                 ],
             )
