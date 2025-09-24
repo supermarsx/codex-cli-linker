@@ -8,7 +8,7 @@ from ..spec import PROVIDER_LABELS, DEFAULT_OPENAI, DEFAULT_LMSTUDIO, DEFAULT_OL
 from ..detect import list_models, try_auto_context_window
 from ..ui import c, BOLD, CYAN, GRAY, info, warn, ok, err
 from ..io_safe import AUTH_JSON, write_auth_json_merge
-from .input_utils import (prompt_choice, _safe_input, _is_null_input)
+from .input_utils import (prompt_choice, _safe_input, _is_null_input, fmt)
 from .profiles_edit import _edit_profile_entry_interactive
 
 
@@ -16,7 +16,7 @@ def manage_profiles_interactive(args) -> None:
     args.profile_overrides = getattr(args, "profile_overrides", {}) or {}
     while True:
         print()
-        print(c("Profiles 👤:", BOLD))
+        print(c(fmt("Profiles 👤:"), BOLD))
         names: List[str] = []
         main_name = args.profile or "<auto>"
         names.append(main_name)

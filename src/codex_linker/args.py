@@ -648,6 +648,11 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         "--tui-notification-types",
         help="Comma-separated notification types (agent-turn-complete,approval-requested)",
     )
+    other.add_argument(
+        "--no-emojis",
+        action="store_true",
+        help="Disable emojis in interactive menus and prompts",
+    )
 
     if argv is None:
         argv = sys.argv[1:]
