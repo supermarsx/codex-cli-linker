@@ -1589,8 +1589,14 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
                     i2 = prompt_choice("tools.web_search", ["true", "false"])
                     args.tools_web_search = True if i2 == 0 else False
                 elif label == "Wire API":
-                    i2 = prompt_choice("Wire API", ["chat", "responses"])
-                    args.wire_api = ["chat", "responses"][i2]
+                    i2 = prompt_choice(
+                        "Wire API",
+                        ["chat", "responses", "Skip (no change)", "Set to null"],
+                    )
+                    if i2 < 2:
+                        args.wire_api = ["chat", "responses"][i2]
+                    elif i2 == 3:
+                        args.wire_api = ""
                 elif label == "ChatGPT base URL":
                     args.chatgpt_base_url = input("ChatGPT base URL: ").strip()
                 elif label == "Azure api-version":
@@ -1633,7 +1639,9 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
                     raw = input("Trusted projects CSV: ").strip()
                     args.trust_project = [s.strip() for s in raw.split(",") if s.strip()]
                 elif label == "Env key name":
-                    args.env_key_name = input("Env key name: ").strip() or args.env_key_name
+                    s = input("Env key name (blank to skip, 'null' to clear): ").strip()
+                    if s:
+                        args.env_key_name = "" if _is_null_input(s) else s
                 elif label == "TUI notifications":
                     i2 = prompt_choice(
                         "TUI notifications", ["disabled", "enabled (all)", "filter types"]
