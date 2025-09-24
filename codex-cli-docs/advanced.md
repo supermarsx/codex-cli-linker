@@ -2,7 +2,7 @@
 
 ### Guided pipeline (interactive)
 
-- Launch the interactive hub with `python3 codex-cli-linker.py` and choose “Guided pipeline 🧭”.
+- Launch the interactive hub with `python3 codex-cli-linker.py` and choose “Guided pipeline 🧭”. Or run directly with `--guided`.
 - This step-by-step flow walks through provider, base URL (auto-detect supported), API keys, query params, headers, model, context window (auto-detect supported), retries, and general settings.
 - Prefer a cleaner look? Run with `--no-emojis` to hide emojis in interactive menus.
 

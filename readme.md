@@ -472,6 +472,7 @@ Additional handy short aliases:
 
 ### Short Flag Map (complete)
 - Startup: `-a` `--auto`, `-A` `--full-auto`, `-Q` `--yes`, `-F` `--clear`, `-V` `--version`
+- Interactive UX: `--guided` (start in Guided pipeline), `--no-emojis` (hide emojis)
 - Selection: `-b` `--base-url`, `-m` `--model`, `-i` `--model-index`, `-P` `--provider`, `-l` `--providers`, `-p` `--profile`
 - Output: `-j` `--json`, `-y` `--yaml`, `-n` `--dry-run`, `-Z` `--diff`
   - Open helper: `--open-config` (prints editor command; never auto-launches)
@@ -482,6 +483,9 @@ Additional handy short aliases:
 - History persistence/storage: `-H` `--no-history`, `-N` `--history-max-bytes`, `-d` `--disable-response-storage`
 - Model limits: `-w` `--model-context-window`, `-t` `--model-max-output-tokens`, `-D` `--project-doc-max-bytes`
 - Visibility/other: `-g` `--hide-agent-reasoning`, `-G` `--show-raw-agent-reasoning`, `-Y` `--model-supports-reasoning-summaries`, `-C` `--chatgpt-base-url`
+- Provider presets (one-shot):
+  - OpenAI: `-oa` `--openai`, `-oA` `--openai-api` (auth=apikey), `-og` `--openai-gpt` (auth=chatgpt)
+  - Third‑party/local: `-or` `--openrouter`, `-an` `--anthropic`, `-az` `--azure`, `-gq` `--groq`, `-mi` `--mistral`, `-ds` `--deepseek`, `-ch` `--cohere`, `-bt` `--baseten`, `-al` `--anythingllm`, `-jn` `--jan`, `-lc` `--llamacpp`, `-kb` `--koboldcpp`
 - Experimental: `-U` `--experimental-resume`, `-I` `--experimental-instructions-file`, `-X` `--experimental-use-exec-command-tool`, `-O` `--responses-originator-header-internal-override`, `-M` `--preferred-auth-method`, `-W` `--tools-web-search`, `-z` `--azure-api-version`, `-K` `--request-max-retries`, `-S` `--stream-max-retries`, `-e` `--stream-idle-timeout-ms`
 
 Note: All single-letter shorts are already used; `--log-level` offers an alias `--level` for convenience. Use `--level info` (for example) or `-v` for a quick DEBUG/WARNING toggle.
