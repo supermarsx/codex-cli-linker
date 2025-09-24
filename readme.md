@@ -470,22 +470,14 @@ Additional handy short aliases:
 - `--yes` - suppress prompts when inputs are fully specified (implies `--auto` and defaults `--model-index 0` when `--model` is not provided).
 - Honors `NO_COLOR` and non‑TTY: disables ANSI; banners are omitted to keep logs clean.
 
-### Short Flag Map (complete)
-- Startup: `-a` `--auto`, `-A` `--full-auto`, `-Q` `--yes`, `-F` `--clear`, `-V` `--version`
-- Interactive UX: `--guided` (start in Guided pipeline), `--no-emojis` (hide emojis)
-- Selection: `-b` `--base-url`, `-m` `--model`, `-i` `--model-index`, `-P` `--provider`, `-l` `--providers`, `-p` `--profile`
-- Output: `-j` `--json`, `-y` `--yaml`, `-n` `--dry-run`, `-Z` `--diff`
-  - Open helper: `--open-config` (prints editor command; never auto-launches)
-- Logging: `-v` `--verbose`, `--log-level/--level <debug|info|warning|error>`, `-f` `--log-file`, `-J` `--log-json`, `-R` `--log-remote`
-- Secrets: `--keychain {none,auto,macos,dpapi,secretstorage,secretservice,pass,bitwarden,bw,bitwarden-cli,1password,1passwd,op}`
-- Config URL / state: `-c` `--config-url`, `-x` `--state-file`
-- Spec knobs: `-q` `--approval-policy`, `-s` `--sandbox-mode`, `-o` `--file-opener`, `-r` `--reasoning-effort`, `-u` `--reasoning-summary`, `-B` `--verbosity`
-- History persistence/storage: `-H` `--no-history`, `-N` `--history-max-bytes`, `-d` `--disable-response-storage`
-- Model limits: `-w` `--model-context-window`, `-t` `--model-max-output-tokens`, `-D` `--project-doc-max-bytes`
-- Visibility/other: `-g` `--hide-agent-reasoning`, `-G` `--show-raw-agent-reasoning`, `-Y` `--model-supports-reasoning-summaries`, `-C` `--chatgpt-base-url`
-- Provider presets (one-shot):
-  - OpenAI: `-oa` `--openai`, `-oA` `--openai-api` (auth=apikey), `-og` `--openai-gpt` (auth=chatgpt)
-  - Third‑party/local: `-or` `--openrouter`, `-an` `--anthropic`, `-az` `--azure`, `-gq` `--groq`, `-mi` `--mistral`, `-ds` `--deepseek`, `-ch` `--cohere`, `-bt` `--baseten`, `-al` `--anythingllm`, `-jn` `--jan`, `-lc` `--llamacpp`, `-kb` `--koboldcpp`
+### CLI Quick Reference
+
+- Guided pipeline: `codex-cli-linker.py --guided` (add `--no-emojis` to hide emojis)
+- OpenAI (API key): `codex-cli-linker.py --openai-api --auto --yes --model gpt-4o-mini`
+- OpenAI (ChatGPT): `codex-cli-linker.py --openai-gpt --auto --yes --model gpt-4o-mini`
+- Azure: `codex-cli-linker.py --azure --azure-resource <name> --azure-api-version 2025-04-01-preview --auto`
+- LM Studio: `codex-cli-linker.py --lmstudio --auto`
+- Ollama: `codex-cli-linker.py --ollama --auto`
 - Experimental: `-U` `--experimental-resume`, `-I` `--experimental-instructions-file`, `-X` `--experimental-use-exec-command-tool`, `-O` `--responses-originator-header-internal-override`, `-M` `--preferred-auth-method`, `-W` `--tools-web-search`, `-z` `--azure-api-version`, `-K` `--request-max-retries`, `-S` `--stream-max-retries`, `-e` `--stream-idle-timeout-ms`
 
 Note: All single-letter shorts are already used; `--log-level` offers an alias `--level` for convenience. Use `--level info` (for example) or `-v` for a quick DEBUG/WARNING toggle.

@@ -187,18 +187,17 @@ def main():
     if getattr(args, "version", False):
         print(current_version)
         return
-    # Trim banners on non-TTY or when NO_COLOR is set
+    # Banner control: show ASCII banner unless --no-banner; still trim on non-TTY or NO_COLOR
     is_tty = bool(getattr(sys.stdout, "isatty", lambda: False)())
-    should_clear = (
-        is_tty
-        and not os.environ.get("NO_COLOR")
-        and (os.name != "nt" or getattr(args, "clear", False))
-    )
-    if should_clear:
-        clear_screen()
+    color_ok = not os.environ.get("NO_COLOR")
+    show_banner = is_tty and color_ok and not getattr(args, "no_banner", False)
+    should_clear = show_banner and (os.name != "nt" or getattr(args, "clear", False))
+    if show_banner:
+        if should_clear:
+            clear_screen()
         banner()
     else:
-        # Always present app title when launching
+        # Minimal title line for non-TTY or when banner suppressed
         print(c("CODEX CLI LINKER", CYAN))
     # --yes implies non-interactive where possible
     if getattr(args, "yes", False):
@@ -464,6 +463,9 @@ def main():
             from .guided_pipeline import run_guided_pipeline
 
             run_guided_pipeline(state, args)
+            if getattr(args, "_guided_abort", False):
+                info("Aborted without writing.")
+                return
         except Exception as e:
             err(str(e))
             sys.exit(2)
@@ -488,6 +490,9 @@ def main():
                     from .guided_pipeline import run_guided_pipeline
 
                     run_guided_pipeline(state, args)
+                    if getattr(args, "_guided_abort", False):
+                        info("Aborted without writing.")
+                        return
                 except Exception as e:
                     err(str(e))
                     sys.exit(2)
@@ -871,7 +876,7 @@ def main():
         print(c(f"  {cmd}", CYAN))
 
     # Respect no auto-launch policy: only print how to launch when requested
-    if interactive_action == "write_and_launch":
+    if interactive_action == "write_and_launch" or getattr(args, "_guided_action", "") == "write_and_launch":
         info("Launch Codex manually with:")
         print(c(f"  npx codex --profile {state.profile}", CYAN))
         print(c(f"  codex --profile {state.profile}", CYAN))

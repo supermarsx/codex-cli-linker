@@ -80,9 +80,16 @@ class SetProviderAction(_argparse.Action):
 
 def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     """Parse command-line arguments, tracking which were explicitly provided."""
+    epilog = (
+        "Shortcuts:\n"
+        "  Providers: -oa/--openai, -oA/--openai-api, -og/--openai-gpt, -ls/--lmstudio, -ol/--ollama, -vl/--vllm, -tg/--tgwui, -ti/--tgi,\n"
+        "             -or/--openrouter, -an/--anthropic, -gq/--groq, -mi/--mistral, -ds/--deepseek, -ch/--cohere, -bt/--baseten, -al/--anythingllm, -jn/--jan, -lc/--llamacpp, -kb/--koboldcpp\n"
+        "  Guided: --guided (start guided pipeline), --no-emojis (hide emojis).\n"
+    )
     p = argparse.ArgumentParser(
         description="Codex CLI Linker",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        epilog=epilog,
     )
 
     general = p.add_argument_group("General")
@@ -197,6 +204,11 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Force clear screen and show banner on start (Windows default is off)",
     )
     general.add_argument(
+        "--no-banner",
+        action="store_true",
+        help="Suppress the ASCII banner at startup",
+    )
+    general.add_argument(
         "--guided",
         action="store_true",
         help="Start directly in the guided pipeline (step-by-step interactive)",
@@ -268,6 +280,14 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     )
     # Preset convenience flags
     # Provider presets with neat, direct actions
+    # Local engines
+    providers.add_argument("-ls", "--lmstudio", action=SetProviderAction, provider_id="lmstudio", help="Preset: LM Studio")
+    providers.add_argument("-ol", "--ollama", action=SetProviderAction, provider_id="ollama", help="Preset: Ollama")
+    providers.add_argument("-vl", "--vllm", action=SetProviderAction, provider_id="vllm", help="Preset: vLLM")
+    providers.add_argument("-tg", "--tgwui", action=SetProviderAction, provider_id="tgwui", help="Preset: Text-Gen WebUI OpenAI plugin")
+    providers.add_argument("-ti", "--tgi", action=SetProviderAction, provider_id="tgi", help="Preset: TGI shim on :8080")
+
+    # Hosted / third-party
     providers.add_argument("-or", "--openrouter", action=SetProviderAction, provider_id="openrouter-remote", help="Preset: OpenRouter")
     providers.add_argument("-an", "--anthropic", action=SetProviderAction, provider_id="anthropic", help="Preset: Anthropic")
     providers.add_argument("-az", "--azure", action=SetProviderAction, provider_id="azure", help="Preset: Azure OpenAI")

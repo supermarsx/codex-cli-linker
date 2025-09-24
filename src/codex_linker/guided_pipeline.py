@@ -266,7 +266,40 @@ def run_guided_pipeline(state: LinkerState, args) -> None:
     if s:
         args.notify = s
 
-    # Guided pipeline completed – avoid legacy prompts later
+    # Summary and confirmation
+    print()
+    print(c(fmt("Summary"), BOLD))
+    print(c(f"  provider: {args.provider}", CYAN))
+    print(c(f"  base_url: {state.base_url}", CYAN))
+    print(c(f"  env_key: {state.env_key or ''}", CYAN))
+    print(c(f"  wire_api: {getattr(args, 'wire_api', '')}", CYAN))
+    print(c(f"  model: {args.model or ''}", CYAN))
+    print(c(f"  context_window: {getattr(args, 'model_context_window', 0) or 0}", CYAN))
+    print(c(f"  max_output_tokens: {getattr(args, 'model_max_output_tokens', 0) or 0}", CYAN))
+    print(c(f"  approval_policy: {args.approval_policy}", CYAN))
+    print(c(f"  sandbox_mode: {args.sandbox_mode}", CYAN))
+    print(c(f"  reasoning_effort: {getattr(args, 'reasoning_effort', '')}", CYAN))
+    print(c(f"  reasoning_summary: {getattr(args, 'reasoning_summary', '')}", CYAN))
+    print(c(f"  verbosity: {getattr(args, 'verbosity', '')}", CYAN))
+    print(c(f"  request_max_retries: {getattr(args, 'request_max_retries', 0)}", CYAN))
+    print(c(f"  stream_max_retries: {getattr(args, 'stream_max_retries', 0)}", CYAN))
+    print(c(f"  stream_idle_timeout_ms: {getattr(args, 'stream_idle_timeout_ms', 0)}", CYAN))
+    print()
+    act = prompt_choice(
+        "Next",
+        [
+            "Write now",
+            "Write and launch (print cmd)",
+            "Abort (back to hub)",
+        ],
+    )
+    if act == 2:
+        # Signal to main_flow to exit cleanly
+        setattr(args, "_guided_abort", True)
+        ok("Aborted; returning to hub.")
+        return
+    if act == 1:
+        setattr(args, "_guided_action", "write_and_launch")
+    # Guided pipeline confirmed – avoid legacy prompts later
     setattr(args, "_fast_write", True)
     ok("Guided setup complete. Writing configuration…")
-
