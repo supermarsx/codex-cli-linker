@@ -68,12 +68,12 @@ def _handle_ctrlc_in_hub() -> None:
 
 
 def _safe_input(prompt: str) -> str:
-    """input() that exits cleanly on Ctrl-C during interactive flows."""
+    """input() that propagates Ctrl-C so callers can decide behavior."""
     try:
         return input(prompt)
     except KeyboardInterrupt:
         print()
-        sys.exit(0)
+        raise
 
 
 def _is_null_input(s: str) -> bool:
@@ -171,7 +171,7 @@ def _arrow_choice(prompt: str, options: List[str]) -> Optional[int]:
         key = read_key()
         if key == "CTRL_C":
             print()
-            sys.exit(0)
+            raise KeyboardInterrupt
         if key == "ENTER":
             # If user typed numeric input, use it
             if numbuf and numbuf.isdigit():
@@ -1045,13 +1045,23 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
             _handle_ctrlc_in_hub()
             continue
         if hub == 0:
-            manage_profiles_interactive(args)
+            try:
+                manage_profiles_interactive(args)
+            except KeyboardInterrupt:
+                # Return to hub on Ctrl-C inside sub-editors
+                continue
             continue
         if hub == 1:
-            manage_mcp_servers_interactive(args)
+            try:
+                manage_mcp_servers_interactive(args)
+            except KeyboardInterrupt:
+                continue
             continue
         if hub == 2:
-            manage_providers_interactive(args)
+            try:
+                manage_providers_interactive(args)
+            except KeyboardInterrupt:
+                continue
             continue
         if hub == 4:
             # Actions submenu for write/launch
@@ -2026,7 +2036,7 @@ def manage_providers_interactive(args) -> None:
                     "Preset: Azure api-key",
                     "Preset: Anthropic x-api-key",
                     "Preset: Authorization from env",
-                    "Custom ({key=\"value\",...})",
+                    "Custom (CSV KEY=VAL)",
                 ],
             )
             http_headers = {}
@@ -2038,13 +2048,9 @@ def manage_providers_interactive(args) -> None:
             elif hdr_mode == 3:
                 env_http_headers = {"Authorization": envk}
             elif hdr_mode == 4:
-                # Use brace-style key=value object with quoted values
-                http_raw = _safe_input("HTTP headers object ({Key=\"Value\",...}) [blank=skip]: ").strip()
-                if http_raw:
-                    http_headers = _parse_brace_kv(http_raw)
-                env_raw = _safe_input("Env headers object ({Header=\"ENV_VAR\",...}) [blank=skip]: ").strip()
-                if env_raw:
-                    env_http_headers = _parse_brace_kv(env_raw)
+                # CSV parsing: KEY=VAL,KEY2=VAL2 ; and KEY=ENVVAR, ... for env headers
+                http_headers = _input_env_kv("HTTP headers CSV (KEY=VAL,...): ", {})
+                env_http_headers = _input_env_kv("Env headers CSV (KEY=ENV,...): ", {})
             if http_headers:
                 override_entry["http_headers"] = http_headers
             if env_http_headers:
@@ -2162,19 +2168,31 @@ def manage_providers_interactive(args) -> None:
                         if raw:
                             ov["query_params"] = {} if _is_null_input(raw) else _parse_brace_kv(raw)
                     elif fi == 6:
-                        raw = _safe_input("HTTP headers object ({Key=\"Value\",...}) (blank=skip, 'null'=clear): ").strip()
+                        raw = _safe_input("HTTP headers CSV (KEY=VAL,...) (blank=skip, 'null'=clear): ").strip()
                         if raw:
                             if _is_null_input(raw):
                                 ov["http_headers"] = {}
                             else:
-                                ov["http_headers"] = _parse_brace_kv(raw)
+                                env = {}
+                                for pair in raw.split(','):
+                                    if '=' in pair:
+                                        k,v = pair.split('=',1)
+                                        if k.strip():
+                                            env[k.strip()] = v.strip()
+                                ov["http_headers"] = env
                     elif fi == 7:
-                        raw = _safe_input("Env headers object ({Header=\"ENV_VAR\",...}) (blank=skip, 'null'=clear): ").strip()
+                        raw = _safe_input("Env headers CSV (KEY=ENV,...) (blank=skip, 'null'=clear): ").strip()
                         if raw:
                             if _is_null_input(raw):
                                 ov["env_http_headers"] = {}
                             else:
-                                ov["env_http_headers"] = _parse_brace_kv(raw)
+                                env = {}
+                                for pair in raw.split(','):
+                                    if '=' in pair:
+                                        k,v = pair.split('=',1)
+                                        if k.strip():
+                                            env[k.strip()] = v.strip()
+                                ov["env_http_headers"] = env
                     elif fi == 8:
                         s2 = _safe_input("Request max retries (blank to skip): ").strip()
                         if s2:
