@@ -458,6 +458,16 @@ def main():
 
     # Offer unified interactive editor unless full-auto is requested
     interactive_action = None
+    # Optional: jump straight into guided pipeline
+    if getattr(args, "guided", False):
+        try:
+            from .guided_pipeline import run_guided_pipeline
+
+            run_guided_pipeline(state, args)
+        except Exception as e:
+            err(str(e))
+            sys.exit(2)
+
     if not args.full_auto:
         # Invoke editor by default with no CLI args, or when explicitly managing profiles/MCP
         trigger_editor = bool(getattr(args, "_no_args", False))

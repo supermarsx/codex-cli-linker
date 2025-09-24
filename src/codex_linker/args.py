@@ -2,6 +2,80 @@ from __future__ import annotations
 import argparse
 import sys
 from typing import List, Optional
+import argparse as _argparse
+
+
+def _default_base_for_provider_id(pid: str) -> str:
+    try:
+        from .spec import (
+            DEFAULT_LMSTUDIO,
+            DEFAULT_OLLAMA,
+            DEFAULT_VLLM,
+            DEFAULT_TGWUI,
+            DEFAULT_TGI_8080,
+            DEFAULT_OPENROUTER_LOCAL,
+            DEFAULT_OPENROUTER,
+            DEFAULT_ANTHROPIC,
+            DEFAULT_GROQ,
+            DEFAULT_MISTRAL,
+            DEFAULT_DEEPSEEK,
+            DEFAULT_COHERE,
+            DEFAULT_BASETEN,
+            DEFAULT_KOBOLDCPP,
+            DEFAULT_ANYTHINGLLM,
+            DEFAULT_JAN,
+            DEFAULT_LLAMACPP,
+            DEFAULT_OPENAI,
+        )
+        mapping = {
+            "lmstudio": DEFAULT_LMSTUDIO,
+            "ollama": DEFAULT_OLLAMA,
+            "vllm": DEFAULT_VLLM,
+            "tgwui": DEFAULT_TGWUI,
+            "tgi": DEFAULT_TGI_8080,
+            "openrouter": DEFAULT_OPENROUTER_LOCAL,
+            "openrouter-remote": DEFAULT_OPENROUTER,
+            "anthropic": DEFAULT_ANTHROPIC,
+            "groq": DEFAULT_GROQ,
+            "mistral": DEFAULT_MISTRAL,
+            "deepseek": DEFAULT_DEEPSEEK,
+            "cohere": DEFAULT_COHERE,
+            "baseten": DEFAULT_BASETEN,
+            "koboldcpp": DEFAULT_KOBOLDCPP,
+            "anythingllm": DEFAULT_ANYTHINGLLM,
+            "jan": DEFAULT_JAN,
+            "llamacpp": DEFAULT_LLAMACPP,
+            "openai": DEFAULT_OPENAI,
+        }
+        return mapping.get((pid or "").lower(), "")
+    except Exception:
+        return ""
+
+
+class SetProviderAction(_argparse.Action):
+    def __init__(self, option_strings, dest, nargs=0, **kwargs):
+        self.provider_id = kwargs.pop("provider_id", None)
+        self.set_auth = kwargs.pop("set_auth", None)
+        self.use_default_base = kwargs.pop("use_default_base", True)
+        super().__init__(option_strings, dest, nargs=nargs, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        # Set provider id
+        setattr(namespace, "provider", self.provider_id)
+        # Optional: set preferred auth method
+        if self.set_auth:
+            setattr(namespace, "preferred_auth_method", self.set_auth)
+        # Only set base if not already provided and default exists
+        try:
+            base = getattr(namespace, "base_url", None)
+        except Exception:
+            base = None
+        if (not base) and self.use_default_base:
+            default_base = _default_base_for_provider_id(self.provider_id or "")
+            if default_base:
+                setattr(namespace, "base_url", default_base)
+        # Mark flag present (dest is the flag name)
+        setattr(namespace, self.dest, True)
 
 
 def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
@@ -69,19 +143,24 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     general.add_argument(
         "-oa",
         "--openai",
-        action="store_true",
-        help="Shortcut: target OpenAI API defaults (equivalent to --provider openai)",
+        action=SetProviderAction,
+        provider_id="openai",
+        help="Shortcut: target OpenAI defaults (equivalent to --provider openai)",
     )
     general.add_argument(
         "-oA",
         "--openai-api",
-        action="store_true",
+        action=SetProviderAction,
+        provider_id="openai",
+        set_auth="apikey",
         help="OpenAI (API key auth): implies --provider openai and preferred_auth_method=apikey",
     )
     general.add_argument(
         "-og",
         "--openai-gpt",
-        action="store_true",
+        action=SetProviderAction,
+        provider_id="openai",
+        set_auth="chatgpt",
         help="OpenAI (ChatGPT auth): implies --provider openai and preferred_auth_method=chatgpt",
     )
     general.add_argument(
@@ -116,6 +195,11 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         "--clear",
         action="store_true",
         help="Force clear screen and show banner on start (Windows default is off)",
+    )
+    general.add_argument(
+        "--guided",
+        action="store_true",
+        help="Start directly in the guided pipeline (step-by-step interactive)",
     )
 
     # Model options
@@ -183,78 +267,19 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Provider id (model_providers.<id>), default deduced",
     )
     # Preset convenience flags
-    providers.add_argument(
-        "-or",
-        "--openrouter",
-        action="store_true",
-        help="Preset: OpenRouter (https://openrouter.ai/api/v1)",
-    )
-    providers.add_argument(
-        "-an",
-        "--anthropic",
-        action="store_true",
-        help="Preset: Anthropic (https://api.anthropic.com/v1)",
-    )
-    providers.add_argument(
-        "-az",
-        "--azure",
-        action="store_true",
-        help="Preset: Azure OpenAI (https://<resource>.openai.azure.com/<path>)",
-    )
-    providers.add_argument(
-        "-gq",
-        "--groq",
-        action="store_true",
-        help="Preset: Groq (https://api.groq.com/openai/v1)",
-    )
-    providers.add_argument(
-        "-mi",
-        "--mistral",
-        action="store_true",
-        help="Preset: Mistral (https://api.mistral.ai/v1)",
-    )
-    providers.add_argument(
-        "-ds",
-        "--deepseek",
-        action="store_true",
-        help="Preset: DeepSeek (https://api.deepseek.com/v1)",
-    )
-    providers.add_argument(
-        "-ch",
-        "--cohere",
-        action="store_true",
-        help="Preset: Cohere (https://api.cohere.com/v2)",
-    )
-    providers.add_argument(
-        "-bt",
-        "--baseten",
-        action="store_true",
-        help="Preset: Baseten (https://inference.baseten.co/v1)",
-    )
-    providers.add_argument(
-        "-al",
-        "--anythingllm",
-        action="store_true",
-        help="Preset: AnythingLLM (http://localhost:3001/v1)",
-    )
-    providers.add_argument(
-        "-jn",
-        "--jan",
-        action="store_true",
-        help="Preset: Jan AI (http://localhost:1337/v1)",
-    )
-    providers.add_argument(
-        "-lc",
-        "--llamacpp",
-        action="store_true",
-        help="Preset: llama.cpp (http://localhost:8080/v1)",
-    )
-    providers.add_argument(
-        "-kb",
-        "--koboldcpp",
-        action="store_true",
-        help="Preset: KoboldCpp (http://localhost:5000/v1)",
-    )
+    # Provider presets with neat, direct actions
+    providers.add_argument("-or", "--openrouter", action=SetProviderAction, provider_id="openrouter-remote", help="Preset: OpenRouter")
+    providers.add_argument("-an", "--anthropic", action=SetProviderAction, provider_id="anthropic", help="Preset: Anthropic")
+    providers.add_argument("-az", "--azure", action=SetProviderAction, provider_id="azure", help="Preset: Azure OpenAI")
+    providers.add_argument("-gq", "--groq", action=SetProviderAction, provider_id="groq", help="Preset: Groq")
+    providers.add_argument("-mi", "--mistral", action=SetProviderAction, provider_id="mistral", help="Preset: Mistral")
+    providers.add_argument("-ds", "--deepseek", action=SetProviderAction, provider_id="deepseek", help="Preset: DeepSeek")
+    providers.add_argument("-ch", "--cohere", action=SetProviderAction, provider_id="cohere", help="Preset: Cohere")
+    providers.add_argument("-bt", "--baseten", action=SetProviderAction, provider_id="baseten", help="Preset: Baseten")
+    providers.add_argument("-al", "--anythingllm", action=SetProviderAction, provider_id="anythingllm", help="Preset: AnythingLLM")
+    providers.add_argument("-jn", "--jan", action=SetProviderAction, provider_id="jan", help="Preset: Jan AI")
+    providers.add_argument("-lc", "--llamacpp", action=SetProviderAction, provider_id="llamacpp", help="Preset: llama.cpp")
+    providers.add_argument("-kb", "--koboldcpp", action=SetProviderAction, provider_id="koboldcpp", help="Preset: KoboldCpp")
     providers.add_argument(
         "--azure-resource", help="Azure resource name (e.g., myresource)"
     )
@@ -670,76 +695,13 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                 ns.mcp_servers = data
         except Exception:
             pass
-    if getattr(ns, "llamacpp", False):
-        ns.provider = ns.provider or "llamacpp"
-        try:
-            from .spec import DEFAULT_LLAMACPP  # type: ignore
-
-            if not getattr(ns, "base_url", None):
-                ns.base_url = DEFAULT_LLAMACPP
-        except Exception:
-            pass
-    if getattr(ns, "jan", False):
-        ns.provider = ns.provider or "jan"
-        try:
-            from .spec import DEFAULT_JAN  # type: ignore
-
-            if not getattr(ns, "base_url", None):
-                ns.base_url = DEFAULT_JAN
-        except Exception:
-            pass
-    if getattr(ns, "anythingllm", False):
-        ns.provider = ns.provider or "anythingllm"
-        try:
-            from .spec import DEFAULT_ANYTHINGLLM  # type: ignore
-
-            if not getattr(ns, "base_url", None):
-                ns.base_url = DEFAULT_ANYTHINGLLM
-        except Exception:
-            pass
-    # Convenience: --openai implies --provider openai
-    if getattr(ns, "openai", False) and not getattr(ns, "provider", None):
-        ns.provider = "openai"
-    # Convenience: --openai-api and --openai-gpt set provider and auth method
-    if getattr(ns, "openai_api", False):
-        ns.provider = "openai"
-        ns.preferred_auth_method = "apikey"
-    if getattr(ns, "openai_gpt", False):
-        ns.provider = "openai"
-        ns.preferred_auth_method = "chatgpt"
-    # Presets mapping
-    if getattr(ns, "openrouter", False):
-        ns.provider = ns.provider or "openrouter-remote"
-    if getattr(ns, "anthropic", False):
-        ns.provider = ns.provider or "anthropic"
+    # Azure resource/path can synthesize base URL when given
     if getattr(ns, "azure", False):
-        ns.provider = ns.provider or "azure"
-        # If resource or path provided, synthesize base_url
         if getattr(ns, "azure_resource", None) or getattr(ns, "azure_path", None):
             res = getattr(ns, "azure_resource", "") or ""
             path = getattr(ns, "azure_path", "openai/v1") or "openai/v1"
-            if res:
-                ns.base_url = ns.base_url or f"https://{res}.openai.azure.com/{path}"
-    if getattr(ns, "groq", False):
-        ns.provider = ns.provider or "groq"
-    if getattr(ns, "mistral", False):
-        ns.provider = ns.provider or "mistral"
-    if getattr(ns, "deepseek", False):
-        ns.provider = ns.provider or "deepseek"
-    if getattr(ns, "cohere", False):
-        ns.provider = ns.provider or "cohere"
-    if getattr(ns, "baseten", False):
-        ns.provider = ns.provider or "baseten"
-    if getattr(ns, "koboldcpp", False):
-        ns.provider = ns.provider or "koboldcpp"
-        # Default base URL for koboldcpp if not provided
-        try:
-            from .spec import DEFAULT_KOBOLDCPP  # type: ignore
-
-            if not getattr(ns, "base_url", None):
-                ns.base_url = DEFAULT_KOBOLDCPP
-        except Exception:
-            pass
+            if res and not getattr(ns, "base_url", None):
+                ns.base_url = f"https://{res}.openai.azure.com/{path}"
     # Normalize providers list
     provs = []
     if getattr(ns, "providers", None):
