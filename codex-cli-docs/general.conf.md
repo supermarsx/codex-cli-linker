@@ -39,3 +39,8 @@
 
 | `tools.web_search` | boolean | Enable web search tool (alias: `web_search_request`) (default: false). |
 | ------------------ | ------- | ---------------------------------------------------------------------- |
+
+Notes (interactive editor semantics):
+- Most fields support Enter to skip (no change) and the literal `null` to clear (set to empty string or unset as applicable).
+- `notify` is accepted as a JSON array in prompts (e.g., `["-y", "mcp-server"]`), with quoted values.
+- The editor exposes common `file_opener` options for convenience.
