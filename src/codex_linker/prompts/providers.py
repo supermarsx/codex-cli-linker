@@ -24,7 +24,10 @@ from ..spec import (
     DEFAULT_OPENAI,
     PROVIDER_LABELS,
 )
-from ..ui import c, BOLD, CYAN, GRAY, ok, info, warn, err
+from ..ui import c, BOLD, CYAN, GRAY, ok, info, warn, err, clear_screen
+import time
+import logging
+from ..detect import list_models
 from ..io_safe import AUTH_JSON, write_auth_json_merge
 from .input_utils import prompt_choice, _safe_input, _is_null_input, _parse_brace_kv, fmt
 
@@ -60,6 +63,11 @@ def manage_providers_interactive(args) -> None:
     if not hasattr(args, "provider_overrides") or args.provider_overrides is None:
         args.provider_overrides = {}
     while True:
+        if not getattr(args, "continuous", False):
+            try:
+                clear_screen()
+            except Exception:
+                pass
         print()
         print(c(fmt("Providers 🔌:"), BOLD))
         names: List[str] = []
@@ -77,10 +85,64 @@ def manage_providers_interactive(args) -> None:
             print(f" - {n} {c(base, GRAY) if base else ''}")
         choice = prompt_choice(
             "Choose",
-            ["Add provider ➕", "Edit provider ✏️", "Remove provider 🗑️", "Done ✅"],
+            [
+                fmt("🪄 Add providers automagically"),
+                "➕ Add provider",
+                "✏️ Edit provider",
+                "🗑️ Remove provider",
+                "✅ Done",
+            ],
         )
         if choice == 0:
-            add_mode = prompt_choice("Add provider via", ["Choose preset 🎛️", "Enter custom ✍️"])
+            # Auto-detect local OpenAI-compatible providers and add them with available models
+            candidates = [
+                ("lmstudio", DEFAULT_LMSTUDIO),
+                ("ollama", DEFAULT_OLLAMA),
+                ("vllm", DEFAULT_VLLM),
+                ("tgwui", DEFAULT_TGWUI),
+                ("tgi", DEFAULT_TGI_8080),
+                ("openrouter", DEFAULT_OPENROUTER_LOCAL),
+            ]
+            log = logging.getLogger(__name__)
+            log.info("Auto-detect: probing local providers (providers menu)")
+            added = 0
+            for pid, base in candidates:
+                try:
+                    log.debug("Probing %s at %s", pid, base)
+                    models = list_models(base)
+                    if not models:
+                        log.debug("No models for %s at %s", pid, base)
+                        continue
+                    log.debug("Found %d models for %s: %s", len(models), pid, models)
+                    entry: Dict[str, Any] = {
+                        "name": PROVIDER_LABELS.get(pid, pid.capitalize()),
+                        "base_url": base,
+                        "env_key": "",  # local engines generally don't need API keys
+                        "wire_api": "chat",
+                    }
+                    args.provider_overrides = getattr(args, "provider_overrides", {}) or {}
+                    args.provider_overrides[pid] = entry
+                    # Track provider id list
+                    plist = set(getattr(args, "providers_list", []) or [])
+                    plist.add(pid)
+                    args.providers_list = list(plist)
+                    ok(f"Detected {pid} at {base}")
+                    added += 1
+                except Exception as e:
+                    log.debug("Error probing %s at %s: %s", pid, base, e, exc_info=True)
+                    warn(f"Skip {pid}: {e}")
+            if added == 0:
+                info("No local providers detected.")
+            else:
+                ok(f"Added {added} local provider(s).")
+            if not getattr(args, "continuous", False):
+                try:
+                    time.sleep(1.0)
+                except Exception:
+                    pass
+            continue
+        if choice == 1:
+            add_mode = prompt_choice("Add provider via", ["🎛️ Choose preset", "✍️ Enter custom"])
             if add_mode == 0:
                 preset_ids = sorted(PROVIDER_LABELS.keys(), key=lambda k: PROVIDER_LABELS[k].lower())
                 labels = []
@@ -90,8 +152,8 @@ def manage_providers_interactive(args) -> None:
                     if default_base:
                         label += f"  [{default_base}]"
                     labels.append(label)
-                labels.append("Back to main menu 🏠")
-                sel = prompt_choice("Preset 🎛️", labels)
+                labels.append(fmt("🏠 Back to main menu"))
+                sel = prompt_choice("🎛️ Preset", labels)
                 if sel == len(labels) - 1:
                     return
                 chosen_pid = preset_ids[sel]
@@ -191,7 +253,7 @@ def manage_providers_interactive(args) -> None:
             if pid not in args.providers_list and pid != getattr(args, "provider", None):
                 args.providers_list.append(pid)
             ok(f"Saved provider '{pid}'")
-        elif choice == 1:
+        elif choice == 2:
             if not names:
                 warn("No providers to edit.")
                 continue
@@ -240,11 +302,11 @@ def manage_providers_interactive(args) -> None:
                 act = prompt_choice(
                     "Action",
                     [
-                        "Edit field ✏️",
-                        "Rename provider id 🏷️",
-                        "Save 💾",
-                        "Cancel ❎",
-                        "Back to main menu 🏠",
+                        "✏️ Edit field",
+                        "🏷️ Rename provider id",
+                        "💾 Save",
+                        "❎ Cancel",
+                        fmt("🏠 Back to main menu"),
                     ],
                 )
                 if act == 0:
@@ -365,7 +427,7 @@ def manage_providers_interactive(args) -> None:
                     return
                 else:
                     break
-        elif choice == 2:
+        elif choice == 3:
             if not names:
                 warn("No providers to remove.")
                 continue

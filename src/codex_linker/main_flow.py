@@ -187,18 +187,13 @@ def main():
     if getattr(args, "version", False):
         print(current_version)
         return
-    # Banner control: show ASCII banner unless --no-banner; still trim on non-TTY or NO_COLOR
+    # Startup: banner is part of the main hub; optionally clear and print a minimal title here
     is_tty = bool(getattr(sys.stdout, "isatty", lambda: False)())
     color_ok = not os.environ.get("NO_COLOR")
-    show_banner = is_tty and color_ok and not getattr(args, "no_banner", False)
-    should_clear = show_banner and (os.name != "nt" or getattr(args, "clear", False))
-    if show_banner:
-        if should_clear:
-            clear_screen()
-        banner()
-    else:
-        # Minimal title line for non-TTY or when banner suppressed
-        print(c("CODEX CLI LINKER", CYAN))
+    should_clear = is_tty and color_ok and (os.name != "nt" or getattr(args, "clear", False))
+    if should_clear:
+        clear_screen()
+    print(c("CODEX CLI LINKER", CYAN))
     # --yes implies non-interactive where possible
     if getattr(args, "yes", False):
         if not args.auto:

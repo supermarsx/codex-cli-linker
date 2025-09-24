@@ -130,7 +130,7 @@ def _arrow_choice(prompt: str, options: List[str]) -> Optional[int]:
                     return ch1
                 ch2 = sys.stdin.read(1)
                 if ch2 != "[":
-                    return ""
+                    return "ESC"
                 ch3 = sys.stdin.read(1)
                 mapping = {"A": "UP", "B": "DOWN", "C": "RIGHT", "D": "LEFT"}
                 return mapping.get(ch3, "")
@@ -143,6 +143,9 @@ def _arrow_choice(prompt: str, options: List[str]) -> Optional[int]:
         if key == "CTRL_C":
             print()
             raise KeyboardInterrupt
+        if key == "ESC":
+            print()
+            return -1
         if key == "ENTER":
             if numbuf and numbuf.isdigit():
                 sel = int(numbuf)
@@ -174,6 +177,17 @@ def _arrow_choice(prompt: str, options: List[str]) -> Optional[int]:
 def prompt_choice(prompt: str, options: List[str]) -> int:
     sel = _arrow_choice(prompt, options)
     if sel is not None:
+        if isinstance(sel, int) and sel == -1:
+            # ESC pressed: try to select a Back option if present
+            back_indices: List[int] = []
+            for i, opt in enumerate(options):
+                lo = str(opt).lower()
+                if "back" in lo or "🏠" in str(opt) or "🔙" in str(opt):
+                    back_indices.append(i)
+            if back_indices:
+                return back_indices[-1]
+            # Fallback: bubble up
+            raise KeyboardInterrupt
         return sel
     for i, opt in enumerate(options, 1):
         use_color = supports_color() and not os.environ.get("NO_COLOR")

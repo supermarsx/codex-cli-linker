@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List, Dict, Any
 
-from ..ui import c, BOLD, CYAN, GRAY, info, warn, ok
+from ..ui import c, BOLD, CYAN, GRAY, info, warn, ok, clear_screen
 from .input_utils import prompt_choice, _input_list_json, _input_env_kv, fmt
 
 
@@ -13,6 +13,11 @@ def manage_mcp_servers_interactive(args) -> None:
         return sorted(list((args.mcp_servers or {}).keys()))
 
     while True:
+        if not getattr(args, "continuous", False):
+            try:
+                clear_screen()
+            except Exception:
+                pass
         names = list_servers()
         print()
         print(c(fmt("MCP servers 🧰:"), BOLD))
@@ -38,8 +43,7 @@ def manage_mcp_servers_interactive(args) -> None:
                 "Add server ➕",
                 "Edit server ✏️",
                 "Remove server 🗑️",
-                "Back ⬅️",
-                "Back to main menu 🏠",
+                fmt("🏠 Back to main menu"),
             ],
         )
         if i == 0:
@@ -66,10 +70,8 @@ def manage_mcp_servers_interactive(args) -> None:
             m.pop(name, None)
             args.mcp_servers = m
             info(f"Removed mcp server '{name}'")
-        elif i == 4:
+        elif i == 3:
             return
-        else:
-            break
 
 
 def _edit_mcp_entry_interactive(args, name: str, entry: Dict[str, Any], creating: bool) -> None:
@@ -85,7 +87,7 @@ def _edit_mcp_entry_interactive(args, name: str, entry: Dict[str, Any], creating
         ]
         for i, (lbl, val) in enumerate(items, 1):
             print(f"  {i}. {lbl}: {val}")
-        act = prompt_choice("Action", ["Edit field ✏️", "Save 💾", "Cancel ❎", "Back to main menu 🏠"])
+        act = prompt_choice("Action", ["Edit field ✏️", "Save 💾", "Cancel ❎", fmt("Back to main menu 🏠")])
         if act == 0:
             s = input("Field number: ").strip()
             if not s.isdigit():
