@@ -1760,7 +1760,7 @@ def manage_mcp_servers_interactive(args) -> None:
                     print(c(f"    env: {kv}", GRAY))
                 print(c(f"    startup_timeout_ms: {to_ms}", GRAY))
         i = prompt_choice(
-            "Choose", ["Add server", "Edit server", "Remove server", "Go back"]
+            "Choose", ["Add server", "Edit server", "Remove server", "Go back", "Go back to main menu"]
         )
         if i == 0:
             name = input("Server name (identifier): ").strip()
@@ -1795,6 +1795,9 @@ def manage_mcp_servers_interactive(args) -> None:
             m.pop(name, None)
             args.mcp_servers = m
             info(f"Removed mcp server '{name}'")
+        elif i == 4:
+            # Return directly to main menu
+            return
         else:
             break
 
@@ -1817,7 +1820,7 @@ def _edit_mcp_entry_interactive(
         ]
         for i, (lbl, val) in enumerate(items, 1):
             print(f"  {i}. {lbl}: {val}")
-        act = prompt_choice("Action", ["Edit field", "Save", "Cancel"])
+        act = prompt_choice("Action", ["Edit field", "Save", "Cancel", "Go back to main menu"])
         if act == 0:
             s = input("Field number: ").strip()
             if not s.isdigit():
@@ -1851,6 +1854,9 @@ def _edit_mcp_entry_interactive(
             else:
                 ok(f"Updated mcp server '{name}'")
             return
+        elif act == 3:
+            # Jump back to hub
+            raise KeyboardInterrupt
         else:
             return
 
@@ -2133,7 +2139,16 @@ def manage_providers_interactive(args) -> None:
                     if dsc:
                         line += " " + c(f"[{dsc}]", GRAY)
                     print(line)
-                act = prompt_choice("Action", ["Edit field", "Rename provider id", "Save", "Cancel"])
+                act = prompt_choice(
+                    "Action",
+                    [
+                        "Edit field",
+                        "Rename provider id",
+                        "Save",
+                        "Cancel",
+                        "Go back to main menu",
+                    ],
+                )
                 if act == 0:
                     s_in = _safe_input("Field number: ").strip()
                     if not s_in.isdigit():
@@ -2158,10 +2173,18 @@ def manage_providers_interactive(args) -> None:
                             ok(f"Updated {AUTH_JSON} with {ov['env_key']}")
                             warn("Never commit this file; it contains a secret.")
                     elif fi == 4:
-                        wi = prompt_choice("Wire API", ["chat", "responses", "Skip (no change)"])
+                        wi = prompt_choice(
+                            "Wire API",
+                            [
+                                "chat",
+                                "responses",
+                                "Skip (no change)",
+                                "Set to null",
+                            ],
+                        )
                         if wi < 2:
                             ov["wire_api"] = ["chat", "responses"][wi]
-                        elif wi == 2:
+                        elif wi == 3:
                             ov["wire_api"] = ""
                     elif fi == 5:
                         raw = _safe_input("Query params object ({key=\"value\",...}) (blank=skip, 'null'=clear): ").strip()
@@ -2194,26 +2217,35 @@ def manage_providers_interactive(args) -> None:
                                             env[k.strip()] = v.strip()
                                 ov["env_http_headers"] = env
                     elif fi == 8:
-                        s2 = _safe_input("Request max retries (blank to skip): ").strip()
+                        s2 = _safe_input("Request max retries (blank=skip, 'null'=clear): ").strip()
                         if s2:
-                            try:
-                                ov["request_max_retries"] = int(s2)
-                            except Exception:
-                                pass
+                            if _is_null_input(s2):
+                                ov["request_max_retries"] = ""
+                            else:
+                                try:
+                                    ov["request_max_retries"] = int(s2)
+                                except Exception:
+                                    pass
                     elif fi == 9:
-                        s2 = _safe_input("Stream max retries (blank to skip): ").strip()
+                        s2 = _safe_input("Stream max retries (blank=skip, 'null'=clear): ").strip()
                         if s2:
-                            try:
-                                ov["stream_max_retries"] = int(s2)
-                            except Exception:
-                                pass
+                            if _is_null_input(s2):
+                                ov["stream_max_retries"] = ""
+                            else:
+                                try:
+                                    ov["stream_max_retries"] = int(s2)
+                                except Exception:
+                                    pass
                     elif fi == 10:
-                        s2 = _safe_input("Stream idle timeout ms (blank to skip): ").strip()
+                        s2 = _safe_input("Stream idle timeout ms (blank=skip, 'null'=clear): ").strip()
                         if s2:
-                            try:
-                                ov["stream_idle_timeout_ms"] = int(s2)
-                            except Exception:
-                                pass
+                            if _is_null_input(s2):
+                                ov["stream_idle_timeout_ms"] = ""
+                            else:
+                                try:
+                                    ov["stream_idle_timeout_ms"] = int(s2)
+                                except Exception:
+                                    pass
                     # keep editing loop
                     args.provider_overrides[pid] = ov
                     continue
@@ -2240,6 +2272,9 @@ def manage_providers_interactive(args) -> None:
                     args.provider_overrides[pid] = ov
                     ok("Saved.")
                     break
+                elif act == 4:
+                    # Jump straight back to hub
+                    return
                 else:
                     break
 
