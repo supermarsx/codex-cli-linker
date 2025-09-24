@@ -64,7 +64,7 @@ def _handle_ctrlc_in_hub() -> None:
     if _HUB_CTRL_C_COUNT >= 2:
         print()
         sys.exit(0)
-    warn("Press Ctrl-C again to exit. Returning to main menu…")
+    warn("Press Ctrl-C again to exit ⏹️  Returning to main menu… 🏠")
 
 
 def _safe_input(prompt: str) -> str:
@@ -455,7 +455,7 @@ def manage_profiles_interactive(args) -> None:
     args.profile_overrides = getattr(args, "profile_overrides", {}) or {}
     while True:
         print()
-        print(c("Profiles:", BOLD))
+        print(c("Profiles 👤:", BOLD))
         # Build list: main current + profile overrides (providers are managed separately)
         names = []
         main_name = args.profile or "<auto>"
@@ -466,7 +466,13 @@ def manage_profiles_interactive(args) -> None:
         for n in names:
             print(c(f" - {n}", CYAN))
         i = prompt_choice(
-            "Choose", ["Add profile", "Edit profile", "Remove profile", "Go back"]
+            "Choose",
+            [
+                "Add profile ➕",
+                "Edit profile ✏️",
+                "Remove profile 🗑️",
+                "Back to main menu 🏠",
+            ],
         )
         if i == 0:
             name = _safe_input("Profile name: ").strip()
@@ -514,8 +520,8 @@ def manage_profiles_interactive(args) -> None:
                     (f"{lbl} ({pid.split(':')[0]})" if ":" in pid else f"{lbl} ({pid})")
                     for pid, lbl in presets
                 ]
-                labels.append("Go back to main menu")
-                sel = prompt_choice("Choose preset", labels)
+                labels.append("Back to main menu 🏠")
+                sel = prompt_choice("Choose preset 🎛️", labels)
                 if sel == len(labels) - 1:
                     return
                 chosen = presets[sel][0]
@@ -1039,18 +1045,18 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
     """
     while True:
         print()
-        print(c("Interactive settings:", BOLD))
+        print(c("Interactive settings ⚙️:", BOLD))
         try:
             hub = prompt_choice(
                 "Start with",
                 [
-                    "Manage profiles",
-                    "Manage MCP servers",
-                    "Manage providers",
-                    "Manage global settings",
-                    "Actions…",
-                    "Legacy pipeline (guided)",
-                    "Quit (no write)",
+                    "Manage profiles 👤",
+                    "Manage MCP servers 🧰",
+                    "Manage providers 🔌",
+                    "Global settings ⚙️",
+                    "Actions… 🚀",
+                    "Legacy pipeline (guided) 🧭",
+                    "Quit (no write) ❌",
                 ],
             )
         except KeyboardInterrupt:
@@ -1081,10 +1087,10 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
                 act = prompt_choice(
                     "Action",
                     [
-                        "Write",
-                        "Overwrite + Write",
-                        "Write and launch (print cmd)",
-                        "Back",
+                        "Write 💾",
+                        "Overwrite + Write 📝",
+                        "Write and launch (print cmd) 🚀",
+                        "Back ⬅️",
                     ],
                 )
             except KeyboardInterrupt:
@@ -1762,7 +1768,7 @@ def manage_mcp_servers_interactive(args) -> None:
     while True:
         names = list_servers()
         print()
-        print(c("MCP servers:", BOLD))
+        print(c("MCP servers 🧰:", BOLD))
         if not names:
             info("(none)")
         else:
@@ -1780,7 +1786,14 @@ def manage_mcp_servers_interactive(args) -> None:
                     print(c(f"    env: {kv}", GRAY))
                 print(c(f"    startup_timeout_ms: {to_ms}", GRAY))
         i = prompt_choice(
-            "Choose", ["Add server", "Edit server", "Remove server", "Go back", "Go back to main menu"]
+            "Choose",
+            [
+                "Add server ➕",
+                "Edit server ✏️",
+                "Remove server 🗑️",
+                "Back ⬅️",
+                "Back to main menu 🏠",
+            ],
         )
         if i == 0:
             name = input("Server name (identifier): ").strip()
@@ -1840,7 +1853,7 @@ def _edit_mcp_entry_interactive(
         ]
         for i, (lbl, val) in enumerate(items, 1):
             print(f"  {i}. {lbl}: {val}")
-        act = prompt_choice("Action", ["Edit field", "Save", "Cancel", "Go back to main menu"])
+        act = prompt_choice("Action", ["Edit field ✏️", "Save 💾", "Cancel ❎", "Back to main menu 🏠"])
         if act == 0:
             s = input("Field number: ").strip()
             if not s.isdigit():
@@ -1943,7 +1956,7 @@ def manage_providers_interactive(args) -> None:
         args.provider_overrides = {}
     while True:
         print()
-        print(c("Providers:", BOLD))
+        print(c("Providers 🔌:", BOLD))
         # Build list from current provider, overrides and providers_list
         names = []
         if getattr(args, "provider", None):
@@ -1961,15 +1974,15 @@ def manage_providers_interactive(args) -> None:
         choice = prompt_choice(
             "Choose",
             [
-                "Add provider",
-                "Edit provider",
-                "Remove provider",
-                "Done",
+                "Add provider ➕",
+                "Edit provider ✏️",
+                "Remove provider 🗑️",
+                "Done ✅",
             ],
         )
         if choice == 0:
             # Add provider: choose from presets or enter custom
-            add_mode = prompt_choice("Add provider via", ["Choose preset", "Enter custom"])
+            add_mode = prompt_choice("Add provider via", ["Choose preset 🎛️", "Enter custom ✍️"])
             if add_mode == 0:
                 # Build a stable list of known presets from PROVIDER_LABELS
                 preset_ids = sorted(PROVIDER_LABELS.keys(), key=lambda k: PROVIDER_LABELS[k].lower())
@@ -1980,8 +1993,8 @@ def manage_providers_interactive(args) -> None:
                     if default_base:
                         label += f"  [{default_base}]"
                     labels.append(label)
-                labels.append("Go back to main menu")
-                sel = prompt_choice("Preset", labels)
+                labels.append("Back to main menu 🏠")
+                sel = prompt_choice("Preset 🎛️", labels)
                 if sel == len(labels) - 1:
                     # Return all the way back to the interactive hub
                     return
@@ -2162,11 +2175,11 @@ def manage_providers_interactive(args) -> None:
                 act = prompt_choice(
                     "Action",
                     [
-                        "Edit field",
-                        "Rename provider id",
-                        "Save",
-                        "Cancel",
-                        "Go back to main menu",
+                        "Edit field ✏️",
+                        "Rename provider id 🏷️",
+                        "Save 💾",
+                        "Cancel ❎",
+                        "Back to main menu 🏠",
                     ],
                 )
                 if act == 0:
