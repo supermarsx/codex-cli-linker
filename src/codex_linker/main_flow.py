@@ -8,12 +8,9 @@ from pathlib import Path
 from .args import parse_args
 from .config_utils import merge_config_defaults, apply_saved_state
 from .prompts import (
-    pick_base_url,
-    pick_model_interactive,
     interactive_settings_editor,
     manage_profiles_interactive,
     manage_mcp_servers_interactive,
-    prompt_choice,
     prompt_yes_no,
 )
 from .logging_utils import configure_logging, log_event
@@ -57,6 +54,18 @@ from .doctor import run_doctor
 from .migrate import migrate_configs_to_linker
 from .auth_flow import maybe_prompt_openai_key
 from .output_writer import handle_outputs
+from .flows import (
+    handle_early_exits,
+    maybe_run_update_check,
+    select_state_path,
+    determine_base_and_provider,
+    maybe_prompt_openai_auth_method,
+    set_profile_and_api_key,
+    maybe_prompt_and_store_openai_key,
+    choose_model,
+    maybe_detect_context_window,
+    print_summary_and_hints,
+)
 
 
 # _log_update_sources and _report_update_status are imported from updates_helpers
@@ -94,35 +103,15 @@ def main():
         sources=",".join(update_sources),
     )
     sources_arg = update_sources or None
-    if getattr(args, "check_updates", False):
-        try:
-            result = check_for_updates(
-                current_version, home, force=True, sources=sources_arg
-            )
-        except Exception as exc:
-            warn(f"Update check failed: {exc}")
-            log_event(
-                "update_check_failed",
-                forced=True,
-                origin=install_origin,
-                error=str(exc),
-            )
-            return
-        _log_update_sources(result, forced=True, origin=install_origin)
-        _report_update_status(
-            result, current_version, forced=True, verbose=True, origin=install_origin
-        )
-        log_event(
-            "update_check_completed",
-            forced=True,
-            origin=install_origin,
-            newer=result.has_newer,
-            used_cache=result.used_cache,
-            sources=",".join(update_sources),
-        )
-        return
-    if getattr(args, "version", False):
-        print(current_version)
+    # Early exits / forced update check / version
+    if handle_early_exits(
+        args,
+        home,
+        config_targets=[config_toml, config_json, config_yaml],
+        current_version=current_version,
+        install_origin=install_origin,
+        update_sources=update_sources,
+    ):
         return
     # Consolidate legacy config files into linker_config.json early
     # Skip during --dry-run to honor tests and avoid writes
@@ -198,23 +187,9 @@ def main():
         return
     # Hard-disable auto launch regardless of flags
     args.launch = False
-    # Determine state file path
-    state_file_override = getattr(args, "state_file", None)
-    workspace_state_path = Path.cwd() / ".codex-linker.json"
-    use_workspace_state = getattr(args, "workspace_state", False)
-    if state_file_override:
-        state_path = Path(state_file_override)
-    else:
-        if not use_workspace_state and workspace_state_path.exists():
-            use_workspace_state = True
-        state_path = workspace_state_path if use_workspace_state else linker_json
+    # Determine and load state
+    state_path, use_workspace_state = select_state_path(args, home, linker_json)
     state = LinkerState.load(state_path)
-    log_event(
-        "state_path_selected",
-        path=str(state_path),
-        workspace=bool(use_workspace_state),
-        override=bool(state_file_override),
-    )
     apply_saved_state(args, defaults, state)
 
     if getattr(args, "doctor", False):
@@ -226,136 +201,27 @@ def main():
         exit_code = run_doctor(args, home, targets, state=state)
         sys.exit(exit_code)
 
-    if not getattr(args, "no_update_check", False):
-        try:
-            update_result = check_for_updates(
-                current_version, home, sources=sources_arg
-            )
-        except Exception as exc:
-            log_event(
-                "update_check_failed",
-                forced=False,
-                origin=install_origin,
-                error=str(exc),
-            )
-            if args.verbose:
-                warn(f"Update check failed: {exc}")
-        else:
-            _log_update_sources(update_result, forced=False, origin=install_origin)
-            _report_update_status(
-                update_result,
-                current_version,
-                forced=False,
-                verbose=args.verbose,
-                origin=install_origin,
-            )
-            log_event(
-                "update_check_completed",
-                forced=False,
-                origin=install_origin,
-                newer=update_result.has_newer,
-                used_cache=update_result.used_cache,
-                sources=",".join(update_sources),
-            )
-
-    # Base URL: Only run old pipeline for --full-auto. Otherwise defer to editor.
-    picker = getattr(
-        sys.modules.get("codex_cli_linker"), "pick_base_url", pick_base_url
+    # Background update check
+    maybe_run_update_check(
+        args,
+        home,
+        current_version=current_version,
+        install_origin=install_origin,
+        update_sources=update_sources,
     )
-    preferred_provider = (args.provider or "").strip().lower()
-    if args.full_auto:
-        if preferred_provider == "openai" and not args.base_url:
-            from .spec import DEFAULT_OPENAI
 
-            base = DEFAULT_OPENAI
-        else:
-            if args.auto:
-                base = args.base_url or picker(state, True)
-            else:
-                if getattr(args, "yes", False) and not args.base_url:
-                    err("--yes provided but no --base-url; refusing to prompt.")
-                    sys.exit(2)
-                base = args.base_url or picker(state, False)
-        state.base_url = base
-    else:
-        # Non full-auto: if --auto provided, still perform detection once; otherwise editor will handle it
-        if args.auto:
-            base = args.base_url or picker(state, True)
-            state.base_url = base
-        else:
-            state.base_url = args.base_url or state.base_url or ""
+    # Provider/base selection
+    determine_base_and_provider(args, state)
 
-    # Infer a safe default provider from the base URL (localhost:1234 → lmstudio, 11434 → ollama, otherwise 'custom').
-    default_provider = resolve_provider(state.base_url or "")
-    state.provider = args.provider or default_provider
-    # If provider is OpenAI and no base provided, normalize to default OpenAI endpoint
-    if state.provider == "openai" and not state.base_url:
-        from .spec import DEFAULT_OPENAI
+    # OpenAI auth choice, when applicable
+    maybe_prompt_openai_auth_method(args, state)
 
-        state.base_url = DEFAULT_OPENAI
-    if state.provider == "custom":
-        # Avoid prompting in non-interactive runs
-        if not (args.full_auto or args.auto or getattr(args, "yes", False)):
-            state.provider = (
-                input(
-                    "Provider id to use in model_providers (e.g., myprovider): "
-                ).strip()
-                or "custom"
-            )
-
-    # If targeting OpenAI interactively, allow choosing auth method (API vs ChatGPT)
-    if state.provider == "openai" and not args.auto and not getattr(args, "yes", False):
-        print()
-        print(c("OpenAI authentication method:", CYAN))
-        idx = prompt_choice(
-            "Select",
-            [
-                "API key (preferred_auth_method=apikey)",
-                "ChatGPT (preferred_auth_method=chatgpt)",
-            ],
-        )
-        args.preferred_auth_method = "apikey" if idx == 0 else "chatgpt"
-
-    if args.provider:
-        state.profile = args.profile or args.provider
-    else:
-        state.profile = args.profile or state.profile or state.provider
-    state.api_key = args.api_key or state.api_key or "sk-local"
-    # Optional: store provided API key in OS keychain (never required)
-    if args.api_key and args.keychain and args.keychain != "none":
-        success = store_api_key_in_keychain(args.keychain, state.env_key, args.api_key)
-        log_event(
-            "keychain_store",
-            provider=state.provider,
-            path=state.env_key,
-            error_type=None if success else "store_failed",
-        )
-    if "env_key_name" in getattr(args, "_explicit", set()):
-        state.env_key = args.env_key_name
-    else:
-        # Default env var names by provider
-        default_envs = {
-            "openai": "OPENAI_API_KEY",
-            "openrouter-remote": "OPENROUTER_API_KEY",
-            "anthropic": "ANTHROPIC_API_KEY",
-            "azure": "AZURE_OPENAI_API_KEY",
-            "groq": "GROQ_API_KEY",
-            "mistral": "MISTRAL_API_KEY",
-            "deepseek": "DEEPSEEK_API_KEY",
-            "cohere": "COHERE_API_KEY",
-            "baseten": "BASETEN_API_KEY",
-        }
-        if not state.env_key or state.env_key == "NULLKEY":
-            state.env_key = default_envs.get(state.provider, state.env_key or "NULLKEY")
+    # Profile and key setup
+    set_profile_and_api_key(args, state)
 
     # In interactive OpenAI API-key mode, offer to set/update OPENAI_API_KEY in auth.json
     # OpenAI API key prompt (interactive, when applicable)
-    try:
-        maybe_prompt_openai_key(args, home)
-    except SystemExit:
-        raise
-    except Exception:
-        pass
+    maybe_prompt_and_store_openai_key(args, home)
 
     # Offer unified interactive editor unless full-auto is requested
     interactive_action = None
@@ -398,64 +264,8 @@ def main():
                 except Exception as e:
                     err(str(e))
                     sys.exit(2)
-    # Model selection: Only old pipeline for full-auto. If explicit --model provided, respect it.
-    if args.model:
-        target = args.model
-        chosen = target
-        try:
-            lm = getattr(
-                sys.modules.get("codex_cli_linker"), "list_models", list_models
-            )
-            models = [] if state.provider == "openai" else lm(state.base_url)
-            if target in models:
-                chosen = target
-            else:
-                t = target.lower()
-                matches = sorted([m for m in models if t in m.lower()])
-                if matches:
-                    chosen = matches[0]
-                    ok(f"Selected model by substring match: {chosen}")
-        except Exception:
-            pass
-        state.model = chosen
-        log_event("model_selected", provider=state.provider, model=state.model)
-    elif (
-        (args.full_auto or args.auto)
-        and args.model_index is not None
-        and state.provider != "openai"
-    ):
-        try:
-            lm = getattr(
-                sys.modules.get("codex_cli_linker"), "list_models", list_models
-            )
-            models = lm(state.base_url)
-            idx = args.model_index if args.model_index >= 0 else 0
-            if idx >= len(models):
-                idx = 0
-            state.model = models[idx]
-            ok(f"Auto-selected model: {state.model}")
-            log_event("model_selected", provider=state.provider, model=state.model)
-        except Exception as e:
-            err(str(e))
-            sys.exit(2)
-    # Non full-auto legacy interactive: if no model was provided and no auto selection, prompt to pick
-    if (not getattr(args, "_fast_write", False)) and (
-        not args.full_auto
-        and not args.auto
-        and not args.model
-        and state.provider != "openai"
-    ):
-        try:
-            pmi = getattr(
-                sys.modules.get("codex_cli_linker"),
-                "pick_model_interactive",
-                pick_model_interactive,
-            )
-            state.model = pmi(state.base_url, None)
-            log_event("model_selected", provider=state.provider, model=state.model)
-        except Exception as e:
-            err(str(e))
-            sys.exit(2)
+    # Model selection
+    choose_model(args, state)
 
     if not args.full_auto:
         # Keep legacy extra prompts minimal for now, since editor handled main knobs
@@ -476,21 +286,7 @@ def main():
     state.history_max_bytes = args.history_max_bytes
 
     # Auto-detect context window if not provided
-    if (args.model_context_window or 0) <= 0 and not getattr(args, "_fast_write", False):
-        try:
-            tacw = getattr(
-                sys.modules.get("codex_cli_linker"),
-                "try_auto_context_window",
-                try_auto_context_window,
-            )
-            cw = tacw(state.base_url, state.model)
-            if cw > 0:
-                ok(f"Detected context window: {cw} tokens")
-                args.model_context_window = cw
-            else:
-                warn("Could not detect context window; leaving as 0.")
-        except Exception as _e:
-            warn(f"Context window detection failed: {_e}")
+    maybe_detect_context_window(args, state)
 
     # Build config dict per spec
     cfg = build_config_dict(state, args)
@@ -759,44 +555,8 @@ def main():
         # Save linker state for next run (no secrets)
         state.save(state_path)
 
-    # Friendly summary and manual run hint
-    print()
-    ok(
-        f"Configured profile '{state.profile}' using provider '{state.provider}' → {state.base_url} (model: {state.model})"
-    )
-    # Post-run report
-    info("Summary:")
-    print(c(f"  target: {config_toml}", CYAN))
-    try:
-        last_bak = max(config_toml.parent.glob("config.toml.*.bak"), default=None)
-    except Exception:
-        last_bak = None
-    if last_bak:
-        print(c(f"  backup: {last_bak}", CYAN))
-    print(c(f"  profile: {state.profile}", CYAN))
-    print(c(f"  provider: {state.provider}", CYAN))
-    print(c(f"  model: {state.model}", CYAN))
-    print(c(f"  context_window: {args.model_context_window or 0}", CYAN))
-    print(c(f"  max_output_tokens: {args.model_max_output_tokens or 0}", CYAN))
-    info("Run Codex manually with:")
-    print(c(f"  npx codex --profile {state.profile}", CYAN))
-    print(c(f"  codex --profile {state.profile}", CYAN))
-
-    # Optional: suggest an editor command to open the generated config
-    if getattr(args, "open_config", False):
-        opener = (args.file_opener or "vscode").strip().lower()
-        if opener == "vscode-insiders":
-            cmd = f'code-insiders "{config_toml}"'
-        else:
-            cmd = f'code "{config_toml}"'
-        info("Open config in your editor:")
-        print(c(f"  {cmd}", CYAN))
-
-    # Respect no auto-launch policy: only print how to launch when requested
-    if interactive_action == "write_and_launch" or getattr(args, "_guided_action", "") == "write_and_launch":
-        info("Launch Codex manually with:")
-        print(c(f"  npx codex --profile {state.profile}", CYAN))
-        print(c(f"  codex --profile {state.profile}", CYAN))
+    # Friendly summary and hints
+    print_summary_and_hints(args, state, config_toml=config_toml)
 
 
 __all__ = ["main"]
