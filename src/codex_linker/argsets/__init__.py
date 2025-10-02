@@ -17,14 +17,14 @@ Public helpers:
 
 from __future__ import annotations
 
-from ..args_general import add_general_args
-from ..args_model import add_model_args
-from ..args_providers import add_provider_args, SetProviderAction
-from ..args_profiles import add_profile_args
-from ..args_mcp import add_mcp_args
-from ..args_files import add_file_mgmt_args
-from ..args_other import add_other_args
-from ..args_backups import add_backup_args
+from .general import add_general_args
+from .model import add_model_args
+from .providers import add_provider_args, SetProviderAction
+from .profiles import add_profile_args
+from .mcp import add_mcp_args
+from .files import add_file_mgmt_args
+from .other import add_other_args
+from .backups import add_backup_args
 
 __all__ = [
     "add_general_args",
