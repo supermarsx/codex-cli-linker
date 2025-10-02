@@ -32,6 +32,7 @@ def _default_base_for_provider_id(pid: str) -> str:
             DEFAULT_LLAMACPP,
             DEFAULT_OPENAI,
         )
+
         mapping = {
             "lmstudio": DEFAULT_LMSTUDIO,
             "ollama": DEFAULT_OLLAMA,
@@ -103,24 +104,126 @@ def add_provider_args(p):
         help="Provider id (model_providers.<id>), default deduced",
     )
     # Preset convenience flags (locals)
-    providers.add_argument("-ls", "--lmstudio", action=SetProviderAction, provider_id="lmstudio", help="Preset: LM Studio")
-    providers.add_argument("-ol", "--ollama", action=SetProviderAction, provider_id="ollama", help="Preset: Ollama")
-    providers.add_argument("-vl", "--vllm", action=SetProviderAction, provider_id="vllm", help="Preset: vLLM")
-    providers.add_argument("-tg", "--tgwui", action=SetProviderAction, provider_id="tgwui", help="Preset: Text-Gen WebUI OpenAI plugin")
-    providers.add_argument("-ti", "--tgi", action=SetProviderAction, provider_id="tgi", help="Preset: TGI shim on :8080")
+    providers.add_argument(
+        "-ls",
+        "--lmstudio",
+        action=SetProviderAction,
+        provider_id="lmstudio",
+        help="Preset: LM Studio",
+    )
+    providers.add_argument(
+        "-ol",
+        "--ollama",
+        action=SetProviderAction,
+        provider_id="ollama",
+        help="Preset: Ollama",
+    )
+    providers.add_argument(
+        "-vl",
+        "--vllm",
+        action=SetProviderAction,
+        provider_id="vllm",
+        help="Preset: vLLM",
+    )
+    providers.add_argument(
+        "-tg",
+        "--tgwui",
+        action=SetProviderAction,
+        provider_id="tgwui",
+        help="Preset: Text-Gen WebUI OpenAI plugin",
+    )
+    providers.add_argument(
+        "-ti",
+        "--tgi",
+        action=SetProviderAction,
+        provider_id="tgi",
+        help="Preset: TGI shim on :8080",
+    )
     # Hosted / third-party
-    providers.add_argument("-or", "--openrouter", action=SetProviderAction, provider_id="openrouter-remote", help="Preset: OpenRouter")
-    providers.add_argument("-an", "--anthropic", action=SetProviderAction, provider_id="anthropic", help="Preset: Anthropic")
-    providers.add_argument("-az", "--azure", action=SetProviderAction, provider_id="azure", help="Preset: Azure OpenAI")
-    providers.add_argument("-gq", "--groq", action=SetProviderAction, provider_id="groq", help="Preset: Groq")
-    providers.add_argument("-mi", "--mistral", action=SetProviderAction, provider_id="mistral", help="Preset: Mistral")
-    providers.add_argument("-ds", "--deepseek", action=SetProviderAction, provider_id="deepseek", help="Preset: DeepSeek")
-    providers.add_argument("-ch", "--cohere", action=SetProviderAction, provider_id="cohere", help="Preset: Cohere")
-    providers.add_argument("-bt", "--baseten", action=SetProviderAction, provider_id="baseten", help="Preset: Baseten")
-    providers.add_argument("-al", "--anythingllm", action=SetProviderAction, provider_id="anythingllm", help="Preset: AnythingLLM")
-    providers.add_argument("-jn", "--jan", action=SetProviderAction, provider_id="jan", help="Preset: Jan AI")
-    providers.add_argument("-lc", "--llamacpp", action=SetProviderAction, provider_id="llamacpp", help="Preset: llama.cpp")
-    providers.add_argument("-kb", "--koboldcpp", action=SetProviderAction, provider_id="koboldcpp", help="Preset: KoboldCpp")
+    providers.add_argument(
+        "-or",
+        "--openrouter",
+        action=SetProviderAction,
+        provider_id="openrouter-remote",
+        help="Preset: OpenRouter",
+    )
+    providers.add_argument(
+        "-an",
+        "--anthropic",
+        action=SetProviderAction,
+        provider_id="anthropic",
+        help="Preset: Anthropic",
+    )
+    providers.add_argument(
+        "-az",
+        "--azure",
+        action=SetProviderAction,
+        provider_id="azure",
+        help="Preset: Azure OpenAI",
+    )
+    providers.add_argument(
+        "-gq",
+        "--groq",
+        action=SetProviderAction,
+        provider_id="groq",
+        help="Preset: Groq",
+    )
+    providers.add_argument(
+        "-mi",
+        "--mistral",
+        action=SetProviderAction,
+        provider_id="mistral",
+        help="Preset: Mistral",
+    )
+    providers.add_argument(
+        "-ds",
+        "--deepseek",
+        action=SetProviderAction,
+        provider_id="deepseek",
+        help="Preset: DeepSeek",
+    )
+    providers.add_argument(
+        "-ch",
+        "--cohere",
+        action=SetProviderAction,
+        provider_id="cohere",
+        help="Preset: Cohere",
+    )
+    providers.add_argument(
+        "-bt",
+        "--baseten",
+        action=SetProviderAction,
+        provider_id="baseten",
+        help="Preset: Baseten",
+    )
+    providers.add_argument(
+        "-al",
+        "--anythingllm",
+        action=SetProviderAction,
+        provider_id="anythingllm",
+        help="Preset: AnythingLLM",
+    )
+    providers.add_argument(
+        "-jn",
+        "--jan",
+        action=SetProviderAction,
+        provider_id="jan",
+        help="Preset: Jan AI",
+    )
+    providers.add_argument(
+        "-lc",
+        "--llamacpp",
+        action=SetProviderAction,
+        provider_id="llamacpp",
+        help="Preset: llama.cpp",
+    )
+    providers.add_argument(
+        "-kb",
+        "--koboldcpp",
+        action=SetProviderAction,
+        provider_id="koboldcpp",
+        help="Preset: KoboldCpp",
+    )
     providers.add_argument(
         "--azure-resource", help="Azure resource name (e.g., myresource)"
     )

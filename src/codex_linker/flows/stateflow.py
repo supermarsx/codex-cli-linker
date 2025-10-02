@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ..config_utils import merge_config_defaults, apply_saved_state
+from ..config_utils import apply_saved_state
 from ..logging_utils import log_event
 from ..state import LinkerState
 
@@ -32,4 +32,3 @@ def load_and_apply_state(args, defaults, state_path: Path) -> LinkerState:
     state = LinkerState.load(state_path)
     apply_saved_state(args, defaults, state)
     return state
-

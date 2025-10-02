@@ -34,4 +34,3 @@ def add_backup_args(p: argparse.ArgumentParser) -> None:
 
 
 __all__ = ["add_backup_args"]
-

@@ -100,6 +100,7 @@ def write_auth_json_merge(path: Path, kv: Dict[str, Any]) -> bool:
     """
     try:
         import json as _json
+
         current: Dict[str, Any] = {}
         if path.exists():
             try:

@@ -1,34 +1,22 @@
 from __future__ import annotations
-import difflib
 import os
 import re
 import sys
-import time
 from pathlib import Path
 from .args import parse_args
 from .config_utils import merge_config_defaults, apply_saved_state
-from .prompts import (
-    interactive_settings_editor,
-    manage_profiles_interactive,
-    manage_mcp_servers_interactive,
-    prompt_yes_no,
-)
 from .logging_utils import configure_logging, log_event
 from .render import build_config_dict
-from .emit import to_toml, to_json, to_yaml
-from .detect import list_models, try_auto_context_window
+from .emit import to_toml
 from .io_safe import (
     CODEX_HOME,
     AUTH_JSON,
     atomic_write_with_backup,
-    write_auth_json_merge,
     delete_all_backups,
     remove_config,
 )
-from .keychain import store_api_key_in_keychain
 from .state import LinkerState
 from .ui import (
-    banner,
     clear_screen,
     c,
     info,
@@ -36,23 +24,16 @@ from .ui import (
     warn,
     err,
     CYAN,
-    RED,
-    GREEN,
-    GRAY,
-    supports_color,
-    BOLD,
 )
-from .utils import get_version, resolve_provider
+from .utils import get_version
 from .updates import (
     check_for_updates,
     determine_update_sources,
     detect_install_origin,
-    UpdateCheckResult,
 )
 from .updates import _log_update_sources, _report_update_status
 from .doctor import run_doctor
 from .migrate import migrate_configs_to_linker
-from .auth_flow import maybe_prompt_openai_key
 from .output_writer import handle_outputs
 from .flows import (
     handle_early_exits,
@@ -104,7 +85,7 @@ def main():
         origin=install_origin,
         sources=",".join(update_sources),
     )
-    sources_arg = update_sources or None
+    # sources_arg no longer needed; update_sources passed directly
     # Early exits / forced update check / version
     if handle_early_exits(
         args,
@@ -122,7 +103,9 @@ def main():
         return
     # Consolidate legacy config files into linker_config.json early
     # Skip during --dry-run and when using --workspace-state
-    if not getattr(args, "dry_run", False) and not getattr(args, "workspace_state", False):
+    if not getattr(args, "dry_run", False) and not getattr(
+        args, "workspace_state", False
+    ):
         try:
             migrate_configs_to_linker(
                 linker_json,
@@ -136,7 +119,9 @@ def main():
     # Startup: banner is part of the main hub; optionally clear and print a minimal title here
     is_tty = bool(getattr(sys.stdout, "isatty", lambda: False)())
     color_ok = not os.environ.get("NO_COLOR")
-    should_clear = is_tty and color_ok and (os.name != "nt" or getattr(args, "clear", False))
+    should_clear = (
+        is_tty and color_ok and (os.name != "nt" or getattr(args, "clear", False))
+    )
     if should_clear:
         clear_screen()
     print(c("CODEX CLI LINKER", CYAN))
@@ -233,7 +218,6 @@ def main():
     maybe_prompt_and_store_openai_key(args, home)
 
     # Offer unified interactive editor unless full-auto is requested
-    interactive_action = None
     # Optional: jump straight into guided pipeline
     if getattr(args, "guided", False):
         try:

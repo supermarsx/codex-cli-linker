@@ -32,3 +32,12 @@ codex-cli-linker = "codex_linker:main"
 [tool.pytest.ini_options]
 addopts = "--cov=codex_cli_linker --cov=codex_linker --cov-report=term-missing --timeout=20 --timeout-method=thread"
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+# E402: module level import not at top of file
+# Many modules intentionally place __future__ imports before the module docstring
+# or include small top-level strings for help text. Ignore E402 to reduce noise.
+ignore = ["E402"]

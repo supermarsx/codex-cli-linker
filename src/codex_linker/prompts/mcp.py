@@ -55,7 +55,11 @@ def manage_mcp_servers_interactive(args) -> None:
             name = input("Server name (identifier): ").strip()
             if not name:
                 continue
-            entry: Dict[str, Any] = {"command": "npx", "args": ["-y", "mcp-server"], "env": {}}
+            entry: Dict[str, Any] = {
+                "command": "npx",
+                "args": ["-y", "mcp-server"],
+                "env": {},
+            }
             _edit_mcp_entry_interactive(args, name, entry, creating=True)
         elif i == 1:
             if not names:
@@ -64,7 +68,12 @@ def manage_mcp_servers_interactive(args) -> None:
             idx = prompt_choice("Edit which?", names)
             name = names[idx]
             curr = dict((args.mcp_servers or {}).get(name) or {})
-            _edit_mcp_entry_interactive(args, name, curr or {"command": "npx", "args": ["-y", "mcp-server"], "env": {}}, creating=False)
+            _edit_mcp_entry_interactive(
+                args,
+                name,
+                curr or {"command": "npx", "args": ["-y", "mcp-server"], "env": {}},
+                creating=False,
+            )
         elif i == 2:
             if not names:
                 warn("No servers to remove.")
@@ -79,20 +88,31 @@ def manage_mcp_servers_interactive(args) -> None:
             return
 
 
-def _edit_mcp_entry_interactive(args, name: str, entry: Dict[str, Any], creating: bool) -> None:
+def _edit_mcp_entry_interactive(
+    args, name: str, entry: Dict[str, Any], creating: bool
+) -> None:
     curr = dict(entry)
     while True:
         print()
         print(c(f"Edit MCP server [{name}]", BOLD))
         items = [
             ("Command", curr.get("command", "npx")),
-            ("Args (JSON array)", __import__("json").dumps(curr.get("args") or ["-y", "mcp-server"])),
-            ("Env (CSV KEY=VAL)", ", ".join(f"{k}={v}" for k, v in (curr.get("env") or {}).items())),
+            (
+                "Args (JSON array)",
+                __import__("json").dumps(curr.get("args") or ["-y", "mcp-server"]),
+            ),
+            (
+                "Env (CSV KEY=VAL)",
+                ", ".join(f"{k}={v}" for k, v in (curr.get("env") or {}).items()),
+            ),
             ("Startup timeout (ms)", str(curr.get("startup_timeout_ms", 10000))),
         ]
         for i, (lbl, val) in enumerate(items, 1):
             print(f"  {i}. {lbl}: {val}")
-        act = prompt_choice("Action", ["Edit field ✏️", "Save 💾", "Cancel ❎", fmt("🏠 Back to main menu")])
+        act = prompt_choice(
+            "Action",
+            ["Edit field ✏️", "Save 💾", "Cancel ❎", fmt("🏠 Back to main menu")],
+        )
         if not getattr(args, "continuous", False):
             try:
                 clear_screen()
@@ -104,14 +124,23 @@ def _edit_mcp_entry_interactive(args, name: str, entry: Dict[str, Any], creating
                 continue
             idx = int(s) - 1
             if idx == 0:
-                curr["command"] = input("Command: ").strip() or curr.get("command", "npx")
+                curr["command"] = input("Command: ").strip() or curr.get(
+                    "command", "npx"
+                )
             elif idx == 1:
-                curr["args"] = _input_list_json("Args JSON array (e.g., [\"-y\", \"mcp-server\"]): ", curr.get("args") or ["-y", "mcp-server"])
+                curr["args"] = _input_list_json(
+                    'Args JSON array (e.g., ["-y", "mcp-server"]): ',
+                    curr.get("args") or ["-y", "mcp-server"],
+                )
             elif idx == 2:
-                curr["env"] = _input_env_kv("Env CSV (KEY=VAL,...): ", curr.get("env") or {})
+                curr["env"] = _input_env_kv(
+                    "Env CSV (KEY=VAL,...): ", curr.get("env") or {}
+                )
             elif idx == 3:
                 try:
-                    curr["startup_timeout_ms"] = int(input("Startup timeout (ms): ").strip() or "10000")
+                    curr["startup_timeout_ms"] = int(
+                        input("Startup timeout (ms): ").strip() or "10000"
+                    )
                 except Exception:
                     pass
         elif act == 1:

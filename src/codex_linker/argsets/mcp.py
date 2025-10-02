@@ -31,7 +31,7 @@ def add_mcp_args(p: argparse.ArgumentParser) -> None:
         "-mj",
         "--mcp-json",
         help=(
-            "JSON object for mcp_servers (e.g., '{\"srv\": {\"command\": \"npx\", \"args\": [\"-y\", \"mcp-server\"], \"env\": {\"API_KEY\": \"v\"}}}')"
+            'JSON object for mcp_servers (e.g., \'{"srv": {"command": "npx", "args": ["-y", "mcp-server"], "env": {"API_KEY": "v"}}}\')'
         ),
     )
 

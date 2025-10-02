@@ -26,7 +26,11 @@ def maybe_run_interactive_editor(state, args) -> str | None:
     if getattr(args, "full_auto", False):
         return None
     trigger_editor = bool(getattr(args, "_no_args", False))
-    trigger_editor = trigger_editor or getattr(args, "manage_profiles", False) or getattr(args, "manage_mcp", False)
+    trigger_editor = (
+        trigger_editor
+        or getattr(args, "manage_profiles", False)
+        or getattr(args, "manage_mcp", False)
+    )
     if not trigger_editor:
         return None
 
