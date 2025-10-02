@@ -82,7 +82,8 @@ from .updates import (
     SourceResult,
     UpdateCheckResult,
 )
-from .main_flow import main, _log_update_sources, _report_update_status
+from .main_flow import main
+from .updates import _log_update_sources, _report_update_status
 
 
 def run_doctor(*args, **kwargs):

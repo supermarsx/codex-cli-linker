@@ -49,7 +49,7 @@ from .updates import (
     detect_install_origin,
     UpdateCheckResult,
 )
-from .updates_helpers import _log_update_sources, _report_update_status
+from .updates import _log_update_sources, _report_update_status
 from .doctor import run_doctor
 from .migrate import migrate_configs_to_linker
 from .auth_flow import maybe_prompt_openai_key

@@ -1,15 +1,8 @@
-"""Helpers for update-check logging and reporting.
-
-This module contains small, focused utilities extracted from the main flow to
-keep it concise. Functions are re-exported by main_flow to preserve the public
-API expected elsewhere in the codebase.
-"""
-
 from __future__ import annotations
 
-from .logging_utils import log_event
-from .ui import info, warn, ok
-from .updates import UpdateCheckResult
+from ..logging_utils import log_event
+from ..ui import info, warn, ok
+from .types import UpdateCheckResult
 
 
 def _label_source(name: str) -> str:
@@ -26,7 +19,7 @@ def _label_origin(origin: str) -> str:
         "brew": "Homebrew tap",
         "scoop": "Scoop install",
     }
-    return mapping.get(origin.lower(), origin or "unknown")
+    return mapping.get((origin or "").lower(), origin or "unknown")
 
 
 def _log_update_sources(result: UpdateCheckResult, forced: bool, origin: str) -> None:
