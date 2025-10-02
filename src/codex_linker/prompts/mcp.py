@@ -46,6 +46,11 @@ def manage_mcp_servers_interactive(args) -> None:
                 fmt("🏠 Back to main menu"),
             ],
         )
+        if not getattr(args, "continuous", False):
+            try:
+                clear_screen()
+            except Exception:
+                pass
         if i == 0:
             name = input("Server name (identifier): ").strip()
             if not name:
@@ -87,7 +92,12 @@ def _edit_mcp_entry_interactive(args, name: str, entry: Dict[str, Any], creating
         ]
         for i, (lbl, val) in enumerate(items, 1):
             print(f"  {i}. {lbl}: {val}")
-        act = prompt_choice("Action", ["Edit field ✏️", "Save 💾", "Cancel ❎", fmt("Back to main menu 🏠")])
+        act = prompt_choice("Action", ["Edit field ✏️", "Save 💾", "Cancel ❎", fmt("🏠 Back to main menu")])
+        if not getattr(args, "continuous", False):
+            try:
+                clear_screen()
+            except Exception:
+                pass
         if act == 0:
             s = input("Field number: ").strip()
             if not s.isdigit():

@@ -15,11 +15,6 @@ from .profiles_edit import _edit_profile_entry_interactive
 def manage_profiles_interactive(args) -> None:
     args.profile_overrides = getattr(args, "profile_overrides", {}) or {}
     while True:
-        if not getattr(args, "continuous", False):
-            try:
-                clear_screen()
-            except Exception:
-                pass
         print()
         print(c(fmt("👤 Profiles:"), BOLD))
         names: List[str] = []
@@ -39,6 +34,11 @@ def manage_profiles_interactive(args) -> None:
                 fmt("🏠 Back to main menu"),
             ],
         )
+        if not getattr(args, "continuous", False):
+            try:
+                clear_screen()
+            except Exception:
+                pass
         if i == 0:
             name = _safe_input("Profile name: ").strip()
             if not name:
@@ -49,7 +49,7 @@ def manage_profiles_interactive(args) -> None:
                     "Choose from existing providers",
                     "Pick from presets",
                     "Enter id manually",
-                    "Go back to main menu",
+                    fmt("🏠 Back to main menu"),
                 ],
             )
             if src == 3:
@@ -80,7 +80,7 @@ def manage_profiles_interactive(args) -> None:
                     (f"{lbl} ({pid.split(':')[0]})" if ":" in pid else f"{lbl} ({pid})")
                     for pid, lbl in presets
                 ]
-                labels.append("Go back to main menu")
+                labels.append(fmt("🏠 Back to main menu"))
                 sel = prompt_choice("🎛️ Choose preset", labels)
                 if sel == len(labels) - 1:
                     return

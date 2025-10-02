@@ -63,11 +63,6 @@ def manage_providers_interactive(args) -> None:
     if not hasattr(args, "provider_overrides") or args.provider_overrides is None:
         args.provider_overrides = {}
     while True:
-        if not getattr(args, "continuous", False):
-            try:
-                clear_screen()
-            except Exception:
-                pass
         print()
         print(c(fmt("Providers 🔌:"), BOLD))
         names: List[str] = []
@@ -93,6 +88,11 @@ def manage_providers_interactive(args) -> None:
                 "✅ Done",
             ],
         )
+        if not getattr(args, "continuous", False):
+            try:
+                clear_screen()
+            except Exception:
+                pass
         if choice == 0:
             # Auto-detect local OpenAI-compatible providers and add them with available models
             candidates = [
