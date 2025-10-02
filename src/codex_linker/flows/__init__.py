@@ -24,6 +24,7 @@ from .provider_flow import (
 from .model_flow import choose_model
 from .context_flow import maybe_detect_context_window
 from .summary_flow import print_summary_and_hints
+from .editor_flow import maybe_run_interactive_editor, maybe_post_editor_management
 
 __all__ = [
     "handle_early_exits",
@@ -37,5 +38,6 @@ __all__ = [
     "choose_model",
     "maybe_detect_context_window",
     "print_summary_and_hints",
+    "maybe_run_interactive_editor",
+    "maybe_post_editor_management",
 ]
-
