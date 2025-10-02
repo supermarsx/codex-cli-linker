@@ -25,9 +25,21 @@ class LinkerState:
     def save(self, path: Path) -> None:
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
-            data = asdict(self)
-            data.pop("api_key", None)
-            path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            new_state = asdict(self)
+            new_state.pop("api_key", None)
+            # Preserve any non-state keys already present in the file
+            try:
+                existing = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+                if not isinstance(existing, dict):
+                    existing = {}
+            except Exception:
+                existing = {}
+            # Overwrite only known state fields
+            for f in fields(self):
+                if f.name == "api_key":
+                    continue
+                existing[f.name] = new_state.get(f.name, f.default)
+            path.write_text(json.dumps(existing, indent=2), encoding="utf-8")
         except Exception as e:  # pragma: no cover
             print(f"Could not save state: {e}")
 

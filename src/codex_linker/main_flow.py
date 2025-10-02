@@ -52,77 +52,14 @@ from .updates import (
     detect_install_origin,
     UpdateCheckResult,
 )
+from .updates_helpers import _log_update_sources, _report_update_status
 from .doctor import run_doctor
+from .migrate import migrate_configs_to_linker
+from .auth_flow import maybe_prompt_openai_key
+from .output_writer import handle_outputs
 
 
-def _label_source(name: str) -> str:
-    mapping = {"github": "GitHub", "pypi": "PyPI"}
-    return mapping.get(name.lower(), name.title())
-
-
-def _label_origin(origin: str) -> str:
-    mapping = {
-        "pypi": "PyPI install",
-        "git": "Git checkout",
-        "binary": "packaged binary",
-        "homebrew": "Homebrew tap",
-        "brew": "Homebrew tap",
-        "scoop": "Scoop install",
-    }
-    return mapping.get(origin.lower(), origin or "unknown")
-
-
-def _log_update_sources(result: UpdateCheckResult, forced: bool, origin: str) -> None:
-    for src in result.sources:
-        log_event(
-            "update_check_source",
-            source=src.name,
-            version=src.version or "",
-            error=src.error or None,
-            forced=forced,
-            origin=origin,
-            used_cache=result.used_cache,
-        )
-
-
-def _report_update_status(
-    result: UpdateCheckResult,
-    current_version: str,
-    *,
-    forced: bool,
-    verbose: bool,
-    origin: str,
-) -> None:
-    origin_label = _label_origin(origin)
-    sources_label = ", ".join(_label_source(src.name) for src in result.sources)
-    if forced:
-        info(f"Current version: {current_version}")
-    if (forced or verbose) and sources_label:
-        info(f"Detected {origin_label}; checking {sources_label} for updates.")
-    elif (forced or verbose) and not sources_label:
-        warn(f"No update sources configured for origin '{origin}'.")
-    all_failed = len(result.errors) == len(result.sources)
-    if forced or verbose or result.has_newer or all_failed:
-        for src in result.sources:
-            label = _label_source(src.name)
-            if src.version:
-                info(f"{label} latest: {src.version}")
-                if (forced or result.has_newer) and src.url:
-                    info(f"{label} release: {src.url}")
-            if src.error and (forced or verbose or all_failed):
-                warn(f"{label} check error: {src.error}")
-    if result.has_newer:
-        summary = ", ".join(
-            f"{_label_source(src.name)} {src.version}"
-            for src in result.newer_sources
-            if src.version
-        )
-        if summary:
-            warn(f"Update available ({summary}); current version is {current_version}.")
-        else:
-            warn(f"Update available; current version is {current_version}.")
-    elif forced or (verbose and not result.errors):
-        ok("codex-cli-linker is up to date.")
+# _log_update_sources and _report_update_status are imported from updates_helpers
 
 
 def main():
@@ -187,6 +124,19 @@ def main():
     if getattr(args, "version", False):
         print(current_version)
         return
+    # Consolidate legacy config files into linker_config.json early
+    # Skip during --dry-run to honor tests and avoid writes
+    if not getattr(args, "dry_run", False):
+        try:
+            migrate_configs_to_linker(
+                linker_json,
+                config_toml=config_toml,
+                config_json=config_json,
+                config_yaml=config_yaml,
+            )
+        except Exception:
+            # Non-fatal: continue without blocking user flow
+            pass
     # Startup: banner is part of the main hub; optionally clear and print a minimal title here
     is_tty = bool(getattr(sys.stdout, "isatty", lambda: False)())
     color_ok = not os.environ.get("NO_COLOR")
@@ -399,56 +349,13 @@ def main():
             state.env_key = default_envs.get(state.provider, state.env_key or "NULLKEY")
 
     # In interactive OpenAI API-key mode, offer to set/update OPENAI_API_KEY in auth.json
-    if (
-        state.provider == "openai"
-        and (args.preferred_auth_method or "apikey") == "apikey"
-        and not getattr(args, "yes", False)
-        and not getattr(args, "dry_run", False)
-        and not getattr(args, "_ran_editor", False)
-    ):
-        import json
-        import getpass
-
-        existing_val = ""
-        if AUTH_JSON.exists():
-            try:
-                data = json.loads(AUTH_JSON.read_text(encoding="utf-8"))
-                if isinstance(data, dict):
-                    existing_val = str(data.get("OPENAI_API_KEY") or "")
-            except Exception:
-                existing_val = ""
-        if existing_val:
-            do_update = prompt_yes_no(
-                f"Found existing OPENAI_API_KEY in {AUTH_JSON.name}. Update it?",
-                default=False,
-            )
-        else:
-            do_update = prompt_yes_no(
-                f"Set OPENAI_API_KEY now in {AUTH_JSON.name}?", default=True
-            )
-        if do_update:
-            try:
-                new_key = getpass.getpass(
-                    "Enter OPENAI_API_KEY (input hidden): "
-                ).strip()
-            except Exception as exc:  # pragma: no cover
-                err(f"Could not read input: {exc}")
-                sys.exit(2)
-            if new_key:
-                # Write to ~/.codex/auth.json
-                home.mkdir(parents=True, exist_ok=True)
-                data = {}
-                if AUTH_JSON.exists():
-                    try:
-                        data = json.loads(AUTH_JSON.read_text(encoding="utf-8"))
-                        if not isinstance(data, dict):
-                            data = {}
-                    except Exception:
-                        data = {}
-                data["OPENAI_API_KEY"] = new_key
-                atomic_write_with_backup(AUTH_JSON, json.dumps(data, indent=2) + "\n")
-                ok(f"Updated {AUTH_JSON} with OPENAI_API_KEY")
-                warn("Never commit this file; it contains a secret.")
+    # OpenAI API key prompt (interactive, when applicable)
+    try:
+        maybe_prompt_openai_key(args, home)
+    except SystemExit:
+        raise
+    except Exception:
+        pass
 
     # Offer unified interactive editor unless full-auto is requested
     interactive_action = None
@@ -592,7 +499,22 @@ def main():
     toml_out = to_toml(cfg)
     toml_out = re.sub(r"\n{3,}", "\n\n", toml_out).rstrip() + "\n"
 
-    if args.dry_run:
+    # New unified output path: handle diffs/merges/writes in one place
+    handle_outputs(
+        args,
+        cfg,
+        toml_out,
+        config_toml=config_toml,
+        config_json=config_json,
+        config_yaml=config_yaml,
+        home=home,
+        state_profile=(args.profile or state.profile or state.provider),
+    )
+    # Save linker state for next run (no secrets) unless dry-run
+    if not getattr(args, "dry_run", False):
+        state.save(state_path)
+
+    if False and args.dry_run:
         if getattr(args, "diff", False):
             # Show pretty color diffs versus existing files (fallback to unified diff on no-color)
             def show_diff(path: Path, new_text: str, label: str):
@@ -639,7 +561,7 @@ def main():
             if args.yaml:
                 print(to_yaml(cfg))
         info("Dry run: no files were written.")
-    else:
+    elif False:
         # Ensure home dir exists
         home.mkdir(parents=True, exist_ok=True)
 

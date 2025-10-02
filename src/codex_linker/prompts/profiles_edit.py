@@ -65,7 +65,12 @@ def _edit_profile_entry_interactive(args, name: str) -> None:
             if dsc:
                 line += " " + c(f"[{dsc}]", GRAY)
             print(line)
-        act = prompt_choice("Action", ["Edit field", "Edit all fields", "Save", "Cancel", "Go back to main menu"])
+        act = prompt_choice("Action", ["Edit field", "Edit all fields", "Save", "Cancel", fmt("🏠 Back to main menu")])
+        if not getattr(args, "continuous", False):
+            try:
+                clear_screen()
+            except Exception:
+                pass
         if act == 0:
             s = input("Field number: ").strip()
             if not s.isdigit():

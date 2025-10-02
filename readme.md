@@ -6,6 +6,7 @@
 [![PyPI Total Downloads](https://img.shields.io/pepy/dt/codex-cli-linker?logo=pypi)](https://pepy.tech/project/codex-cli-linker)
 [![Coverage](./coverage.svg)](./coverage.svg)
 [![Downloads](https://img.shields.io/github/downloads/supermarsx/codex-cli-linker/total?logo=github)](https://github.com/supermarsx/codex-cli-linker/releases)
+[![Latest Release](https://img.shields.io/github/v/release/supermarsx/codex-cli-linker?sort=semver&display_name=tag&logo=github)](https://github.com/supermarsx/codex-cli-linker/releases/latest)
 [![Stars](https://img.shields.io/github/stars/supermarsx/codex-cli-linker?logo=github)](https://github.com/supermarsx/codex-cli-linker/stargazers)
 [![Forks](https://img.shields.io/github/forks/supermarsx/codex-cli-linker?logo=github)](https://github.com/supermarsx/codex-cli-linker/network/members)
 [![Watchers](https://img.shields.io/github/watchers/supermarsx/codex-cli-linker?logo=github)](https://github.com/supermarsx/codex-cli-linker/watchers)

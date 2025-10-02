@@ -1,13 +1,14 @@
-name: Release
-permissions:
-  contents: read
+name: Rolling Release
 
 on:
   push:
-    tags:
-      - "v*"          # e.g., v0.1.0
-      - "release-*"   # e.g., release-2025-09-07
+    branches: [main]
   workflow_dispatch: {}
+  schedule:
+    - cron: '0 3 * * *'  # Daily at 03:00 UTC
+
+permissions:
+  contents: write
 
 jobs:
   build_x64:
@@ -49,7 +50,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ runner.os }}-x64
+          name: rolling-${{ runner.os }}-x64
           path: release/*
           if-no-files-found: error
 
@@ -59,7 +60,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Windows 11 ARM hosted runner; ensure your repository has access.
         os: [ubuntu-24.04-arm, macos-14, windows-11-arm]
         py: ["3.11"]
 
@@ -93,17 +93,14 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ runner.os }}-arm64
+          name: rolling-${{ runner.os }}-arm64
           path: release/*
           if-no-files-found: error
 
-  release:
-    permissions:
-      contents: write
-    name: Publish GitHub Release
+  rolling_release:
+    name: Publish Rolling Release
     needs: [build_x64, build_arm]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -118,30 +115,36 @@ jobs:
           mkdir -p dist_flat
           find dist -maxdepth 3 -type f -print -exec cp {} dist_flat/ \;
 
-      - name: Read release notes (if present)
-        id: notes
-        shell: bash
-        run: |
-          NOTES_PATH="docs/release-notes/${GITHUB_REF_NAME}.md"
-          if [ -f "$NOTES_PATH" ]; then
-            {
-              echo 'RELEASE_BODY<<EOF'
-              cat "$NOTES_PATH"
-              echo 'EOF'
-            } >> "$GITHUB_ENV"
-            echo "notes=present" >> "$GITHUB_OUTPUT"
-          else
-            echo "No release notes at $NOTES_PATH"
-            echo "notes=missing" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Delete existing assets on rolling release (if any)
+        uses: actions/github-script@v7
         with:
-          tag_name: ${{ github.ref_name }}
+          script: |
+            const tag = 'rolling';
+            const {owner, repo} = context.repo;
+            try {
+              const rel = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
+              const assets = rel.data.assets || [];
+              for (const asset of assets) {
+                try {
+                  await github.rest.repos.deleteReleaseAsset({ owner, repo, asset_id: asset.id });
+                } catch (e) {
+                  core.warning(`Failed to delete asset ${asset.name}: ${e.message}`);
+                }
+              }
+              core.info(`Cleaned ${assets.length} existing assets on release id ${rel.data.id}`);
+            } catch (e) {
+              core.info('No existing rolling release. It will be created.');
+            }
+
+      - name: Create/Update rolling GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: rolling
+          name: Rolling Release
+          prerelease: true
+          draft: false
+          make_latest: false
           files: dist_flat/*
-          generate_release_notes: true
-          body: ${{ env.RELEASE_BODY }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
