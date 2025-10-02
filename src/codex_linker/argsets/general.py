@@ -73,9 +73,9 @@ def add_general_args(p: argparse.ArgumentParser) -> None:
     )
     # Common OpenAI shortcuts pinned in General for discoverability
     try:
-        from .args_providers import SetProviderAction  # local import to avoid cycles
+        from .providers import SetProviderAction  # local import to avoid cycles
     except Exception:
-        from .argsets import SetProviderAction  # type: ignore
+        from . import SetProviderAction  # type: ignore
     general.add_argument(
         "-oa",
         "--openai",
