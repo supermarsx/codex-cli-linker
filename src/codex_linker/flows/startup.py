@@ -5,8 +5,7 @@ from pathlib import Path
 from ..io_safe import delete_all_backups, remove_config
 from ..logging_utils import log_event
 from ..ui import warn
-from ..updates import check_for_updates
-from ..updates_helpers import _log_update_sources, _report_update_status
+from ..updates import check_for_updates, _log_update_sources, _report_update_status
 
 
 def handle_early_exits(args, home: Path, *, config_targets: list[Path], current_version: str,
@@ -85,4 +84,3 @@ def maybe_run_update_check(args, home: Path, *, current_version: str, install_or
         used_cache=result.used_cache,
         sources=",".join(update_sources),
     )
-

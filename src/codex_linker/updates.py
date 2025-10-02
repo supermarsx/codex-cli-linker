@@ -14,6 +14,8 @@ from .updatesets import (
     is_version_newer,
     SourceResult,
     UpdateCheckResult,
+    _log_update_sources,
+    _report_update_status,
 )
 
 __all__ = [
@@ -23,4 +25,6 @@ __all__ = [
     "is_version_newer",
     "SourceResult",
     "UpdateCheckResult",
+    "_log_update_sources",
+    "_report_update_status",
 ]
