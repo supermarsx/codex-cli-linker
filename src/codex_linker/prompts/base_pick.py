@@ -9,7 +9,6 @@ from ..spec import (
     DEFAULT_OLLAMA,
     DEFAULT_OPENAI,
     DEFAULT_OPENROUTER,
-    DEFAULT_OPENROUTER_LOCAL,
     DEFAULT_ANTHROPIC,
     DEFAULT_GROQ,
     DEFAULT_MISTRAL,
@@ -17,15 +16,8 @@ from ..spec import (
     DEFAULT_COHERE,
     DEFAULT_BASETEN,
     DEFAULT_KOBOLDCPP,
-    DEFAULT_ANYTHINGLLM,
-    DEFAULT_JAN,
-    DEFAULT_LLAMACPP,
-    DEFAULT_VLLM,
-    DEFAULT_TGWUI,
-    DEFAULT_TGI_8080,
 )
 from ..detect import detect_base_url, list_models
-from ..detect import try_auto_context_window  # type: ignore
 from ..state import LinkerState
 from ..ui import c, BOLD, CYAN
 from .input_utils import prompt_choice
@@ -198,4 +190,3 @@ def interactive_prompts(args) -> None:
     print(c("Model verbosity:", BOLD))
     i = prompt_choice("Choose verbosity", vb_opts)
     args.verbosity = vb_opts[i]
-

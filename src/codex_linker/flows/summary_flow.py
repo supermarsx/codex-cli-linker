@@ -40,4 +40,3 @@ def print_summary_and_hints(args, state, *, config_toml: Path) -> None:
         info("Launch Codex manually with:")
         print(c(f"  npx codex --profile {state.profile}", CYAN))
         print(c(f"  codex --profile {state.profile}", CYAN))
-

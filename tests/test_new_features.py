@@ -1,6 +1,5 @@
 import importlib.util
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -21,6 +20,7 @@ def test_set_openai_key_mode_writes_auth_json(monkeypatch, tmp_path):
     auth = tmp_path / "auth.json"
     # Patch both the main_flow binding and the underlying io_safe constant to isolate path
     import sys as _sys
+
     mf = _sys.modules.get("codex_linker.main_flow")
     if mf is not None:
         monkeypatch.setattr(mf, "AUTH_JSON", auth, raising=False)
@@ -75,7 +75,13 @@ def test_provider_preset_env_headers(monkeypatch):
 def test_tui_notifications_emit(monkeypatch):
     cli = load_cli()
     state = cli.LinkerState()
-    args = cli.parse_args(["--tui-notifications", "--tui-notification-types", "agent-turn-complete,approval-requested"])
+    args = cli.parse_args(
+        [
+            "--tui-notifications",
+            "--tui-notification-types",
+            "agent-turn-complete,approval-requested",
+        ]
+    )
     cfg = cli.build_config_dict(state, args)
     assert cfg.get("tui", {}).get("notifications") == [
         "agent-turn-complete",

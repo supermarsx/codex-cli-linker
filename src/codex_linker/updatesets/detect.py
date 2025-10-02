@@ -64,7 +64,9 @@ def detect_install_origin(
     brew_cellar_path = _safe_path(os.environ.get("HOMEBREW_CELLAR"))
     brew_prefix_path = _safe_path(os.environ.get("HOMEBREW_PREFIX"))
     brew_prefix_cellar = brew_prefix_path / "Cellar" if brew_prefix_path else None
-    if _is_within(module_path, brew_cellar_path) or _is_within(module_path, brew_prefix_cellar):
+    if _is_within(module_path, brew_cellar_path) or _is_within(
+        module_path, brew_prefix_cellar
+    ):
         return "homebrew"
 
     scoop_home = _safe_path(os.environ.get("SCOOP"))

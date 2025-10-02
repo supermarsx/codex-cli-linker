@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-import sys
-from typing import Dict, Any
+from typing import Dict
 
 from .state import LinkerState
-from .ui import c, BOLD, CYAN, GRAY, ok, warn, err
-from .spec import PROVIDER_LABELS, DEFAULT_OPENAI
+from .ui import c, BOLD, CYAN, ok, warn, err
+from .spec import PROVIDER_LABELS
 from .detect import list_models, try_auto_context_window
 from .io_safe import AUTH_JSON, write_auth_json_merge
 from .prompts.input_utils import (
     prompt_choice,
     _safe_input,
-    _is_null_input,
     _parse_brace_kv,
     fmt,
     set_emojis_enabled,
@@ -40,7 +38,9 @@ def run_guided_pipeline(state: LinkerState, args) -> None:
         ],
     )
     if mode == 0:
-        preset_ids = sorted(PROVIDER_LABELS.keys(), key=lambda k: PROVIDER_LABELS[k].lower())
+        preset_ids = sorted(
+            PROVIDER_LABELS.keys(), key=lambda k: PROVIDER_LABELS[k].lower()
+        )
         labels = [f"{PROVIDER_LABELS[k]} ({k})" for k in preset_ids]
         pi = prompt_choice("Preset", labels)
         pid = preset_ids[pi]
@@ -96,9 +96,13 @@ def run_guided_pipeline(state: LinkerState, args) -> None:
     try:
         import getpass
 
-        secret = getpass.getpass(f"Enter API key for {pid} (env {envk}) [blank to skip]: ").strip()
+        secret = getpass.getpass(
+            f"Enter API key for {pid} (env {envk}) [blank to skip]: "
+        ).strip()
     except Exception:
-        secret = _safe_input(f"Enter API key for {pid} (env {envk}) [blank to skip]: ").strip()
+        secret = _safe_input(
+            f"Enter API key for {pid} (env {envk}) [blank to skip]: "
+        ).strip()
     if secret:
         try:
             write_auth_json_merge(AUTH_JSON, {envk: secret})
@@ -119,7 +123,10 @@ def run_guided_pipeline(state: LinkerState, args) -> None:
     # 5) Query params (e.g., Azure api-version)
     print()
     print(c(fmt("Query params"), BOLD))
-    qp_mode = prompt_choice("Provide query params", ["Skip", "Enter ({key=\"value\",...})", "Azure api-version only"])
+    qp_mode = prompt_choice(
+        "Provide query params",
+        ["Skip", 'Enter ({key="value",...})', "Azure api-version only"],
+    )
     qpi: Dict[str, str] = {}
     if qp_mode == 1:
         raw = _safe_input("Query params object: ").strip()
@@ -141,7 +148,9 @@ def run_guided_pipeline(state: LinkerState, args) -> None:
     # 6) HTTP headers
     print()
     print(c(fmt("HTTP headers"), BOLD))
-    hm = prompt_choice("Headers", ["None", "CSV headers (KEY=VAL)", "Env headers (KEY=ENV)"])
+    hm = prompt_choice(
+        "Headers", ["None", "CSV headers (KEY=VAL)", "Env headers (KEY=ENV)"]
+    )
     if hm == 1:
         raw = _safe_input("Headers CSV: ").strip()
         if raw:
@@ -176,7 +185,9 @@ def run_guided_pipeline(state: LinkerState, args) -> None:
     # 7) Model selection
     print()
     print(c(fmt("Model selection"), BOLD))
-    mm = prompt_choice("Model", ["Enter manually", "Auto-detect from server", "Use default (gpt-5)"])
+    mm = prompt_choice(
+        "Model", ["Enter manually", "Auto-detect from server", "Use default (gpt-5)"]
+    )
     if mm == 0:
         args.model = _safe_input("Model id: ").strip()
     elif mm == 1:
@@ -206,7 +217,9 @@ def run_guided_pipeline(state: LinkerState, args) -> None:
             warn(f"Detection failed: {e}")
     elif cw == 1:
         try:
-            args.model_context_window = int(_safe_input("Context window: ").strip() or "0")
+            args.model_context_window = int(
+                _safe_input("Context window: ").strip() or "0"
+            )
         except Exception:
             pass
 
@@ -221,16 +234,24 @@ def run_guided_pipeline(state: LinkerState, args) -> None:
     # 10) Approval/sandbox
     print()
     print(c(fmt("Approval & sandbox"), BOLD))
-    ap = prompt_choice("Approval policy", ["untrusted", "on-failure", "on-request", "never"])
+    ap = prompt_choice(
+        "Approval policy", ["untrusted", "on-failure", "on-request", "never"]
+    )
     args.approval_policy = ["untrusted", "on-failure", "on-request", "never"][ap]
-    sb = prompt_choice("Sandbox mode", ["read-only", "workspace-write", "danger-full-access"])
+    sb = prompt_choice(
+        "Sandbox mode", ["read-only", "workspace-write", "danger-full-access"]
+    )
     args.sandbox_mode = ["read-only", "workspace-write", "danger-full-access"][sb]
 
     # 11) Reasoning and verbosity
-    re = prompt_choice("Reasoning effort", ["minimal", "low", "medium", "high", "auto", "Skip"])
+    re = prompt_choice(
+        "Reasoning effort", ["minimal", "low", "medium", "high", "auto", "Skip"]
+    )
     if re < 5:
         args.reasoning_effort = ["minimal", "low", "medium", "high", "auto"][re]
-    rs = prompt_choice("Reasoning summary", ["auto", "concise", "detailed", "none", "Skip"])
+    rs = prompt_choice(
+        "Reasoning summary", ["auto", "concise", "detailed", "none", "Skip"]
+    )
     if rs < 4:
         args.reasoning_summary = ["auto", "concise", "detailed", "none"][rs]
     vb = prompt_choice("Verbosity", ["low", "medium", "high", "Skip"])
@@ -262,7 +283,9 @@ def run_guided_pipeline(state: LinkerState, args) -> None:
     args.tools_web_search = True if tw == 1 else False
 
     # 14) Notify
-    s = _safe_input("Notify JSON array (e.g., [\"-y\", \"mcp-server\"]) [blank=skip]: ").strip()
+    s = _safe_input(
+        'Notify JSON array (e.g., ["-y", "mcp-server"]) [blank=skip]: '
+    ).strip()
     if s:
         args.notify = s
 
@@ -275,7 +298,12 @@ def run_guided_pipeline(state: LinkerState, args) -> None:
     print(c(f"  wire_api: {getattr(args, 'wire_api', '')}", CYAN))
     print(c(f"  model: {args.model or ''}", CYAN))
     print(c(f"  context_window: {getattr(args, 'model_context_window', 0) or 0}", CYAN))
-    print(c(f"  max_output_tokens: {getattr(args, 'model_max_output_tokens', 0) or 0}", CYAN))
+    print(
+        c(
+            f"  max_output_tokens: {getattr(args, 'model_max_output_tokens', 0) or 0}",
+            CYAN,
+        )
+    )
     print(c(f"  approval_policy: {args.approval_policy}", CYAN))
     print(c(f"  sandbox_mode: {args.sandbox_mode}", CYAN))
     print(c(f"  reasoning_effort: {getattr(args, 'reasoning_effort', '')}", CYAN))
@@ -283,7 +311,12 @@ def run_guided_pipeline(state: LinkerState, args) -> None:
     print(c(f"  verbosity: {getattr(args, 'verbosity', '')}", CYAN))
     print(c(f"  request_max_retries: {getattr(args, 'request_max_retries', 0)}", CYAN))
     print(c(f"  stream_max_retries: {getattr(args, 'stream_max_retries', 0)}", CYAN))
-    print(c(f"  stream_idle_timeout_ms: {getattr(args, 'stream_idle_timeout_ms', 0)}", CYAN))
+    print(
+        c(
+            f"  stream_idle_timeout_ms: {getattr(args, 'stream_idle_timeout_ms', 0)}",
+            CYAN,
+        )
+    )
     print()
     act = prompt_choice(
         "Next",

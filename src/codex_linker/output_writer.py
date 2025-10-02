@@ -3,19 +3,12 @@
 Encapsulates the logic for rendering config outputs (TOML/JSON/YAML), printing
 diffs in dry-run mode, merging into existing TOML when requested, and writing
 files with backups.
-"""
-
-from __future__ import annotations
-
-"""Output writing and diff/merge helpers.
-
-Encapsulates the logic for rendering config outputs (TOML/JSON/YAML), printing
-diffs in dry-run mode, merging into existing TOML when requested, and writing
-files with backups.
 
 Functions in this module are side-effecting by design (I/O, printing). Keep
 the call surface narrow from main flow and document behaviors in docstrings.
 """
+
+from __future__ import annotations
 
 import difflib
 import os
@@ -89,6 +82,7 @@ def _merge_append_sections(existing: str, new_text: str, conflicts: list[str]) -
             merged = merged.rstrip() + "\n" + line + "\n"
 
     def merge_ns(ns: str) -> None:
+        nonlocal merged
         pat = _re.compile(rf"(?ms)^\[{_re.escape(ns)}\]\s*.*?(?=^\[|\Z)")
         m1 = _re.search(pat, merged)
         m2 = _re.search(pat, new_text)
@@ -149,7 +143,9 @@ def handle_outputs(
             old_text = ""
         prof = (getattr(args, "profile", "") or state_profile).strip()
         if prof:
-            pattern = _re.compile(r"^\[profiles\.%s\]\s*$" % _re.escape(prof), _re.MULTILINE)
+            pattern = _re.compile(
+                r"^\[profiles\.%s\]\s*$" % _re.escape(prof), _re.MULTILINE
+            )
             if pattern.search(old_text):
                 if getattr(args, "yes", False):
                     err(
@@ -158,7 +154,8 @@ def handle_outputs(
                     raise SystemExit(2)
                 else:
                     if not prompt_yes_no(
-                        f"Profile '{prof}' exists in config.toml. Overwrite it?", default=False
+                        f"Profile '{prof}' exists in config.toml. Overwrite it?",
+                        default=False,
                     ):
                         err("Aborted to avoid overwriting existing profile.")
                         raise SystemExit(2)
@@ -166,7 +163,9 @@ def handle_outputs(
     t0 = time.time()
     if args.merge_config or args.merge_profiles:
         try:
-            old = config_toml.read_text(encoding="utf-8") if config_toml.exists() else ""
+            old = (
+                config_toml.read_text(encoding="utf-8") if config_toml.exists() else ""
+            )
         except Exception:
             old = ""
         new_text = toml_out
@@ -174,7 +173,9 @@ def handle_outputs(
         merged = _merge_append_sections(old, new_text, conflicts)
         if conflicts and not getattr(args, "merge_overwrite", False):
             if getattr(args, "yes", False):
-                err("Merge conflicts detected; re-run with --merge-overwrite to replace them.")
+                err(
+                    "Merge conflicts detected; re-run with --merge-overwrite to replace them."
+                )
                 raise SystemExit(2)
             info("Merge conflicts detected (will overwrite if confirmed):")
             for citem in conflicts:

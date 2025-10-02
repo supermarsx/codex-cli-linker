@@ -1,14 +1,28 @@
 from __future__ import annotations
 
-import sys
 import getpass
-from typing import List, Dict, Any
+from typing import List
 
-from ..spec import PROVIDER_LABELS, DEFAULT_OPENAI, DEFAULT_LMSTUDIO, DEFAULT_OLLAMA, DEFAULT_ANTHROPIC, DEFAULT_OPENROUTER, DEFAULT_GROQ, DEFAULT_MISTRAL, DEFAULT_DEEPSEEK, DEFAULT_COHERE, DEFAULT_BASETEN, DEFAULT_LLAMACPP, DEFAULT_KOBOLDCPP, DEFAULT_JAN, DEFAULT_ANYTHINGLLM
-from ..detect import list_models, try_auto_context_window
-from ..ui import c, BOLD, CYAN, GRAY, info, warn, ok, err, clear_screen
+from ..spec import (
+    PROVIDER_LABELS,
+    DEFAULT_OPENAI,
+    DEFAULT_LMSTUDIO,
+    DEFAULT_OLLAMA,
+    DEFAULT_ANTHROPIC,
+    DEFAULT_OPENROUTER,
+    DEFAULT_GROQ,
+    DEFAULT_MISTRAL,
+    DEFAULT_DEEPSEEK,
+    DEFAULT_COHERE,
+    DEFAULT_BASETEN,
+    DEFAULT_LLAMACPP,
+    DEFAULT_KOBOLDCPP,
+    DEFAULT_JAN,
+    DEFAULT_ANYTHINGLLM,
+)
+from ..ui import c, BOLD, CYAN, info, warn, ok, err, clear_screen
 from ..io_safe import AUTH_JSON, write_auth_json_merge
-from .input_utils import (prompt_choice, _safe_input, _is_null_input, fmt)
+from .input_utils import prompt_choice, _safe_input, fmt
 from .profiles_edit import _edit_profile_entry_interactive
 
 
@@ -61,7 +75,7 @@ def manage_profiles_interactive(args) -> None:
                 for k in (getattr(args, "provider_overrides", {}) or {}).keys():
                     if k not in names2:
                         names2.append(k)
-                for p in (getattr(args, "providers_list", []) or []):
+                for p in getattr(args, "providers_list", []) or []:
                     if p not in names2:
                         names2.append(p)
                 if not names2:
@@ -74,7 +88,10 @@ def manage_profiles_interactive(args) -> None:
                     [(pid, lbl) for pid, lbl in PROVIDER_LABELS.items()],
                     key=lambda x: x[1].lower(),
                 )
-                extended_presets = [("openai:api", "OpenAI (API Key)"), ("openai:chatgpt", "OpenAI (ChatGPT)")]
+                extended_presets = [
+                    ("openai:api", "OpenAI (API Key)"),
+                    ("openai:chatgpt", "OpenAI (ChatGPT)"),
+                ]
                 presets = extended_presets + base_presets
                 labels = [
                     (f"{lbl} ({pid.split(':')[0]})" if ":" in pid else f"{lbl} ({pid})")
@@ -88,7 +105,9 @@ def manage_profiles_interactive(args) -> None:
                 if chosen == "openai:api":
                     provider = "openai"
                     args.preferred_auth_method = "apikey"
-                    if not getattr(args, "env_key_name", "") or getattr(args, "env_key_name", "") in ("", "NULLKEY"):
+                    if not getattr(args, "env_key_name", "") or getattr(
+                        args, "env_key_name", ""
+                    ) in ("", "NULLKEY"):
                         args.env_key_name = "OPENAI_API_KEY"
                     if not ((getattr(args, "base_url", "") or "").strip()):
                         args.base_url = DEFAULT_OPENAI
@@ -118,7 +137,9 @@ def manage_profiles_interactive(args) -> None:
                     }
                     if not ((getattr(args, "base_url", "") or "").strip()):
                         if provider != "azure":
-                            args.base_url = default_base_by_provider.get(provider, getattr(args, "base_url", ""))
+                            args.base_url = default_base_by_provider.get(
+                                provider, getattr(args, "base_url", "")
+                            )
                     default_envs = {
                         "openai": "OPENAI_API_KEY",
                         "openrouter-remote": "OPENROUTER_API_KEY",
@@ -130,26 +151,52 @@ def manage_profiles_interactive(args) -> None:
                         "cohere": "COHERE_API_KEY",
                         "baseten": "BASETEN_API_KEY",
                     }
-                    current_env_key = getattr(args, "env_key_name", "NULLKEY") or "NULLKEY"
-                    if current_env_key in ("", "NULLKEY") and provider in default_envs and getattr(args, "preferred_auth_method", "apikey") == "apikey":
+                    current_env_key = (
+                        getattr(args, "env_key_name", "NULLKEY") or "NULLKEY"
+                    )
+                    if (
+                        current_env_key in ("", "NULLKEY")
+                        and provider in default_envs
+                        and getattr(args, "preferred_auth_method", "apikey") == "apikey"
+                    ):
                         args.env_key_name = default_envs[provider]
                 except Exception:
                     pass
             else:
-                provider = _safe_input("Provider id (e.g., lmstudio, ollama, openai): ").strip() or (args.provider or "")
+                provider = _safe_input(
+                    "Provider id (e.g., lmstudio, ollama, openai): "
+                ).strip() or (args.provider or "")
             try:
-                online = {"openai","openrouter-remote","anthropic","azure","groq","mistral","deepseek","cohere","baseten"}
-                if (provider in online) and (getattr(args, "preferred_auth_method", "apikey") == "apikey"):
+                online = {
+                    "openai",
+                    "openrouter-remote",
+                    "anthropic",
+                    "azure",
+                    "groq",
+                    "mistral",
+                    "deepseek",
+                    "cohere",
+                    "baseten",
+                }
+                if (provider in online) and (
+                    getattr(args, "preferred_auth_method", "apikey") == "apikey"
+                ):
                     current = getattr(args, "env_key_name", "NULLKEY") or "NULLKEY"
                     if current in ("", "NULLKEY"):
                         args.env_key_name = _default_env_key_for_profile(provider, name)
                     try:
-                        secret = getpass.getpass(f"Enter API key for {provider} (env {args.env_key_name}) [leave blank to skip]: ").strip()
+                        secret = getpass.getpass(
+                            f"Enter API key for {provider} (env {args.env_key_name}) [leave blank to skip]: "
+                        ).strip()
                     except Exception:
-                        secret = input(f"Enter API key for {provider} (env {args.env_key_name}) [leave blank to skip]: ").strip()
+                        secret = input(
+                            f"Enter API key for {provider} (env {args.env_key_name}) [leave blank to skip]: "
+                        ).strip()
                     if secret:
                         try:
-                            write_auth_json_merge(AUTH_JSON, {args.env_key_name: secret})
+                            write_auth_json_merge(
+                                AUTH_JSON, {args.env_key_name: secret}
+                            )
                             ok(f"Updated {AUTH_JSON} with {args.env_key_name}")
                             warn("Never commit this file; it contains a secret.")
                         except Exception as e:
@@ -181,17 +228,27 @@ def manage_profiles_interactive(args) -> None:
                     print(c(f"Profile fields [{name}]", BOLD))
                     print(f"  Provider: {ov.get('provider','')}")
                     print(f"  Model: {ov.get('model','')}")
-                    print(f"  Context window: {int(ov.get('model_context_window') or 0)}")
-                    print(f"  Max output tokens: {int(ov.get('model_max_output_tokens') or 0)}")
+                    print(
+                        f"  Context window: {int(ov.get('model_context_window') or 0)}"
+                    )
+                    print(
+                        f"  Max output tokens: {int(ov.get('model_max_output_tokens') or 0)}"
+                    )
                     print(f"  Approval policy: {ov.get('approval_policy','')}")
                     print(f"  File opener: {ov.get('file_opener','')}")
                     print(f"  Reasoning effort: {ov.get('model_reasoning_effort','')}")
-                    print(f"  Reasoning summary: {ov.get('model_reasoning_summary','')}")
+                    print(
+                        f"  Reasoning summary: {ov.get('model_reasoning_summary','')}"
+                    )
                     print(f"  Verbosity: {ov.get('model_verbosity','')}")
-                    print(f"  Disable response storage: {str(ov.get('disable_response_storage', False)).lower()}")
+                    print(
+                        f"  Disable response storage: {str(ov.get('disable_response_storage', False)).lower()}"
+                    )
                     print(f"  Sandbox mode: {ov.get('sandbox_mode','')}")
                     print(f"  ChatGPT base URL: {ov.get('chatgpt_base_url','')}")
-                    print(f"  Preferred auth method: {ov.get('preferred_auth_method','')}")
+                    print(
+                        f"  Preferred auth method: {ov.get('preferred_auth_method','')}"
+                    )
                 else:
                     ok("Saved.")
                     break
@@ -223,7 +280,9 @@ def manage_profiles_interactive(args) -> None:
                         args.profile_overrides.pop(target, None)
                         info(f"Removed override: {target}")
                     elif target in (args.providers_list or []):
-                        args.providers_list = [p for p in args.providers_list if p != target]
+                        args.providers_list = [
+                            p for p in args.providers_list if p != target
+                        ]
                         info(f"Removed provider profile: {target}")
                 else:
                     info("Removal cancelled.")
@@ -231,8 +290,7 @@ def manage_profiles_interactive(args) -> None:
             break
 
 
-
 def _default_env_key_for_profile(provider: str, profile: str) -> str:
-    prov = (provider or 'custom').upper().replace('-', '_')
-    prof = (profile or 'default').upper().replace('-', '_')
+    prov = (provider or "custom").upper().replace("-", "_")
+    prof = (profile or "default").upper().replace("-", "_")
     return f"{prov}_{prof}_API_KEY"

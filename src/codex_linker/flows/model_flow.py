@@ -13,7 +13,9 @@ def choose_model(args, state) -> None:
         target = args.model
         chosen = target
         try:
-            lm = getattr(sys.modules.get("codex_cli_linker"), "list_models", list_models)
+            lm = getattr(
+                sys.modules.get("codex_cli_linker"), "list_models", list_models
+            )
             models = [] if state.provider == "openai" else lm(state.base_url)
             if target in models:
                 chosen = target
@@ -29,9 +31,15 @@ def choose_model(args, state) -> None:
         log_event("model_selected", provider=state.provider, model=state.model)
         return
     # Auto path
-    if (args.full_auto or args.auto) and args.model_index is not None and state.provider != "openai":
+    if (
+        (args.full_auto or args.auto)
+        and args.model_index is not None
+        and state.provider != "openai"
+    ):
         try:
-            lm = getattr(sys.modules.get("codex_cli_linker"), "list_models", list_models)
+            lm = getattr(
+                sys.modules.get("codex_cli_linker"), "list_models", list_models
+            )
             models = lm(state.base_url)
             idx = args.model_index if args.model_index >= 0 else 0
             if idx >= len(models):
@@ -44,12 +52,20 @@ def choose_model(args, state) -> None:
             raise SystemExit(2)
         return
     # Interactive legacy picker
-    if (not getattr(args, "_fast_write", False)) and (not args.full_auto and not args.auto and not args.model and state.provider != "openai"):
+    if (not getattr(args, "_fast_write", False)) and (
+        not args.full_auto
+        and not args.auto
+        and not args.model
+        and state.provider != "openai"
+    ):
         try:
-            pmi = getattr(sys.modules.get("codex_cli_linker"), "pick_model_interactive", pick_model_interactive)
+            pmi = getattr(
+                sys.modules.get("codex_cli_linker"),
+                "pick_model_interactive",
+                pick_model_interactive,
+            )
             state.model = pmi(state.base_url, None)
             log_event("model_selected", provider=state.provider, model=state.model)
         except Exception as e:
             err(str(e))
             raise SystemExit(2)
-

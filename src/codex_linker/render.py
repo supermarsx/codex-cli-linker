@@ -87,20 +87,32 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
         },
     }
     # Build active provider block with overrides applied
-    active_pid = (args.provider or state.provider)
-    prov_overrides = (getattr(args, "provider_overrides", {}) or {}).get(active_pid) or {}
+    active_pid = args.provider or state.provider
+    prov_overrides = (getattr(args, "provider_overrides", {}) or {}).get(
+        active_pid
+    ) or {}
     # Default wire API: Azure uses responses unless overridden; others use args.wire_api
-    default_wire_api = "responses" if active_pid == "azure" else getattr(args, "wire_api", "chat")
+    default_wire_api = (
+        "responses" if active_pid == "azure" else getattr(args, "wire_api", "chat")
+    )
     cfg["model_providers"][active_pid] = {
-        "name": prov_overrides.get("name") or PROVIDER_LABELS.get(resolved, resolved.capitalize()),
+        "name": prov_overrides.get("name")
+        or PROVIDER_LABELS.get(resolved, resolved.capitalize()),
         "base_url": (prov_overrides.get("base_url") or state.base_url).rstrip("/"),
         "wire_api": prov_overrides.get("wire_api") or default_wire_api,
-        "env_key": prov_overrides.get("env_key") or state.env_key or ("AZURE_OPENAI_API_KEY" if active_pid == "azure" else "NULLKEY"),
+        "env_key": prov_overrides.get("env_key")
+        or state.env_key
+        or ("AZURE_OPENAI_API_KEY" if active_pid == "azure" else "NULLKEY"),
         # Back-compat for older consumers/tests expecting api_key_env_var
-        "api_key_env_var": prov_overrides.get("env_key") or state.env_key or ("AZURE_OPENAI_API_KEY" if active_pid == "azure" else "NULLKEY"),
-        "request_max_retries": prov_overrides.get("request_max_retries") or args.request_max_retries,
-        "stream_max_retries": prov_overrides.get("stream_max_retries") or args.stream_max_retries,
-        "stream_idle_timeout_ms": prov_overrides.get("stream_idle_timeout_ms") or args.stream_idle_timeout_ms,
+        "api_key_env_var": prov_overrides.get("env_key")
+        or state.env_key
+        or ("AZURE_OPENAI_API_KEY" if active_pid == "azure" else "NULLKEY"),
+        "request_max_retries": prov_overrides.get("request_max_retries")
+        or args.request_max_retries,
+        "stream_max_retries": prov_overrides.get("stream_max_retries")
+        or args.stream_max_retries,
+        "stream_idle_timeout_ms": prov_overrides.get("stream_idle_timeout_ms")
+        or args.stream_idle_timeout_ms,
         "http_headers": prov_overrides.get("http_headers") or {},
         "env_http_headers": prov_overrides.get("env_http_headers") or {},
     }
@@ -109,7 +121,9 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
     if qpo:
         cfg["model_providers"][active_pid]["query_params"] = qpo
     elif args.azure_api_version:
-        cfg["model_providers"][active_pid]["query_params"] = {"api-version": args.azure_api_version}
+        cfg["model_providers"][active_pid]["query_params"] = {
+            "api-version": args.azure_api_version
+        }
     # Include extra providers from CLI and from any profile overrides
     extra = list(getattr(args, "providers_list", []) or [])
     pov = getattr(args, "profile_overrides", {}) or {}
@@ -142,17 +156,26 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
         override = (getattr(args, "provider_overrides", {}) or {}).get(pid) or {}
         # Merge overrides for this provider id
         override = (getattr(args, "provider_overrides", {}) or {}).get(pid) or {}
-        wire_default = "responses" if pid.lower() == "azure" else getattr(args, "wire_api", "chat")
+        wire_default = (
+            "responses" if pid.lower() == "azure" else getattr(args, "wire_api", "chat")
+        )
         cfg["model_providers"][pid] = {
             "name": override.get("name") or name,
             "base_url": (override.get("base_url") or base_u).rstrip("/"),
             "wire_api": override.get("wire_api") or wire_default,
-            "env_key": override.get("env_key") or state.env_key or ("AZURE_OPENAI_API_KEY" if pid.lower() == "azure" else None),
+            "env_key": override.get("env_key")
+            or state.env_key
+            or ("AZURE_OPENAI_API_KEY" if pid.lower() == "azure" else None),
             # Back-compat for older consumers/tests expecting api_key_env_var
-            "api_key_env_var": override.get("env_key") or state.env_key or ("AZURE_OPENAI_API_KEY" if pid.lower() == "azure" else None),
-            "request_max_retries": override.get("request_max_retries") or args.request_max_retries,
-            "stream_max_retries": override.get("stream_max_retries") or args.stream_max_retries,
-            "stream_idle_timeout_ms": override.get("stream_idle_timeout_ms") or args.stream_idle_timeout_ms,
+            "api_key_env_var": override.get("env_key")
+            or state.env_key
+            or ("AZURE_OPENAI_API_KEY" if pid.lower() == "azure" else None),
+            "request_max_retries": override.get("request_max_retries")
+            or args.request_max_retries,
+            "stream_max_retries": override.get("stream_max_retries")
+            or args.stream_max_retries,
+            "stream_idle_timeout_ms": override.get("stream_idle_timeout_ms")
+            or args.stream_idle_timeout_ms,
             "http_headers": override.get("http_headers") or {},
             "env_http_headers": override.get("env_http_headers") or {},
         }
@@ -160,7 +183,9 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
         if override.get("query_params"):
             cfg["model_providers"][pid]["query_params"] = dict(override["query_params"])  # type: ignore[index]
         elif args.azure_api_version:
-            cfg["model_providers"][pid]["query_params"] = {"api-version": args.azure_api_version}
+            cfg["model_providers"][pid]["query_params"] = {
+                "api-version": args.azure_api_version
+            }
         # For backward compatibility, auto-create a profile entry per extra provider
         cfg["profiles"][pid] = {
             "model": args.model or state.model or "gpt-5",
@@ -336,5 +361,3 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
 
 
 __all__ = ["build_config_dict"]
-
-

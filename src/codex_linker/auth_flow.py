@@ -74,4 +74,3 @@ def maybe_prompt_openai_key(args, home: Path) -> None:
 
 
 __all__ = ["maybe_prompt_openai_key"]
-

@@ -10,7 +10,9 @@ from ..logging_utils import log_event
 
 def determine_base_and_provider(args, state) -> None:
     """Resolve base URL and provider using the same logic as before."""
-    picker = getattr(sys.modules.get("codex_cli_linker"), "pick_base_url", pick_base_url)
+    picker = getattr(
+        sys.modules.get("codex_cli_linker"), "pick_base_url", pick_base_url
+    )
     preferred_provider = (args.provider or "").strip().lower()
     if args.full_auto:
         if preferred_provider == "openai" and not args.base_url:
@@ -44,7 +46,9 @@ def determine_base_and_provider(args, state) -> None:
     if state.provider == "custom":
         if not (args.full_auto or args.auto or getattr(args, "yes", False)):
             state.provider = (
-                input("Provider id to use in model_providers (e.g., myprovider): ").strip()
+                input(
+                    "Provider id to use in model_providers (e.g., myprovider): "
+                ).strip()
                 or "custom"
             )
 
@@ -107,4 +111,3 @@ def maybe_prompt_and_store_openai_key(args, home) -> None:
         raise
     except Exception:
         pass
-

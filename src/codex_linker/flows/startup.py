@@ -31,7 +31,9 @@ def handle_early_exits(
     Returns True if an early-exit path was handled and the caller should exit.
     """
     # Remove/cleanup requests
-    if getattr(args, "remove_config", False) or getattr(args, "remove_config_no_bak", False):
+    if getattr(args, "remove_config", False) or getattr(
+        args, "remove_config_no_bak", False
+    ):
         remove_config(getattr(args, "remove_config_no_bak", False))
         return True
     if getattr(args, "delete_all_backups", False):
@@ -53,7 +55,9 @@ def handle_early_exits(
             )
             return True
         log_cb(result, forced=True, origin=install_origin)
-        report_cb(result, current_version, forced=True, verbose=True, origin=install_origin)
+        report_cb(
+            result, current_version, forced=True, verbose=True, origin=install_origin
+        )
         log_fn(
             "update_check_completed",
             forced=True,
@@ -99,7 +103,13 @@ def maybe_run_update_check(
             warn_fn(f"Update check failed: {exc}")
         return
     log_cb(result, forced=False, origin=install_origin)
-    report_cb(result, current_version, forced=False, verbose=getattr(args, "verbose", False), origin=install_origin)
+    report_cb(
+        result,
+        current_version,
+        forced=False,
+        verbose=getattr(args, "verbose", False),
+        origin=install_origin,
+    )
     log_fn(
         "update_check_completed",
         forced=False,

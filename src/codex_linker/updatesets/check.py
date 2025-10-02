@@ -127,7 +127,9 @@ def _fetch_pypi(url: str, timeout: float) -> SourceResult:
     )
     if not project_url:
         project_url = (
-            info.get("package_url") if isinstance(info.get("package_url"), str) else None
+            info.get("package_url")
+            if isinstance(info.get("package_url"), str)
+            else None
         )
     if not project_url:
         project_url = "https://pypi.org/project/codex-cli-linker/"

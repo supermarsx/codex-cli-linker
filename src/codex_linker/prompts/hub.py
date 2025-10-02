@@ -52,7 +52,11 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
         # Honor CLI toggle for emojis
         set_emojis_enabled(not getattr(args, "no_emojis", False))
         # Show banner once (hub owns banner), unless suppressed or in continuous mode
-        if not getattr(args, "_hub_banner_shown", False) and not getattr(args, "no_banner", False) and not getattr(args, "continuous", False):
+        if (
+            not getattr(args, "_hub_banner_shown", False)
+            and not getattr(args, "no_banner", False)
+            and not getattr(args, "continuous", False)
+        ):
             try:
                 banner()
             except Exception:
@@ -113,7 +117,6 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
             log = logging.getLogger(__name__)
             log.info("Auto-detect: probing local providers (hub)")
             added = 0
-            profiles_added = 0
             for pid, base in candidates:
                 try:
                     log.debug("Probing %s at %s", pid, base)
@@ -128,7 +131,9 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
                         "env_key": "",
                         "wire_api": "chat",
                     }
-                    args.provider_overrides = getattr(args, "provider_overrides", {}) or {}
+                    args.provider_overrides = (
+                        getattr(args, "provider_overrides", {}) or {}
+                    )
                     args.provider_overrides[pid] = entry
                     # Ensure provider listed
                     plist = set(getattr(args, "providers_list", []) or [])
@@ -193,27 +198,47 @@ def _manage_global_settings_interactive(args) -> None:
         items = [
             ("Approval policy", getattr(args, "approval_policy", "")),
             ("Sandbox mode", getattr(args, "sandbox_mode", "")),
-            ("Network access", "true" if getattr(args, "network_access", False) else "false"),
+            (
+                "Network access",
+                "true" if getattr(args, "network_access", False) else "false",
+            ),
             ("Writable roots (CSV)", getattr(args, "writable_roots", "") or ""),
             ("File opener", getattr(args, "file_opener", "")),
             ("Reasoning effort", getattr(args, "reasoning_effort", "")),
             ("Reasoning summary", getattr(args, "reasoning_summary", "")),
             ("Verbosity", getattr(args, "verbosity", "")),
-            ("Hide agent reasoning", "true" if getattr(args, "hide_agent_reasoning", False) else "false"),
-            ("Show raw agent reasoning", "true" if getattr(args, "show_raw_agent_reasoning", False) else "false"),
-            ("Disable response storage", "true" if getattr(args, "disable_response_storage", False) else "false"),
+            (
+                "Hide agent reasoning",
+                "true" if getattr(args, "hide_agent_reasoning", False) else "false",
+            ),
+            (
+                "Show raw agent reasoning",
+                "true" if getattr(args, "show_raw_agent_reasoning", False) else "false",
+            ),
+            (
+                "Disable response storage",
+                "true" if getattr(args, "disable_response_storage", False) else "false",
+            ),
             ("History max bytes", str(getattr(args, "history_max_bytes", 0) or 0)),
             ("No history", "true" if getattr(args, "no_history", False) else "false"),
-            ("tools.web_search", "true" if getattr(args, "tools_web_search", False) else "false"),
+            (
+                "tools.web_search",
+                "true" if getattr(args, "tools_web_search", False) else "false",
+            ),
             ("Wire API", getattr(args, "wire_api", "")),
             ("ChatGPT base URL", getattr(args, "chatgpt_base_url", "")),
             ("Azure api-version", getattr(args, "azure_api_version", "")),
-            ("Project doc max bytes", str(getattr(args, "project_doc_max_bytes", 0) or 0)),
+            (
+                "Project doc max bytes",
+                str(getattr(args, "project_doc_max_bytes", 0) or 0),
+            ),
             ("Notify (JSON array)", getattr(args, "notify", "") or ""),
         ]
         for i, (lbl, val) in enumerate(items, 1):
             print(f"  {i}. {lbl}: {val}")
-        act = prompt_choice("Action", [fmt("✏️ Edit field"), fmt("🏠 Back to main menu")])
+        act = prompt_choice(
+            "Action", [fmt("✏️ Edit field"), fmt("🏠 Back to main menu")]
+        )
         # Clear immediately after selection when not continuous
         if not getattr(args, "continuous", False):
             try:
@@ -228,24 +253,45 @@ def _manage_global_settings_interactive(args) -> None:
             continue
         idx = int(s) - 1
         if idx == 0:
-            i2 = prompt_choice("Approval policy", ["untrusted", "on-failure", "on-request", "never"])
-            args.approval_policy = ["untrusted", "on-failure", "on-request", "never"][i2]
+            i2 = prompt_choice(
+                "Approval policy", ["untrusted", "on-failure", "on-request", "never"]
+            )
+            args.approval_policy = ["untrusted", "on-failure", "on-request", "never"][
+                i2
+            ]
         elif idx == 1:
-            i2 = prompt_choice("Sandbox mode", ["read-only", "workspace-write", "danger-full-access"])
-            args.sandbox_mode = ["read-only", "workspace-write", "danger-full-access"][i2]
+            i2 = prompt_choice(
+                "Sandbox mode", ["read-only", "workspace-write", "danger-full-access"]
+            )
+            args.sandbox_mode = ["read-only", "workspace-write", "danger-full-access"][
+                i2
+            ]
         elif idx == 2:
             i2 = prompt_choice("Network access", ["true", "false"])
             args.network_access = True if i2 == 0 else False
         elif idx == 3:
             args.writable_roots = _safe_input("Writable roots CSV: ").strip()
         elif idx == 4:
-            i2 = prompt_choice("File opener", ["vscode", "vscode-insiders", "windsurf", "cursor", "none"])
-            args.file_opener = ["vscode", "vscode-insiders", "windsurf", "cursor", "none"][i2]
+            i2 = prompt_choice(
+                "File opener",
+                ["vscode", "vscode-insiders", "windsurf", "cursor", "none"],
+            )
+            args.file_opener = [
+                "vscode",
+                "vscode-insiders",
+                "windsurf",
+                "cursor",
+                "none",
+            ][i2]
         elif idx == 5:
-            i2 = prompt_choice("Reasoning effort", ["minimal", "low", "medium", "high", "auto"])
+            i2 = prompt_choice(
+                "Reasoning effort", ["minimal", "low", "medium", "high", "auto"]
+            )
             args.reasoning_effort = ["minimal", "low", "medium", "high", "auto"][i2]
         elif idx == 6:
-            i2 = prompt_choice("Reasoning summary", ["auto", "concise", "detailed", "none"])
+            i2 = prompt_choice(
+                "Reasoning summary", ["auto", "concise", "detailed", "none"]
+            )
             args.reasoning_summary = ["auto", "concise", "detailed", "none"][i2]
         elif idx == 7:
             i2 = prompt_choice("Verbosity", ["low", "medium", "high"])
@@ -261,7 +307,9 @@ def _manage_global_settings_interactive(args) -> None:
             args.disable_response_storage = True if i2 == 0 else False
         elif idx == 11:
             try:
-                args.history_max_bytes = int(_safe_input("History max bytes: ").strip() or "0")
+                args.history_max_bytes = int(
+                    _safe_input("History max bytes: ").strip() or "0"
+                )
             except Exception:
                 pass
         elif idx == 12:
@@ -279,7 +327,9 @@ def _manage_global_settings_interactive(args) -> None:
             args.azure_api_version = _safe_input("Azure api-version: ").strip()
         elif idx == 17:
             try:
-                args.project_doc_max_bytes = int(_safe_input("Project doc max bytes: ").strip() or "0")
+                args.project_doc_max_bytes = int(
+                    _safe_input("Project doc max bytes: ").strip() or "0"
+                )
             except Exception:
                 pass
         elif idx == 18:

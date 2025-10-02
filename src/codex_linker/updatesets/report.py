@@ -78,4 +78,3 @@ def _report_update_status(
 
 
 __all__ = ["_log_update_sources", "_report_update_status"]
-

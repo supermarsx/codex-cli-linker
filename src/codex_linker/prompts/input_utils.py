@@ -19,7 +19,24 @@ from ..ui import (
 )
 
 NO_EMOJIS = False
-_EMOJIS = {"👤","🧰","🔌","⚙️","🚀","🧭","❌","💾","📝","⬅️","🗑️","✏️","🏠","🏷️","✅","⏹️"}
+_EMOJIS = {
+    "👤",
+    "🧰",
+    "🔌",
+    "⚙️",
+    "🚀",
+    "🧭",
+    "❌",
+    "💾",
+    "📝",
+    "⬅️",
+    "🗑️",
+    "✏️",
+    "🏠",
+    "🏷️",
+    "✅",
+    "⏹️",
+}
 
 
 def set_emojis_enabled(enabled: bool) -> None:
@@ -243,7 +260,9 @@ def _input_list_json(prompt: str, default: Optional[List[str]] = None) -> List[s
     return [raw]
 
 
-def _input_env_kv(prompt: str, default: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+def _input_env_kv(
+    prompt: str, default: Optional[Dict[str, str]] = None
+) -> Dict[str, str]:
     raw = input(f"{prompt} ").strip()
     if not raw and default is not None:
         return dict(default)
@@ -272,7 +291,9 @@ def _parse_brace_kv(raw: str) -> Dict[str, str]:
             k, v = part.split("=", 1)
             k = k.strip()
             v = v.strip()
-            if (v.startswith('"') and v.endswith('"')) or (v.startswith("'") and v.endswith("'")):
+            if (v.startswith('"') and v.endswith('"')) or (
+                v.startswith("'") and v.endswith("'")
+            ):
                 if len(v) >= 2:
                     v = v[1:-1]
             if k:

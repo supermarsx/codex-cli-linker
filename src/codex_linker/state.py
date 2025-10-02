@@ -29,7 +29,11 @@ class LinkerState:
             new_state.pop("api_key", None)
             # Preserve any non-state keys already present in the file
             try:
-                existing = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+                existing = (
+                    json.loads(path.read_text(encoding="utf-8"))
+                    if path.exists()
+                    else {}
+                )
                 if not isinstance(existing, dict):
                     existing = {}
             except Exception:
