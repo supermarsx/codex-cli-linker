@@ -1,6 +1,19 @@
 from __future__ import annotations
 
-from ..prompts import interactive_settings_editor, manage_profiles_interactive, manage_mcp_servers_interactive
+"""Interactive editor (hub) flow.
+
+Encapsulates the optional interactive hub that can:
+- Toggle overwrite mode
+- Request a direct write/launch ("fast write")
+- Defer to the legacy guided pipeline
+- Or skip entirely when not applicable
+"""
+
+from ..prompts import (
+    interactive_settings_editor,
+    manage_profiles_interactive,
+    manage_mcp_servers_interactive,
+)
 from ..ui import info, err
 
 
@@ -49,4 +62,3 @@ def maybe_post_editor_management(args) -> None:
         manage_profiles_interactive(args)
     if getattr(args, "manage_mcp", False):
         manage_mcp_servers_interactive(args)
-

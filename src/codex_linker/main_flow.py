@@ -113,11 +113,16 @@ def main():
         current_version=current_version,
         install_origin=install_origin,
         update_sources=update_sources,
+        log_cb=_log_update_sources,
+        report_cb=_report_update_status,
+        log_fn=log_event,
+        warn_fn=warn,
+        check_fn=check_for_updates,
     ):
         return
     # Consolidate legacy config files into linker_config.json early
-    # Skip during --dry-run to honor tests and avoid writes
-    if not getattr(args, "dry_run", False):
+    # Skip during --dry-run and when using --workspace-state
+    if not getattr(args, "dry_run", False) and not getattr(args, "workspace_state", False):
         try:
             migrate_configs_to_linker(
                 linker_json,
@@ -210,6 +215,8 @@ def main():
         current_version=current_version,
         install_origin=install_origin,
         update_sources=update_sources,
+        log_cb=_log_update_sources,
+        report_cb=_report_update_status,
     )
 
     # Provider/base selection

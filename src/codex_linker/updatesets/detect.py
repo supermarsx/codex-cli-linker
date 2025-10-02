@@ -1,5 +1,18 @@
 from __future__ import annotations
 
+"""Install-origin detection helpers.
+
+This module provides a focused utility, :func:`detect_install_origin`, used to
+infer how the tool is being executed (binary, PyPI, Homebrew, Scoop, Git, or
+source). The result is used to choose appropriate update sources and improve
+logging/reporting context in the CLI.
+
+Notes
+- Pure stdlib; safe to import early during startup.
+- Avoids raising for environment-specific path errors and falls back to
+  "source" when uncertainty remains.
+"""
+
 import os
 import sys
 from pathlib import Path
@@ -14,8 +27,13 @@ def detect_install_origin(
 ) -> str:
     """Best-effort detection of how the tool is being executed.
 
-    Returns one of ``binary``, ``pypi``, ``homebrew``, ``git``, ``scoop``, or
-    ``source`` (catch-all).
+    Parameters
+    - module_path: Optional path used for detection in tests.
+    - frozen: Override for ``sys.frozen`` (used by PyInstaller).
+    - max_git_depth: Parent directory traversal limit when hunting for ``.git``.
+
+    Returns
+    - One of: ``binary``, ``pypi``, ``homebrew``, ``scoop``, ``git``, ``source``.
     """
 
     if frozen is None:
@@ -72,4 +90,3 @@ def detect_install_origin(
         if depth >= max_git_depth:
             break
     return "source"
-

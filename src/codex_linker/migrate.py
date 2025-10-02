@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+"""Legacy configuration migration to linker_config.json.
+
+This module consolidates existing ``config.toml``, ``config.json`` and
+``config.yaml`` into the state file (``linker_config.json``) under a top-level
+``configs`` block. The goal is to keep a single authoritative location while
+preserving backward compatibility and avoiding extra dependencies.
+"""
+
 import json
 from datetime import datetime
 from pathlib import Path
@@ -29,12 +37,14 @@ def migrate_configs_to_linker(
 ) -> bool:
     """Consolidate existing config.{toml,json,yaml} into linker_config.json.
 
-    - Never deletes legacy files; only captures their contents.
-    - Stores consolidated data under top-level key `configs` while preserving
+    Behavior
+    - Never deletes or modifies legacy files; only captures their contents.
+    - Stores consolidated data under top-level key ``configs`` while preserving
       existing top-level state fields for backward compatibility.
-    - Idempotent: re-runs update the `configs` block when legacy files change.
+    - Idempotent: re-runs update the ``configs`` block when legacy files change.
 
-    Returns True when the linker file is updated.
+    Returns
+    - True when the linker file is updated.
     """
     # Start with whatever is already in linker_config.json (if anything)
     existing: Dict[str, Any] = {}
@@ -103,4 +113,3 @@ def migrate_configs_to_linker(
 
 
 __all__ = ["migrate_configs_to_linker"]
-

@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+"""Typed containers for update-check results.
+
+These dataclasses represent the per-source outcome (``SourceResult``) and the
+aggregated check across sources (``UpdateCheckResult``). They are serializable
+for simple JSON caching via ``to_cache``/``from_cache``.
+"""
+
 from dataclasses import dataclass
 from typing import List, Optional
 
@@ -46,4 +53,3 @@ class UpdateCheckResult:
     @property
     def errors(self) -> List[SourceResult]:
         return [src for src in self.sources if src.error]
-

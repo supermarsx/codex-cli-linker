@@ -7,6 +7,16 @@ files with backups.
 
 from __future__ import annotations
 
+"""Output writing and diff/merge helpers.
+
+Encapsulates the logic for rendering config outputs (TOML/JSON/YAML), printing
+diffs in dry-run mode, merging into existing TOML when requested, and writing
+files with backups.
+
+Functions in this module are side-effecting by design (I/O, printing). Keep
+the call surface narrow from main flow and document behaviors in docstrings.
+"""
+
 import difflib
 import os
 import re as _re
@@ -22,6 +32,11 @@ from .logging_utils import log_event
 
 
 def _show_diff(path: Path, new_text: str, label: str) -> None:
+    """Print a unified or colorized diff between existing file and ``new_text``.
+
+    Uses color when supported; otherwise prints a unified diff. Non-fatal on
+    read errors and treats missing files as empty.
+    """
     try:
         old_text = path.read_text(encoding="utf-8") if path.exists() else ""
     except Exception:
@@ -55,6 +70,11 @@ def _show_diff(path: Path, new_text: str, label: str) -> None:
 
 
 def _merge_append_sections(existing: str, new_text: str, conflicts: list[str]) -> str:
+    """Merge root keys and well-known sections, recording conflicts.
+
+    Appends sections that do not already exist; populates ``conflicts`` when a
+    section/root key already exists, to be handled at a higher level.
+    """
     merged = existing
     # Root keys: copy missing ones
     root_lines = []
