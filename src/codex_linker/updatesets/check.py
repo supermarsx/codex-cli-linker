@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+"""Cross-source update checking and caching.
+
+This module coordinates fetching release information from supported sources
+and persists a small JSON cache to reduce network usage. The public surface is
+``check_for_updates``; helpers are re-exported for tests.
+"""
+
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -29,8 +36,17 @@ def check_for_updates(
 ) -> UpdateCheckResult:
     """Return update information from configured sources.
 
-    Results are cached under ``home`` to keep network usage light. ``force``
-    bypasses the cache and refreshes the requested sources.
+    Parameters
+    - current_version: The running version string (used for comparison).
+    - home: Directory to store/read the update metadata cache file.
+    - force: When True, bypass the cache and refetch all sources.
+    - github_url/pypi_url: Override endpoints (primarily for tests).
+    - cache_ttl: Freshness window for cache reuse.
+    - timeout: HTTP timeout for source fetches.
+    - sources: Optional selection; defaults to all allowed.
+
+    Returns
+    - UpdateCheckResult containing per-source results and flags.
     """
 
     requested = _normalize_sources(sources)
@@ -72,6 +88,7 @@ def check_for_updates(
 
 
 def _normalize_sources(sources: Optional[Sequence[str]]) -> List[str]:
+    """Normalize a potentially messy sources list to canonical unique names."""
     if not sources:
         return list(_ALLOWED_SOURCES)
     normalized: List[str] = []
@@ -123,6 +140,11 @@ def _load_cache(
     cache_ttl: timedelta,
     requested: Iterable[str],
 ) -> Tuple[Dict[str, SourceResult], bool]:
+    """Load a recent cache file and return results for requested sources.
+
+    Returns a tuple of (cached_results, used_cache_flag). When the file is
+    missing, stale, or invalid, returns (empty, False).
+    """
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
@@ -148,6 +170,7 @@ def _load_cache(
 
 
 def _save_cache(path: Path, now: datetime, sources: Dict[str, SourceResult]) -> None:
+    """Persist a small JSON cache with ``checked_at`` and per-source details."""
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
@@ -163,4 +186,3 @@ _FETCHERS = {
     "github": _fetch_github,
     "pypi": _fetch_pypi,
 }
-

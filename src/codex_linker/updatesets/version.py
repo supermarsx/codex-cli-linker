@@ -1,12 +1,24 @@
 from __future__ import annotations
 
+"""Version comparison helpers.
+
+Implements a tolerant semver-ish comparator that prefers numeric precedence,
+handles optional leading "v", and compares alphanumeric segments lexically.
+Used to decide if a candidate version is newer than the current one.
+"""
+
 import re
 from itertools import zip_longest
 from typing import List
 
 
 def is_version_newer(current: str, candidate: str) -> bool:
-    """Heuristic comparison that favours numeric precedence, handles v-prefix."""
+    """Return True if ``candidate`` is newer than ``current``.
+
+    Both inputs can be loose (e.g., include ``v`` prefix or alphanumeric
+    segments). Numeric chunks are compared numerically; others lexicographically.
+    Empty/invalid candidate is not considered newer; empty current is.
+    """
 
     current_parts = _version_parts(current)
     candidate_parts = _version_parts(candidate)
@@ -50,4 +62,3 @@ def _compare_parts(current: List[object], candidate: List[object]) -> int:
             continue
         return -1 if cur_str < cand_str else 1
     return 0
-

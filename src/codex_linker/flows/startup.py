@@ -3,13 +3,29 @@ from __future__ import annotations
 from pathlib import Path
 
 from ..io_safe import delete_all_backups, remove_config
-from ..logging_utils import log_event
-from ..ui import warn
-from ..updates import check_for_updates, _log_update_sources, _report_update_status
+from ..logging_utils import log_event as _log_event_default
+from ..ui import warn as _warn_default
+from ..updates import (
+    check_for_updates as _check_updates_default,
+    _log_update_sources,
+    _report_update_status,
+)
 
 
-def handle_early_exits(args, home: Path, *, config_targets: list[Path], current_version: str,
-                       install_origin: str, update_sources: list[str]) -> bool:
+def handle_early_exits(
+    args,
+    home: Path,
+    *,
+    config_targets: list[Path],
+    current_version: str,
+    install_origin: str,
+    update_sources: list[str],
+    log_cb=_log_update_sources,
+    report_cb=_report_update_status,
+    log_fn=_log_event_default,
+    warn_fn=_warn_default,
+    check_fn=_check_updates_default,
+) -> bool:
     """Process early-exit flags that should terminate the run.
 
     Returns True if an early-exit path was handled and the caller should exit.
@@ -26,19 +42,19 @@ def handle_early_exits(args, home: Path, *, config_targets: list[Path], current_
     sources_arg = update_sources or None
     if getattr(args, "check_updates", False):
         try:
-            result = check_for_updates(current_version, home, force=True, sources=sources_arg)
+            result = check_fn(current_version, home, force=True, sources=sources_arg)
         except Exception as exc:
-            warn(f"Update check failed: {exc}")
-            log_event(
+            warn_fn(f"Update check failed: {exc}")
+            log_fn(
                 "update_check_failed",
                 forced=True,
                 origin=install_origin,
                 error=str(exc),
             )
             return True
-        _log_update_sources(result, forced=True, origin=install_origin)
-        _report_update_status(result, current_version, forced=True, verbose=True, origin=install_origin)
-        log_event(
+        log_cb(result, forced=True, origin=install_origin)
+        report_cb(result, current_version, forced=True, verbose=True, origin=install_origin)
+        log_fn(
             "update_check_completed",
             forced=True,
             origin=install_origin,
@@ -54,29 +70,37 @@ def handle_early_exits(args, home: Path, *, config_targets: list[Path], current_
     return False
 
 
-def maybe_run_update_check(args, home: Path, *, current_version: str, install_origin: str,
-                           update_sources: list[str]) -> None:
+def maybe_run_update_check(
+    args,
+    home: Path,
+    *,
+    current_version: str,
+    install_origin: str,
+    update_sources: list[str],
+    log_cb=_log_update_sources,
+    report_cb=_report_update_status,
+    log_fn=_log_event_default,
+    warn_fn=_warn_default,
+    check_fn=_check_updates_default,
+) -> None:
     """Run a background update check unless suppressed by flags."""
     if getattr(args, "no_update_check", False):
         return
-    from ..updates import check_for_updates
     try:
-        result = check_for_updates(current_version, home, sources=(update_sources or None))
+        result = check_fn(current_version, home, sources=(update_sources or None))
     except Exception as exc:
-        log_event(
+        log_fn(
             "update_check_failed",
             forced=False,
             origin=install_origin,
             error=str(exc),
         )
         if getattr(args, "verbose", False):
-            warn(f"Update check failed: {exc}")
+            warn_fn(f"Update check failed: {exc}")
         return
-    _log_update_sources(result, forced=False, origin=install_origin)
-    _report_update_status(
-        result, current_version, forced=False, verbose=getattr(args, "verbose", False), origin=install_origin
-    )
-    log_event(
+    log_cb(result, forced=False, origin=install_origin)
+    report_cb(result, current_version, forced=False, verbose=getattr(args, "verbose", False), origin=install_origin)
+    log_fn(
         "update_check_completed",
         forced=False,
         origin=install_origin,

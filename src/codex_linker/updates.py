@@ -16,6 +16,10 @@ from .updatesets import (
     UpdateCheckResult,
     _log_update_sources,
     _report_update_status,
+    _normalize_sources,
+    _save_cache,
+    _load_cache,
+    _FETCHERS,
 )
 
 __all__ = [
@@ -27,4 +31,8 @@ __all__ = [
     "UpdateCheckResult",
     "_log_update_sources",
     "_report_update_status",
+    "_normalize_sources",
+    "_save_cache",
+    "_load_cache",
+    "_FETCHERS",
 ]
