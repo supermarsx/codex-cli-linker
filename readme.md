@@ -1,6 +1,5 @@
 # codex-cli-linker
 
-[![CI](https://github.com/supermarsx/codex-cli-linker/actions/workflows/ci.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/ci.yml?query=branch%3Amain)
 [![PyPI](https://img.shields.io/pypi/v/codex-cli-linker)](https://pypi.org/project/codex-cli-linker/)
 [![PyPI Downloads](https://img.shields.io/pypi/dm/codex-cli-linker?logo=pypi)](https://pypi.org/project/codex-cli-linker/)
 [![PyPI Total Downloads](https://img.shields.io/pepy/dt/codex-cli-linker?logo=pypi)](https://pepy.tech/project/codex-cli-linker)
@@ -14,6 +13,19 @@
 [![Commit Activity](https://img.shields.io/github/commit-activity/m/supermarsx/codex-cli-linker)](https://github.com/supermarsx/codex-cli-linker/graphs/commit-activity)
 [![Made with Python](https://img.shields.io/badge/Made%20with-Python%203.8%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](./license.md)
+
+CI Status
+
+[![Version and Commit](https://github.com/supermarsx/codex-cli-linker/actions/workflows/ci.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/ci.yml?query=branch%3Amain)
+[![Lint](https://github.com/supermarsx/codex-cli-linker/actions/workflows/lint.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/lint.yml?query=branch%3Amain)
+[![Format](https://github.com/supermarsx/codex-cli-linker/actions/workflows/format.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/format.yml?query=branch%3Amain)
+[![Test](https://github.com/supermarsx/codex-cli-linker/actions/workflows/test.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/test.yml?query=branch%3Amain)
+[![Build](https://github.com/supermarsx/codex-cli-linker/actions/workflows/build.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/build.yml?query=branch%3Amain)
+[![CodeQL](https://github.com/supermarsx/codex-cli-linker/actions/workflows/codeql.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/codeql.yml)
+[![Rolling Release](https://github.com/supermarsx/codex-cli-linker/actions/workflows/rolling.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/rolling.yml)
+[![Release](https://github.com/supermarsx/codex-cli-linker/actions/workflows/release.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/release.yml)
+[![Publish to PyPI](https://github.com/supermarsx/codex-cli-linker/actions/workflows/publish.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/publish.yml)
+
 
 Generate a ready‑to‑run **Codex CLI** configuration for local OpenAI‑compatible servers like **LM Studio** and **Ollama**.
 
