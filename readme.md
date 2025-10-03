@@ -21,13 +21,13 @@ CI Status
 [![Format](https://github.com/supermarsx/codex-cli-linker/actions/workflows/format.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/format.yml?query=branch%3Amain)
 [![Test](https://github.com/supermarsx/codex-cli-linker/actions/workflows/test.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/test.yml?query=branch%3Amain)
 [![Build](https://github.com/supermarsx/codex-cli-linker/actions/workflows/build.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/build.yml?query=branch%3Amain)
-[![Scoop Update](https://github.com/supermarsx/codex-cli-linker/actions/workflows/scoop.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/scoop.yml)
-[![Homebrew Update](https://github.com/supermarsx/codex-cli-linker/actions/workflows/homebrew.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/homebrew.yml)
 
 
 [![Rolling Release](https://github.com/supermarsx/codex-cli-linker/actions/workflows/rolling.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/rolling.yml)
 [![Release](https://github.com/supermarsx/codex-cli-linker/actions/workflows/release.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/release.yml)
 [![Publish to PyPI](https://github.com/supermarsx/codex-cli-linker/actions/workflows/publish.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/publish.yml)
+[![Scoop Update](https://github.com/supermarsx/codex-cli-linker/actions/workflows/scoop.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/scoop.yml)
+[![Homebrew Update](https://github.com/supermarsx/codex-cli-linker/actions/workflows/homebrew.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/homebrew.yml)
 
 
 Generate a ready‑to‑run **Codex CLI** configuration for local OpenAI‑compatible servers like **LM Studio** and **Ollama**.
