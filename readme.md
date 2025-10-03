@@ -21,6 +21,9 @@ CI Status
 [![Format](https://github.com/supermarsx/codex-cli-linker/actions/workflows/format.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/format.yml?query=branch%3Amain)
 [![Test](https://github.com/supermarsx/codex-cli-linker/actions/workflows/test.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/test.yml?query=branch%3Amain)
 [![Build](https://github.com/supermarsx/codex-cli-linker/actions/workflows/build.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/build.yml?query=branch%3Amain)
+[![Scoop Update](https://github.com/supermarsx/codex-cli-linker/actions/workflows/scoop.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/scoop.yml)
+
+
 [![Rolling Release](https://github.com/supermarsx/codex-cli-linker/actions/workflows/rolling.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/rolling.yml)
 [![Release](https://github.com/supermarsx/codex-cli-linker/actions/workflows/release.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/release.yml)
 [![Publish to PyPI](https://github.com/supermarsx/codex-cli-linker/actions/workflows/publish.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/publish.yml)

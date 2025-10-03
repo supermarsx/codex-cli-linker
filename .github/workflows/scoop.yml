@@ -1,0 +1,92 @@
+name: Scoop Update
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  update_scoop_manifest:
+    name: Update Scoop Manifest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version and URLs
+        id: meta
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          TAG=${RELEASE_TAG:-${GITHUB_REF_NAME}}
+          if [[ -z "${TAG}" ]]; then
+            echo "No tag found on event; aborting" >&2
+            exit 1
+          fi
+          VERSION=${TAG#v}
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "win_url=https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/codex-cli-linker-windows-x64.exe" >> "$GITHUB_OUTPUT"
+
+      - name: Download Windows artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL "${{ steps.meta.outputs.win_url }}" -o codex-cli-linker-windows-x64.exe
+
+      - name: Compute SHA256
+        id: sha
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha=$(sha256sum codex-cli-linker-windows-x64.exe | awk '{print $1}' | tr '[:lower:]' '[:upper:]')
+          echo "sha256=${sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Update Scoop manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          py=$(command -v python3 || command -v python)
+          "$py" - << 'PY'
+import json, os, sys
+path = 'scoop/codex-cli-linker.json'
+with open(path, 'r', encoding='utf-8') as f:
+    data = json.load(f)
+ver = os.environ['VERSION']
+url = os.environ['WIN_URL']
+sha = os.environ['SHA256']
+data['version'] = ver
+arch = data.setdefault('architecture', {}).setdefault('64bit', {})
+arch['url'] = url
+arch['hash'] = sha
+with open(path, 'w', encoding='utf-8') as f:
+    json.dump(data, f, indent=2, ensure_ascii=False)
+    f.write('\n')
+PY
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          WIN_URL: ${{ steps.meta.outputs.win_url }}
+          SHA256: ${{ steps.sha.outputs.sha256 }}
+
+      - name: Commit and push
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet -- scoop/codex-cli-linker.json; then
+            git config user.name "github-actions"
+            git config user.email "github-actions@users.noreply.github.com"
+            git add scoop/codex-cli-linker.json
+            git commit -m "chore(scoop): update manifest to v${{ steps.meta.outputs.version }} [skip ci]"
+            DEFAULT_BRANCH=$(git remote show origin | sed -n '/HEAD branch/s/.*: //p')
+            git push origin HEAD:"$DEFAULT_BRANCH"
+          else
+            echo "Scoop manifest unchanged; nothing to commit"
+          fi
+
