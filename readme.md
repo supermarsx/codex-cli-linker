@@ -22,6 +22,7 @@ CI Status
 [![Test](https://github.com/supermarsx/codex-cli-linker/actions/workflows/test.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/test.yml?query=branch%3Amain)
 [![Build](https://github.com/supermarsx/codex-cli-linker/actions/workflows/build.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/build.yml?query=branch%3Amain)
 [![Scoop Update](https://github.com/supermarsx/codex-cli-linker/actions/workflows/scoop.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/scoop.yml)
+[![Homebrew Update](https://github.com/supermarsx/codex-cli-linker/actions/workflows/homebrew.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/homebrew.yml)
 
 
 [![Rolling Release](https://github.com/supermarsx/codex-cli-linker/actions/workflows/rolling.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/rolling.yml)
