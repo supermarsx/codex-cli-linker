@@ -114,37 +114,23 @@ jobs:
         run: |
           mkdir -p dist_flat
           find dist -maxdepth 3 -type f -print -exec cp {} dist_flat/ \;
+      - name: Compute rolling tag (UTC)
+        id: tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="r-v$(date -u +%y.%m.%d)"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Using tag: ${TAG}"
 
-      - name: Delete existing assets on rolling release (if any)
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const tag = 'rolling';
-            const {owner, repo} = context.repo;
-            try {
-              const rel = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
-              const assets = rel.data.assets || [];
-              for (const asset of assets) {
-                try {
-                  await github.rest.repos.deleteReleaseAsset({ owner, repo, asset_id: asset.id });
-                } catch (e) {
-                  core.warning(`Failed to delete asset ${asset.name}: ${e.message}`);
-                }
-              }
-              core.info(`Cleaned ${assets.length} existing assets on release id ${rel.data.id}`);
-            } catch (e) {
-              core.info('No existing rolling release. It will be created.');
-            }
-
-      - name: Create/Update rolling GitHub Release
+      - name: Create rolling GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: rolling
-          name: Rolling Release
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Rolling ${{ steps.tag.outputs.tag }}
           prerelease: true
           draft: false
           make_latest: false
           files: dist_flat/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
