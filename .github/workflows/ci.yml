@@ -1,4 +1,4 @@
-name: version and commit
+name: Version and Commit
 
 on:
   push:
