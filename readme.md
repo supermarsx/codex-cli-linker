@@ -1,5 +1,19 @@
 # codex-cli-linker
 
+Generate a ready‑to‑run **Codex CLI** configuration for local OpenAI‑compatible servers like **LM Studio** and **Ollama**.
+
+This small, dependency‑free Python script:
+
+- Detects a local server (LM Studio on `:1234` or Ollama on `:11434`) or uses a custom base URL.
+- Fetches available models from `/v1/models` and lets you pick one.
+- Emits a modern **`~/.codex/config.toml`** (Codex “# Config” schema) and can optionally emit **JSON** and **YAML** siblings.
+- Backs up any existing config (adds `.bak`).
+- Stores a tiny linker state (`~/.codex/linker_config.json` or `./.codex-linker.json` when using workspace override) to remember your last choices.
+- Can preload defaults from a remote JSON via `--config-url`.
+- Preview the would-be files with `--dry-run` (prints to stdout, no writes).
+
+**General Information**
+
 [![PyPI](https://img.shields.io/pypi/v/codex-cli-linker)](https://pypi.org/project/codex-cli-linker/)
 [![PyPI Downloads](https://img.shields.io/pypi/dm/codex-cli-linker?logo=pypi)](https://pypi.org/project/codex-cli-linker/)
 [![PyPI Total Downloads](https://img.shields.io/pepy/dt/codex-cli-linker?logo=pypi)](https://pepy.tech/project/codex-cli-linker)
@@ -14,7 +28,7 @@
 [![Made with Python](https://img.shields.io/badge/Made%20with-Python%203.8%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](./license.md)
 
-CI Status
+**CI Status**
 
 [![Version and Commit](https://github.com/supermarsx/codex-cli-linker/actions/workflows/ci.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/ci.yml?query=branch%3Amain)
 [![Lint](https://github.com/supermarsx/codex-cli-linker/actions/workflows/lint.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/lint.yml?query=branch%3Amain)
@@ -29,18 +43,6 @@ CI Status
 [![Scoop Update](https://github.com/supermarsx/codex-cli-linker/actions/workflows/scoop.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/scoop.yml)
 [![Homebrew Update](https://github.com/supermarsx/codex-cli-linker/actions/workflows/homebrew.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/homebrew.yml)
 
-
-Generate a ready‑to‑run **Codex CLI** configuration for local OpenAI‑compatible servers like **LM Studio** and **Ollama**.
-
-This small, dependency‑free Python script:
-
-- Detects a local server (LM Studio on `:1234` or Ollama on `:11434`) or uses a custom base URL.
-- Fetches available models from `/v1/models` and lets you pick one.
-- Emits a modern **`~/.codex/config.toml`** (Codex “# Config” schema) and can optionally emit **JSON** and **YAML** siblings.
-- Backs up any existing config (adds `.bak`).
-- Stores a tiny linker state (`~/.codex/linker_config.json` or `./.codex-linker.json` when using workspace override) to remember your last choices.
-- Can preload defaults from a remote JSON via `--config-url`.
-- Preview the would-be files with `--dry-run` (prints to stdout, no writes).
 
 ## Features
 
