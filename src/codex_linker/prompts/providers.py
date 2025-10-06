@@ -1,5 +1,14 @@
 from __future__ import annotations
 
+"""Interactive provider management prompts.
+
+This module implements the interactive menus that let users add, edit and
+remove providers. It prefers sensible defaults and avoids unnecessary prompts.
+Notable behavior tweaks:
+ - When a provider preset is chosen, we no longer re-ask for the provider id;
+   we use the preset id directly and proceed to naming and details.
+"""
+
 import getpass
 from typing import List, Dict, Any
 
@@ -64,6 +73,12 @@ def _default_base_for_provider_id(pid: str) -> str:
 
 
 def manage_providers_interactive(args) -> None:
+    """Main providers menu loop.
+
+    Keeps ``args.providers_list`` and ``args.provider_overrides`` consistent and
+    updates them based on the user's choices. All side effects are confined to
+    ``args``; writing to disk happens elsewhere.
+    """
     if not hasattr(args, "providers_list") or args.providers_list is None:
         args.providers_list = []
     if not hasattr(args, "provider_overrides") or args.provider_overrides is None:
@@ -169,10 +184,8 @@ def manage_providers_interactive(args) -> None:
                 if sel == len(labels) - 1:
                     return
                 chosen_pid = preset_ids[sel]
-                default_pid = chosen_pid
-                pid = (
-                    _safe_input(f"Provider id [{default_pid}]: ").strip() or default_pid
-                )
+                # Do not ask for provider id when a preset is chosen; use it directly
+                pid = chosen_pid
                 default_name = PROVIDER_LABELS.get(chosen_pid, chosen_pid.capitalize())
                 print(c("Display name — shown in tools and UIs.", GRAY))
                 pname = (

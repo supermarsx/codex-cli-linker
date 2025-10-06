@@ -42,9 +42,9 @@ def manage_profiles_interactive(args) -> None:
         i = prompt_choice(
             "Choose",
             [
-                "➕ Add profile",
-                "✏️ Edit profile",
-                "🗑️ Remove profile",
+                fmt("➕ Add profile"),
+                fmt("✏️  Edit profile"),
+                fmt("🗑️  Remove profile"),
                 fmt("🏠 Back to main menu"),
             ],
         )

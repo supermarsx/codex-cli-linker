@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+"""Interactive settings hub.
+
+The hub presents a single menu for common tasks (profiles, providers, MCP,
+global settings, actions, and the guided pipeline). It owns banner display and
+ensures the banner is shown at most once per session, avoiding duplicates on
+startup.
+"""
+
 from ..state import LinkerState
 from ..ui import c, BOLD, info, ok, warn, clear_screen, banner
 import time
@@ -24,6 +32,7 @@ _HUB_CTRL_C_COUNT = 0
 
 
 def _handle_ctrlc_in_hub() -> None:
+    """Convert the first Ctrl-C into a friendly message; exit on second."""
     global _HUB_CTRL_C_COUNT
     _HUB_CTRL_C_COUNT += 1
     if _HUB_CTRL_C_COUNT >= 2:
@@ -36,19 +45,17 @@ def _handle_ctrlc_in_hub() -> None:
 
 
 def interactive_settings_editor(state: LinkerState, args) -> str:
+    """Run the interactive settings hub.
+
+    Returns a short action string (e.g., ``"write"``) or terminates the loop
+    by returning ``"quit"``. The caller decides how to handle the result.
+    """
     while True:
         if not getattr(args, "continuous", False):
             try:
                 clear_screen()
             except Exception:
                 pass
-        # Show banner as part of the hub unless suppressed
-        if not getattr(args, "no_banner", False):
-            try:
-                banner()
-            except Exception:
-                pass
-        print()
         # Honor CLI toggle for emojis
         set_emojis_enabled(not getattr(args, "no_emojis", False))
         # Show banner once (hub owns banner), unless suppressed or in continuous mode
@@ -62,7 +69,8 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
             except Exception:
                 pass
             setattr(args, "_hub_banner_shown", True)
-        print(c(fmt("Interactive settings ⚙️:"), BOLD))
+        print()
+        print(c(fmt("⚙️  Interactive settings:"), BOLD))
         try:
             hub = prompt_choice(
                 "Start with",
@@ -71,7 +79,7 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
                     fmt("🧰 Manage MCP servers"),
                     fmt("🔌 Manage providers"),
                     fmt("🪄 Add local LLMs automagically"),
-                    fmt("⚙️ Global settings"),
+                    fmt("⚙️  Global settings"),
                     fmt("🚀 Actions…"),
                     fmt("🧭 Guided pipeline"),
                     fmt("❌ Quit (no write)"),
@@ -171,7 +179,7 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
                         fmt("💾 Write"),
                         fmt("📝 Overwrite + Write"),
                         fmt("🚀 Write and launch (print cmd)"),
-                        fmt("Back 🔙"),
+                        fmt("🔙 Back"),
                     ],
                 )
             except KeyboardInterrupt:

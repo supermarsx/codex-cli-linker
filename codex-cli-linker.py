@@ -1,5 +1,19 @@
 #!/usr/bin/env python3
-"""Compatibility shim that re-exports the CLI implementation."""
+"""Launcher and compatibility shim for Codex CLI Linker.
+
+This small wrapper keeps the historical, single-file UX intact while also
+supporting packaging (PyPI/Homebrew) and frozen distributions (PyInstaller).
+
+Key behavior and rationale:
+ - Prefer static imports first so that packagers like PyInstaller can detect
+   and bundle the ``codex_linker`` package without additional hooks.
+ - Fall back to dynamically adding ``./src`` to ``sys.path`` when running
+   the repository directly (editable development mode).
+ - Re-export key symbols from the implementation module to preserve backwards
+   compatibility with tests and scripts that import from this file.
+
+No third‑party dependencies are used; this file must remain stdlib‑only.
+"""
 
 import importlib
 import os as _os
@@ -8,6 +22,27 @@ from pathlib import Path
 
 
 def _load_modules():
+    """Locate and import the packaged modules.
+
+    Strategy:
+    1) Prefer a direct import (static) so PyInstaller collectors can see the
+       dependency graph and include ``codex_linker`` in the frozen app.
+    2) If the import fails (e.g., when running the repo directly), add the
+       local ``./src`` directory to ``sys.path`` and environment to mirror the
+       project layout, then retry import via :mod:`importlib`.
+
+    Returns a tuple of (impl_module, utils_module).
+    """
+    # 1) Static import first (helps PyInstaller collectors)
+    try:
+        from codex_linker import impl as _impl  # type: ignore
+        from codex_linker import utils as _utils  # type: ignore
+
+        return _impl, _utils
+    except Exception:
+        pass
+
+    # 2) Dev/source tree fallback: add ./src to path and env
     _here = Path(__file__).resolve().parent
     _src = _here / "src"
     if _src.exists():
@@ -21,9 +56,11 @@ def _load_modules():
                 _os.environ["PYTHONPATH"] = _os.pathsep.join([src_str, env_path])
         else:
             _os.environ["PYTHONPATH"] = src_str
-    impl = importlib.import_module("codex_linker.impl")
-    utils = importlib.import_module("codex_linker.utils")
-    return impl, utils
+
+    # 3) Importlib-based import
+    _impl = importlib.import_module("codex_linker.impl")
+    _utils = importlib.import_module("codex_linker.utils")
+    return _impl, _utils
 
 
 _impl, _utils = _load_modules()

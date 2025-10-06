@@ -1,5 +1,14 @@
 from __future__ import annotations
 
+"""Provider selection and auth-related flow helpers.
+
+These helpers centralize logic that was previously inline in ``main_flow``.
+They intentionally keep behavior minimal and focused, and avoid prompting the
+user unnecessarily at startup. In particular, we do not ask for a custom
+provider id at the start; the interactive hub is responsible for provider
+management.
+"""
+
 import sys
 from ..prompts import pick_base_url, prompt_choice
 from ..utils import resolve_provider
@@ -9,7 +18,15 @@ from ..logging_utils import log_event
 
 
 def determine_base_and_provider(args, state) -> None:
-    """Resolve base URL and provider using the same logic as before."""
+    """Resolve base URL and provider.
+
+    Rules of thumb:
+    - Respect explicit flags first (``--base-url``, ``--provider``, ``--auto``,
+      ``--full-auto``).
+    - For interactive starts, avoid early prompts and let the hub guide the
+      user through configuration.
+    - Derive a default provider from the chosen base URL when possible.
+    """
     picker = getattr(
         sys.modules.get("codex_cli_linker"), "pick_base_url", pick_base_url
     )
@@ -43,14 +60,9 @@ def determine_base_and_provider(args, state) -> None:
         from ..spec import DEFAULT_OPENAI
 
         state.base_url = DEFAULT_OPENAI
-    if state.provider == "custom":
-        if not (args.full_auto or args.auto or getattr(args, "yes", False)):
-            state.provider = (
-                input(
-                    "Provider id to use in model_providers (e.g., myprovider): "
-                ).strip()
-                or "custom"
-            )
+    # Do not prompt for a custom provider id at startup; the interactive hub
+    # will handle provider management. Keep "custom" as-is to avoid an early
+    # blocking question. (Previously we asked for an id here.)
 
 
 def maybe_prompt_openai_auth_method(args, state) -> None:
