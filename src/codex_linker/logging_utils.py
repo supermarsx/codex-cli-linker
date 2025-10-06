@@ -1,3 +1,17 @@
+"""Logging configuration helpers (human + JSON + remote HTTP).
+
+This module centralizes lightweight logging setup for the CLI:
+ - Plain human-readable logs to stderr
+ - Optional JSON logs to stdout (for piping/collection)
+ - Optional file logs
+ - Optional remote HTTP logs via a small buffered async handler
+
+Design goals
+ - No third‑party dependencies; stdlib logging only
+ - Idempotent configuration for tests and repeated calls
+ - Never block normal CLI flow on network issues or handler errors
+"""
+
 from __future__ import annotations
 import json
 import logging
@@ -15,10 +29,22 @@ def configure_logging(
     log_remote: Optional[str] = None,
     log_level: Optional[str] = None,
 ) -> None:
-    """Configure root logger according to CLI flags.
+    """Configure the root logger according to CLI flags.
 
-    Existing handlers installed by earlier calls are removed so repeated
-    invocations (e.g., tests) do not duplicate log output.
+    Parameters
+    - ``verbose``: When ``True``, sets level to ``DEBUG`` (unless ``log_level``
+      overrides). Otherwise defaults to ``WARNING``.
+    - ``log_file``: Optional path to tee logs to a file (plain text format).
+    - ``log_json``: When ``True``, also emit JSON lines to stdout.
+    - ``log_remote``: Optional URL to POST logs to (http/https). Emission is
+      buffered and non-blocking.
+    - ``log_level``: Optional explicit level name (debug, info, warning, error).
+
+    Behavior
+    - Removes any handlers previously added by this function to avoid
+      duplicates across repeated invocations (common in tests).
+    - Adds a plain stream handler to stderr, and optionally JSON, file, and
+      remote HTTP handlers. Network failures are swallowed.
     """
 
     # Determine base level
@@ -51,6 +77,13 @@ def configure_logging(
     if log_json:
 
         class JSONFormatter(logging.Formatter):
+            """Minimal JSON formatter for structured log collection.
+
+            Emits an object with ``level`` and ``message`` plus optional
+            structured fields (``event``, ``provider``, ``model``, ``path``,
+            ``duration_ms``, ``error_type``) when set via ``extra=...``.
+            """
+
             def format(self, record):
                 payload = {
                     "level": record.levelname,
@@ -92,6 +125,13 @@ def configure_logging(
         inner = logging.handlers.HTTPHandler(host, url, method="POST", secure=secure)
 
         class BufferedAsyncHandler(logging.Handler):
+            """Non-blocking wrapper that ships records to an inner handler.
+
+            Uses a background thread and a bounded queue to avoid blocking the
+            main thread. When ``PYTEST_CURRENT_TEST`` is present, emits
+            synchronously for deterministic unit tests.
+            """
+
             def __init__(self, inner_handler: logging.Handler, maxsize: int = 256):
                 super().__init__()
                 import threading
@@ -179,7 +219,11 @@ def configure_logging(
 
 
 def log_event(event: str, level: int = logging.INFO, **fields) -> None:
-    """Structured log helper. Fields may include provider, model, path, duration_ms, error_type."""
+    """Emit a structured event log at the given level.
+
+    Common ``fields`` include ``provider``, ``model``, ``path``,
+    ``duration_ms``, and ``error_type``. The function never raises.
+    """
     try:
         logging.getLogger().log(level, event, extra={"event": event, **fields})
     except Exception:
