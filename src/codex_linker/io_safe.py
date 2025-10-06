@@ -1,4 +1,19 @@
-"""Safe IO helpers (atomic writes, backups, paths)."""
+"""Safe I/O helpers (atomic writes, backups, and well-known paths).
+
+This module provides a tiny set of cross‑platform, dependency‑free utilities
+for file writes and housekeeping:
+ - Well‑known paths under ``CODEX_HOME`` (default: ``~/.codex``)
+ - Atomic text writes with fsync to reduce corruption risk
+ - Optional timestamped backups on overwrite
+ - Merging keys into ``auth.json`` without leaking secrets elsewhere
+ - Cleanup helpers to remove configs or backup files
+
+Design goals
+- Never surprise the user: only write where explicitly requested; keep
+  backups unless asked not to.
+- Be robust: prefer atomic renames, create parent directories as needed, and
+  tolerate transient errors without crashing the CLI.
+"""
 
 from __future__ import annotations
 import os
@@ -19,7 +34,11 @@ AUTH_JSON = CODEX_HOME / "auth.json"
 
 
 def backup(path: Path) -> Optional[Path]:
-    """Backup existing file with a timestamped suffix. Returns backup path if created."""
+    """Create a timestamped ``.bak`` alongside ``path`` if it exists.
+
+    Returns the backup path when created, otherwise ``None``. Uses a
+    ``YYYYMMDD-HHMM`` suffix. Errors are logged and do not raise.
+    """
     if path.exists():
         dt_obj = getattr(sys.modules.get("codex_cli_linker"), "datetime", datetime)
         if hasattr(dt_obj, "now"):
@@ -40,12 +59,20 @@ def backup(path: Path) -> Optional[Path]:
 
 
 def do_backup(path: Path) -> Optional[Path]:
-    """Perform and announce a backup; returns the backup path if created."""
+    """Perform a backup and announce it, returning the backup path if created."""
     return backup(path)
 
 
 def atomic_write_with_backup(path: Path, text: str) -> Optional[Path]:
-    """Atomically write UTF-8 text to `path` with fsync and optional .bak."""
+    """Atomically write UTF‑8 text to ``path`` with fsync and a backup.
+
+    Writes to a temporary file in the same directory, fsyncs the file
+    descriptor when possible, then renames into place. If the target already
+    exists, a timestamped ``.bak`` is created first.
+
+    Returns the backup path when a backup is created; otherwise ``None``.
+    Propagates write errors after cleaning up the temporary file.
+    """
     fd, tmppath = tempfile.mkstemp(
         prefix=path.name + ".", suffix=".tmp", dir=str(path.parent)
     )
@@ -69,7 +96,7 @@ def atomic_write_with_backup(path: Path, text: str) -> Optional[Path]:
 
 
 def atomic_write(path: Path, text: str) -> None:
-    """Atomically write UTF-8 text to `path` with fsync (no backup)."""
+    """Atomically write UTF‑8 text to ``path`` with fsync (no backup)."""
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmppath = tempfile.mkstemp(
         prefix=path.name + ".", suffix=".tmp", dir=str(path.parent)
@@ -92,11 +119,12 @@ def atomic_write(path: Path, text: str) -> None:
 
 
 def write_auth_json_merge(path: Path, kv: Dict[str, Any]) -> bool:
-    """Merge one or more keys into auth.json.
+    """Merge one or more keys into ``auth.json`` safely.
 
-    Returns True if any existing key value was overwritten (changed), False if
-    only new keys were added or values were identical. Only creates a backup
-    when overwriting; otherwise writes without backup.
+    Returns ``True`` if any existing key value was overwritten (changed),
+    ``False`` if only new keys were added or all values were identical.
+    Creates a ``.bak`` only when overwriting; otherwise writes without backup
+    to reduce noise.
     """
     try:
         import json as _json
@@ -126,7 +154,7 @@ def write_auth_json_merge(path: Path, kv: Dict[str, Any]) -> bool:
 
 
 def remove_config(no_backup: bool) -> None:
-    """Remove config files, optionally creating .bak backups."""
+    """Remove legacy config files, optionally creating ``.bak`` backups."""
     paths = [CONFIG_TOML, CONFIG_JSON, CONFIG_YAML]
     removed = 0
     for path in paths:
@@ -147,7 +175,11 @@ def remove_config(no_backup: bool) -> None:
 
 
 def delete_all_backups(confirm: bool) -> None:
-    """Remove every *.bak file under CODEX_HOME when confirmed."""
+    """Delete every ``*.bak`` under ``CODEX_HOME`` when ``confirm`` is True.
+
+    Without explicit confirmation, prints a summary and exits with code 1 to
+    avoid accidental data loss.
+    """
     home = Path(os.environ.get("CODEX_HOME", str(CODEX_HOME)))
     backups = list(home.rglob("*.bak"))
     if not confirm:
