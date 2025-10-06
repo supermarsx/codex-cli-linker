@@ -1,3 +1,17 @@
+"""Dependency-free emitters for TOML/JSON/YAML.
+
+These helpers serialize the in-memory config dict into user-facing formats
+without pulling in third-party libraries. The TOML/YAML emitters are
+purpose-built for this project's schema and intentionally conservative:
+ - Skip empty/None values to keep files tidy
+ - Preserve simple types (bool/int/float/str) and basic collections
+ - Render provider/profile sections explicitly
+ - Keep whitespace stable and collapse excess blank lines
+
+For complex cases we prefer shaping the dict in ``render.py`` so that all
+emitters remain in parity.
+"""
+
 from __future__ import annotations
 import json
 import re
@@ -5,7 +19,16 @@ from typing import Dict, List
 
 
 def to_toml(cfg: Dict) -> str:
-    """Purpose-built TOML emitter for this config shape."""
+    """Serialize ``cfg`` to TOML tailored to the Codex schema.
+
+    Notes
+    - Omits empty/None fields; includes only meaningful values.
+    - Emits tables for ``[tui]``, ``[history]``, ``[sandbox_workspace_write]``,
+      and nested provider/profile sections.
+    - Renders JSON-compatible scalars using ``json.dumps`` to avoid quoting
+      issues for strings.
+    - Stable formatting with at most single blank lines between sections.
+    """
 
     def is_empty(v) -> bool:
         if v is None:
@@ -205,12 +228,18 @@ def to_toml(cfg: Dict) -> str:
 
 
 def to_json(cfg: Dict) -> str:
-    """Serialize ``cfg`` to a pretty-printed JSON string."""
+    """Serialize ``cfg`` to pretty-printed JSON (2-space indents)."""
     return json.dumps(cfg, indent=2)
 
 
 def to_yaml(cfg: Dict) -> str:
-    """Tiny YAML emitter to avoid external deps."""
+    """Serialize ``cfg`` to a small subset of YAML.
+
+    This emitter covers dictionaries and lists with scalar values. It is not a
+    general-purpose YAML serializer and avoids advanced features (anchors,
+    multi-line strings, tags). The output is sufficient for the project's
+    configuration needs without introducing third-party dependencies.
+    """
 
     def dump(obj, indent=0):
         sp = "  " * indent
