@@ -12,7 +12,6 @@ Design notes:
 """
 
 from __future__ import annotations
-
 from dataclasses import asdict, dataclass, fields
 import json
 from pathlib import Path
