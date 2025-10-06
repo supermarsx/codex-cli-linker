@@ -1,3 +1,19 @@
+"""Utility helpers for Codex CLI Linker.
+
+This module gathers small, dependency‑free helpers used across the tool:
+ - Version discovery for the installed/package build
+ - Lightweight HTTP JSON fetch with short timeouts
+ - Provider id resolution heuristics from a base URL
+ - Discovery and launching of the external Codex CLI
+ - Simple structured logging shim
+
+Design goals:
+ - No third‑party dependencies (stdlib only)
+ - Cross‑platform behavior with conservative defaults
+ - Fail safe: helpers return benign values or raise ``SystemExit`` with a clear
+   message only when continuing would be misleading (e.g., missing Codex CLI)
+"""
+
 from __future__ import annotations
 import json
 import os
@@ -39,9 +55,16 @@ except Exception:  # pragma: no cover
 
 
 def get_version() -> str:
-    """Return installed package version or derive from pyproject.
+    """Return the tool version string.
 
-    Falls back to ``0.0.0+unknown`` when no metadata is available."""
+    Lookup order (first match wins):
+    1) ``importlib.metadata.version('codex-cli-linker')`` (installed package)
+    2) Parse ``pyproject.toml`` for ``project.version`` (source checkout)
+    3) Fallback string ``"0.0.0+unknown"`` (frozen builds without metadata)
+
+    The function tolerates missing metadata and parsing errors and never raises
+    for those conditions.
+    """
     pv = getattr(sys.modules.get("codex_cli_linker"), "pkg_version", pkg_version)
     try:
         return pv("codex-cli-linker")
@@ -78,7 +101,17 @@ def get_version() -> str:
 def http_get_json(
     url: str, timeout: float = 3.0
 ) -> Tuple[Optional[dict], Optional[str]]:
-    """Fetch JSON with a short timeout; return (data, error_message)."""
+    """Fetch a small JSON document.
+
+    Parameters
+    - ``url``: Absolute URL to request.
+    - ``timeout``: Socket timeout in seconds (defaults to 3.0).
+
+    Returns
+    - Tuple ``(data, error)`` where ``data`` is a dict on success and ``error``
+      is ``None``; on failure, ``data`` is ``None`` and ``error`` contains a
+      short message (e.g., ``"HTTP 404: Not Found"``).
+    """
     try:
         with urllib.request.urlopen(url, timeout=timeout) as resp:
             return json.loads(resp.read().decode("utf-8", errors="ignore")), None
@@ -88,6 +121,8 @@ def http_get_json(
         return None, str(e)
 
 
+# Map known provider base prefixes to canonical provider ids. This lets the
+# tool infer a provider from a base URL chosen or detected earlier.
 _PROVIDER_PREFIXES = {
     DEFAULT_LMSTUDIO.rsplit("/v1", 1)[0]: "lmstudio",
     DEFAULT_OLLAMA.rsplit("/v1", 1)[0]: "ollama",
@@ -110,7 +145,11 @@ _PROVIDER_PREFIXES = {
 
 
 def resolve_provider(base_url: str) -> str:
-    """Map a base URL to a known provider id or ``custom``."""
+    """Infer a provider id from an OpenAI‑compatible base URL.
+
+    Returns a canonical provider id (e.g., ``"lmstudio"``), ``"azure"`` for
+    Azure pattern hostnames, or ``"custom"`` if the base is unrecognized.
+    """
     for prefix, pid in _PROVIDER_PREFIXES.items():
         if base_url.startswith(prefix):
             return pid
@@ -127,10 +166,12 @@ def resolve_provider(base_url: str) -> str:
 
 
 def find_codex_cmd() -> Optional[List[str]]:
-    """Locate the Codex CLI, preferring bare command names.
+    """Locate the Codex CLI entrypoint.
 
-    Returning command names keeps subprocess invocations predictable and
-    simplifies testing where absolute paths may vary.
+    Prefers bare command names (``["codex"]``) so subprocess calls inherit the
+    environment PATH. On Windows, ``codex.cmd`` may be selected. If the command
+    is not available, returns ``["npx", "codex"]`` when ``npx`` is present, or
+    ``None`` otherwise.
     """
     for name in ("codex", "codex.cmd"):
         path = shutil.which(name)
@@ -140,6 +181,13 @@ def find_codex_cmd() -> Optional[List[str]]:
 
 
 def ensure_codex_cli() -> List[str]:
+    """Ensure the Codex CLI is available and return the command to invoke.
+
+    The function first attempts to find an existing installation via
+    :func:`find_codex_cmd`. If not found but ``npm`` is available, it will try
+    to install ``@openai/codex-cli`` globally. On failure (e.g., missing npm or
+    installation error), it exits the process with a clear message.
+    """
     finder = getattr(
         sys.modules.get("codex_cli_linker"), "find_codex_cmd", find_codex_cmd
     )
@@ -159,12 +207,18 @@ def ensure_codex_cli() -> List[str]:
     return cmd
 
 
-def launch_codex(profile: str, ensure: Optional[Callable[[], List[str]]] = None) -> int:
+def launch_codex(
+    profile: str, ensure: Optional[Callable[[], List[str]]] = None
+) -> int:
     """Launch the external Codex CLI with the given profile.
 
-    ``ensure`` allows callers (and tests) to supply a custom ``ensure_codex_cli``
-    implementation. KeyboardInterrupts are converted into the conventional exit
-    code ``130`` instead of bubbling up.
+    Parameters
+    - ``profile``: Name of the Codex profile to use.
+    - ``ensure``: Optional callable that returns the CLI command; defaults to
+      :func:`ensure_codex_cli`. Useful for tests.
+
+    Returns the CLI exit code. A ``KeyboardInterrupt`` is caught and converted
+    into exit code ``130`` for consistency with typical shell semantics.
     """
     ensure = ensure or ensure_codex_cli
     cmd = ensure()
@@ -184,7 +238,12 @@ def launch_codex(profile: str, ensure: Optional[Callable[[], List[str]]] = None)
 
 
 def log_event(event: str, level: int = 20, **fields) -> None:
-    """Structured log helper. Uses stdlib logging; never raises."""
+    """Structured log helper using stdlib logging.
+
+    Attaches the event name under ``extra={"event": <name>, ...}`` so that
+    formatters can reference it. Logging failures are silently ignored to avoid
+    disrupting CLI flows.
+    """
     import logging
 
     try:
