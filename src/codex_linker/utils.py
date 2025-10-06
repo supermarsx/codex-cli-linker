@@ -207,9 +207,7 @@ def ensure_codex_cli() -> List[str]:
     return cmd
 
 
-def launch_codex(
-    profile: str, ensure: Optional[Callable[[], List[str]]] = None
-) -> int:
+def launch_codex(profile: str, ensure: Optional[Callable[[], List[str]]] = None) -> int:
     """Launch the external Codex CLI with the given profile.
 
     Parameters
