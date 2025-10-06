@@ -1,3 +1,18 @@
+"""Connectivity and filesystem diagnostics (doctor).
+
+Runs a small suite of checks to help users validate their setup:
+ - Resolve the base URL (from CLI args, saved state, or auto-detect)
+ - Probe base URL reachability (HTTP status)
+ - Fetch available models from ``/models``
+ - Exercise chat/completions endpoints with a tiny echo prompt
+ - Optionally probe feature support (tool_choice, response_format, reasoning)
+ - Verify that config paths are writable
+
+The doctor favors short timeouts and never raises; it reports results and
+returns an exit code for scripting. Network errors are summarized and do not
+crash diagnostics.
+"""
+
 from __future__ import annotations
 
 import json
@@ -17,6 +32,8 @@ _DOCTOR_PROMPT = "ping"
 
 @dataclass
 class CheckResult:
+    """A single diagnostic result displayed in the checklist."""
+
     name: str
     success: bool
     detail: str = ""
@@ -32,7 +49,15 @@ def run_doctor(
 ) -> int:
     """Run connectivity and filesystem diagnostics.
 
-    Returns ``0`` on success, ``1`` when any check fails."""
+    Parameters
+    - ``args``: Parsed CLI arguments (doctor flags read here).
+    - ``home``: Root directory for Codex files (``CODEX_HOME``).
+    - ``config_targets``: Candidate config file paths to verify writability.
+    - ``state``: Current state with possible defaults (base_url, model).
+    - ``timeout``: Network timeout in seconds for probes.
+
+    Returns ``0`` when all checks pass; otherwise ``1``.
+    """
 
     info("Running doctor preflight checks...")
     checks: List[CheckResult] = []
@@ -147,6 +172,11 @@ def run_doctor(
 def _probe_base_url(
     base_url: str, headers: Dict[str, str], timeout: float
 ) -> Tuple[bool, str]:
+    """Check HTTP reachability of the base URL.
+
+    Returns ``(True, 'HTTP <status>')`` on any HTTP response, including 4xx/5xx,
+    and ``(False, <error>)`` on transport failures.
+    """
     req = urllib.request.Request(base_url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -163,6 +193,11 @@ def _probe_models(
     headers: Dict[str, str],
     timeout: float,
 ) -> Tuple[bool, List[str], str]:
+    """Fetch ``/models`` and extract a list of model ids.
+
+    Returns ``(True, models, detail)`` when a non-empty list is found; otherwise
+    ``(False, [], <reason>)``.
+    """
     url = base_url.rstrip("/") + "/models"
     data, error = _http_get_json(url, headers, timeout)
     if data and isinstance(data.get("data"), list):
@@ -188,6 +223,12 @@ def _probe_chat_echo(
     headers: Dict[str, str],
     timeout: float,
 ) -> Tuple[bool, str]:
+    """POST a tiny chat/completions payload and look for a text reply.
+
+    Tries both Chat Completions message shapes and then legacy Completions as a
+    fallback. Returns ``(True, 'Received ...')`` on success, otherwise
+    ``(False, <error summary>)``.
+    """
     url = base_url.rstrip("/") + "/chat/completions"
     attempts = [
         {"messages": [{"role": "user", "content": _DOCTOR_PROMPT}]},
@@ -238,6 +279,12 @@ def _probe_feature_support(
     headers: Dict[str, str],
     timeout: float,
 ) -> Tuple[CheckResult, Dict[str, bool], List[str]]:
+    """Probe optional chat features and provide CLI suggestions.
+
+    Sends minimal payloads with ``tool_choice``, ``response_format`` and
+    ``reasoning`` fields to determine support. Returns a ``CheckResult`` summary,
+    a mapping of feature name -> bool, and a list of suggestion strings.
+    """
     url = base_url.rstrip("/") + "/chat/completions"
     base_payload = {
         "model": model_id,
@@ -282,6 +329,11 @@ def _probe_feature_support(
 
 
 def _parse_chat_response(data, error):
+    """Interpret a Chat Completions JSON response.
+
+    Accepts both error objects and the standard ``choices[0].message.content``
+    shapes, with multi-part content supported. Returns ``(ok, detail)``.
+    """
     if not data:
         return False, error or "No response"
     if isinstance(data, dict) and data.get("error"):
@@ -305,6 +357,7 @@ def _parse_chat_response(data, error):
 
 
 def _parse_completions_response(data, error):
+    """Interpret a legacy Completions JSON response (``choices[0].text``)."""
     if not data:
         return False, error or "No response"
     if isinstance(data, dict) and data.get("error"):
@@ -326,6 +379,7 @@ def _parse_completions_response(data, error):
 
 
 def _extract_text(content):
+    """Extract plain text from Chat Completions content (string or parts)."""
     if isinstance(content, str):
         return content
     if isinstance(content, list):
@@ -341,6 +395,10 @@ def _extract_text(content):
 
 
 def _probe_filesystem(home: Path, targets: Sequence[Path]) -> Tuple[bool, str]:
+    """Confirm that ``home`` and target parent directories are writable.
+
+    Creates and removes small marker files to verify permissions.
+    """
     temp_files: List[Path] = []
     try:
         home.mkdir(parents=True, exist_ok=True)
@@ -370,6 +428,7 @@ def _http_get_json(
     headers: Dict[str, str],
     timeout: float,
 ) -> Tuple[Optional[dict], Optional[str]]:
+    """HTTP GET helper returning ``(data, error)`` with short timeout."""
     req = urllib.request.Request(url, headers=headers or {})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -391,6 +450,7 @@ def _http_post_json(
     headers: Dict[str, str],
     timeout: float,
 ) -> Tuple[Optional[dict], Optional[str]]:
+    """HTTP POST helper returning ``(data, error)`` with short timeout."""
     data = json.dumps(payload).encode("utf-8")
     req_headers = {"Content-Type": "application/json", **(headers or {})}
     req = urllib.request.Request(url, data=data, headers=req_headers)
@@ -409,6 +469,7 @@ def _http_post_json(
 
 
 def _print_results(checks: Iterable[CheckResult]) -> None:
+    """Pretty-print the checklist with color-coded status lines."""
     for check in checks:
         prefix = "[ OK ]" if check.success else "[FAIL]"
         color = GREEN if check.success else RED
