@@ -9,7 +9,6 @@ the call surface narrow from main flow and document behaviors in docstrings.
 """
 
 from __future__ import annotations
-
 import difflib
 import os
 import re as _re

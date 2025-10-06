@@ -104,8 +104,8 @@ def manage_providers_interactive(args) -> None:
             [
                 fmt("🪄 Add providers automagically"),
                 "➕ Add provider",
-                "✏️ Edit provider",
-                "🗑️ Remove provider",
+                "✏️  Edit provider",
+                "🗑️  Remove provider",
                 "✅ Done",
             ],
         )
