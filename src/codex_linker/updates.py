@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 """Thin facade over updatesets modules for backward compatibility.
 
 This preserves the original public surface (function and type names) while the
 implementation lives in ``src/codex_linker/updatesets/`` similar to how args
 were modularized under argsets/.
 """
+
+from __future__ import annotations
 
 from .updatesets import (
     check_for_updates,

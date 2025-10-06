@@ -1,8 +1,21 @@
-"""Spec choices and defaults (provider ids, ports, labels)."""
+"""Specification of provider defaults and human‑friendly labels.
+
+This module centralizes the OpenAI‑compatible base URLs used across the tool
+for common providers, along with a mapping from canonical provider ids to
+display labels. Keeping these in one place helps ensure consistency between
+interactive prompts, config rendering, and auto‑detection logic.
+
+Notes
+- These constants are intentionally simple strings to avoid import cycles and
+  keep the module dependency‑free.
+- Defaults target typical localhost ports for self‑hosted engines where
+  applicable, and official cloud endpoints for hosted APIs.
+"""
 
 from __future__ import annotations
 from typing import Dict, List
 
+# Localhost defaults for common self‑hosted engines
 DEFAULT_LMSTUDIO = "http://localhost:1234/v1"
 DEFAULT_OLLAMA = "http://localhost:11434/v1"
 DEFAULT_VLLM = "http://localhost:8000/v1"
@@ -10,6 +23,12 @@ DEFAULT_TGWUI = "http://localhost:5000/v1"  # Text-Gen-WebUI OpenAI plugin
 DEFAULT_TGI_8080 = "http://localhost:8080/v1"  # HF TGI shim
 DEFAULT_TGI_3000 = "http://localhost:3000/v1"
 DEFAULT_OPENROUTER_LOCAL = "http://localhost:7000/v1"
+DEFAULT_KOBOLDCPP = "http://localhost:5000/v1"
+DEFAULT_ANYTHINGLLM = "http://localhost:3001/v1"
+DEFAULT_JAN = "http://localhost:1337/v1"
+DEFAULT_LLAMACPP = "http://localhost:8080/v1"
+
+# Hosted API defaults
 DEFAULT_OPENROUTER = "https://openrouter.ai/api/v1"
 DEFAULT_ANTHROPIC = "https://api.anthropic.com/v1"
 DEFAULT_GROQ = "https://api.groq.com/openai/v1"
@@ -17,11 +36,7 @@ DEFAULT_MISTRAL = "https://api.mistral.ai/v1"
 DEFAULT_DEEPSEEK = "https://api.deepseek.com/v1"
 DEFAULT_COHERE = "https://api.cohere.com/v2"
 DEFAULT_BASETEN = "https://inference.baseten.co/v1"
-DEFAULT_KOBOLDCPP = "http://localhost:5000/v1"
-DEFAULT_ANYTHINGLLM = "http://localhost:3001/v1"
-DEFAULT_JAN = "http://localhost:1337/v1"
 DEFAULT_OPENAI = "https://api.openai.com/v1"
-DEFAULT_LLAMACPP = "http://localhost:8080/v1"
 
 COMMON_BASE_URLS: List[str] = [
     DEFAULT_LMSTUDIO,
@@ -42,6 +57,7 @@ COMMON_BASE_URLS: List[str] = [
     DEFAULT_LLAMACPP,
 ]
 
+# Canonical provider id -> human‑friendly label
 PROVIDER_LABELS: Dict[str, str] = {
     "lmstudio": "LM Studio",
     "ollama": "Ollama",
@@ -80,7 +96,6 @@ __all__ = [
     "DEFAULT_COHERE",
     "DEFAULT_BASETEN",
     "DEFAULT_KOBOLDCPP",
-    "DEFAULT_ANYTHINGLLM",
     "DEFAULT_ANYTHINGLLM",
     "DEFAULT_OPENAI",
     "DEFAULT_LLAMACPP",

@@ -18,12 +18,10 @@ from .io_safe import (
 from .state import LinkerState
 from .ui import (
     clear_screen,
-    c,
     info,
     ok,
     warn,
     err,
-    CYAN,
 )
 from .utils import get_version
 from .updates import (
