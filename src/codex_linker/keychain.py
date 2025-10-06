@@ -1,3 +1,25 @@
+"""Optional keychain helpers for storing API keys.
+
+These helpers provide best‑effort integration with platform keychains and
+common CLI secret managers. They are entirely optional and never block normal
+CLI flows; failures are logged as warnings and result in ``False``.
+
+Supported backends
+- ``auto``: pick a sensible default (macOS Keychain on Darwin, DPAPI on
+  Windows, Secret Service on Linux)
+- ``macos``: macOS Keychain via the ``security`` command
+- ``secretservice`` / ``secretstorage``: Linux Secret Service (uses the
+  optional ``secretstorage`` Python package if available)
+- ``dpapi``: Windows Credential Manager via Win32 APIs
+- ``pass``: the pass(1) password manager (inserts an entry)
+- ``bitwarden`` / ``bw`` / ``bitwarden-cli``: detect CLI and instruct manual use
+- ``1password`` / ``1passwd`` / ``op``: detect CLI and instruct manual use
+- ``none`` / ``skip``: disable storage
+
+No third‑party dependencies are required; Linux Secret Service is attempted
+only when the ``secretstorage`` package is present.
+"""
+
 from __future__ import annotations
 import os
 import subprocess
@@ -7,6 +29,12 @@ from .ui import ok, warn
 
 
 def _keychain_backend_auto() -> str:
+    """Return a default keychain backend for the current platform.
+
+    - macOS → ``macos`` (Keychain)
+    - Windows → ``dpapi`` (Credential Manager)
+    - Other → ``secretstorage`` (Linux Secret Service)
+    """
     if sys.platform == "darwin":
         return "macos"
     if os.name == "nt":
@@ -15,7 +43,19 @@ def _keychain_backend_auto() -> str:
 
 
 def store_api_key_in_keychain(backend: str, env_var: str, api_key: str) -> bool:
-    """Best-effort storage of API key in OS keychain/credential store."""
+    """Store an API key in a platform keychain or CLI secret manager.
+
+    Parameters
+    - ``backend``: One of the supported identifiers listed in the module
+      header; use ``"auto"`` to pick a sensible default per platform.
+    - ``env_var``: The environment variable name associated with the key
+      (used to label the secret entry).
+    - ``api_key``: The secret value to store.
+
+    Returns ``True`` when storage succeeds; returns ``False`` otherwise. This
+    function never raises and logs warnings explaining why a backend was
+    skipped or failed (e.g., CLI not present, platform mismatch).
+    """
     try:
         if backend == "auto":
             backend = _keychain_backend_auto()
