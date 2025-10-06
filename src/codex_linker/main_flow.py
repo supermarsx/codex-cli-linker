@@ -55,7 +55,13 @@ from .flows import (
 
 
 def main():
-    """Entry point for the CLI tool."""
+    """Entry point for the CLI tool.
+
+    Keeps startup output minimal: the interactive hub owns banner display and
+    ensures it is shown at most once, so we avoid printing a duplicate heading
+    here. Non-interactive paths (e.g., ``--yes``, ``--dry-run``) remain
+    unaffected.
+    """
     args = parse_args()
     mod = sys.modules.get("codex_cli_linker")
     home = Path(os.environ.get("CODEX_HOME", str(CODEX_HOME)))
@@ -116,7 +122,7 @@ def main():
         except Exception:
             # Non-fatal: continue without blocking user flow
             pass
-    # Startup: banner is part of the main hub; optionally clear and print a minimal title here
+    # Startup: banner is handled by the interactive hub; avoid extra heading here
     is_tty = bool(getattr(sys.stdout, "isatty", lambda: False)())
     color_ok = not os.environ.get("NO_COLOR")
     should_clear = (
@@ -124,7 +130,6 @@ def main():
     )
     if should_clear:
         clear_screen()
-    print(c("CODEX CLI LINKER", CYAN))
     # --yes implies non-interactive where possible
     if getattr(args, "yes", False):
         if not args.auto:
