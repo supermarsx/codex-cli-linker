@@ -17,7 +17,6 @@ import platform
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -79,7 +78,9 @@ def _candidate_binaries() -> list:
     return uniq
 
 
-def _run(cmd: list, extra_env: dict | None = None, timeout: int = 20) -> tuple[int, str, str]:
+def _run(
+    cmd: list, extra_env: dict | None = None, timeout: int = 20
+) -> tuple[int, str, str]:
     """Run a command and capture output.
 
     Returns (exit_code, stdout, stderr). Does not raise on non-zero exit.
@@ -102,7 +103,9 @@ def _run(cmd: list, extra_env: dict | None = None, timeout: int = 20) -> tuple[i
         return 127, "", str(e)
 
 
-@unittest.skipUnless(_candidate_binaries(), "No codex-cli-linker binary available to test")
+@unittest.skipUnless(
+    _candidate_binaries(), "No codex-cli-linker binary available to test"
+)
 class TestPackagedBinariesRuntime(unittest.TestCase):
     def setUp(self) -> None:
         # Isolate any incidental file writes (defensive; we only call safe flags)
@@ -133,7 +136,8 @@ class TestPackagedBinariesRuntime(unittest.TestCase):
                 text = out or err
                 self.assertTrue(
                     any(k in text.lower() for k in ("usage", "codex", "--auto")),
-                    msg=f"Unexpected help output: {text!r}")
+                    msg=f"Unexpected help output: {text!r}",
+                )
 
     def test_version_runs(self) -> None:
         """Binary prints a version string and exits successfully.
@@ -157,5 +161,7 @@ class TestPackagedBinariesRuntime(unittest.TestCase):
                 if declared and declared not in text:
                     # Accept common fallback marker from frozen builds
                     self.assertRegex(
-                        text, r"unknown|\d+\.\d+(?:\.\d+)?", msg=f"Unexpected version text: {text!r}"
+                        text,
+                        r"unknown|\d+\.\d+(?:\.\d+)?",
+                        msg=f"Unexpected version text: {text!r}",
                     )
