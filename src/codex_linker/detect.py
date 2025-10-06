@@ -1,4 +1,15 @@
-"""Detection and model listing helpers."""
+"""Detection and model listing helpers.
+
+Lightweight utilities to discover a local OpenAI‑compatible server and inspect
+its advertised models without third‑party dependencies. These helpers are used
+by interactive flows and the doctor diagnostics.
+
+Design notes
+- Short timeouts and best‑effort behavior; prefer returning ``None``/``[]`` or
+  ``0`` over raising, except where a caller explicitly expects an error.
+- ``detect_base_url`` probes well‑known localhost candidates concurrently and
+  returns the first that responds to ``/models``.
+"""
 
 from __future__ import annotations
 import concurrent.futures
@@ -12,7 +23,12 @@ from .ui import info, ok, warn, c, GRAY
 
 
 def detect_base_url(candidates: List[str] = COMMON_BASE_URLS) -> Optional[str]:
-    """Probe a few common local servers for an OpenAI-compatible /models endpoint."""
+    """Return the first base URL that responds to ``/models``.
+
+    Probes ``candidates`` concurrently with short timeouts, logging a brief
+    line for each failed candidate. Returns the winning base URL, or ``None``
+    when none respond.
+    """
     logging.info("Auto-detecting OpenAI-compatible servers")
     info("Auto‑detecting OpenAI‑compatible servers…")
 
@@ -53,7 +69,10 @@ def detect_base_url(candidates: List[str] = COMMON_BASE_URLS) -> Optional[str]:
 
 
 def list_models(base_url: str) -> List[str]:
-    """Return the list of model IDs advertised by the server."""
+    """Fetch and return the list of model ids from ``/models``.
+
+    Raises ``RuntimeError`` when the endpoint cannot be fetched.
+    """
     http = getattr(sys.modules.get("codex_cli_linker"), "http_get_json", http_get_json)
     data, err_ = http(base_url.rstrip("/") + "/models")
     if not data:
@@ -62,7 +81,12 @@ def list_models(base_url: str) -> List[str]:
 
 
 def try_auto_context_window(base_url: str, model_id: str) -> int:
-    """Best-effort context window detection via /models metadata."""
+    """Return a best‑effort context window detected from ``/models`` metadata.
+
+    Looks for common metadata keys (``context_length``, ``n_ctx``, etc.) on
+    the entry matching ``model_id``; falls back to scanning other entries. On
+    failure, returns ``0``.
+    """
     http = getattr(sys.modules.get("codex_cli_linker"), "http_get_json", http_get_json)
     data, _ = http(base_url.rstrip("/") + "/models")
     if not data or "data" not in data or not isinstance(data["data"], list):
