@@ -1,3 +1,19 @@
+"""Top-level CLI flow orchestration.
+
+This module contains the primary entrypoint that wires together argument
+parsing, early exits, optional migrations and update checks, interactive flows,
+config shaping, and output writing. It intentionally delegates to small helper
+modules (under ``flows/`` and ``prompts/``) to keep responsibilities clear and
+testable while preserving the original single‑binary UX.
+
+Key principles
+- Minimal surprises at startup (no duplicate banners; respect ``--yes`` and
+  non‑interactive flags).
+- No third‑party dependencies; keep logic portable.
+- Fail soft where possible (e.g., migrations), but exit with clear messages
+  when user intent requires it (e.g., missing API key for explicit mode).
+"""
+
 from __future__ import annotations
 import os
 import re
@@ -55,10 +71,21 @@ from .flows import (
 def main():
     """Entry point for the CLI tool.
 
-    Keeps startup output minimal: the interactive hub owns banner display and
-    ensures it is shown at most once, so we avoid printing a duplicate heading
-    here. Non-interactive paths (e.g., ``--yes``, ``--dry-run``) remain
-    unaffected.
+    High-level sequence
+    1) Parse args, normalize convenience flags (``--auto``, ``--full-auto``),
+       and configure logging.
+    2) Handle early exits (``--version``, ``--check-updates``, remove/backup ops).
+    3) Opportunistically migrate legacy configs into ``linker_config.json``.
+    4) Doctor mode (optional), background update check.
+    5) Resolve base URL and provider, auth mode, profile + key defaults.
+    6) Optional guided pipeline and/or interactive editor hub.
+    7) Model selection, context window detection.
+    8) Shape the config dict and write outputs (TOML/JSON/YAML), then save state.
+    9) Print a concise summary and hints.
+
+    Startup output remains minimal; the interactive hub owns banner display and
+    ensures a single banner per session. Non‑interactive paths (``--yes``,
+    ``--dry-run``) skip prompts.
     """
     args = parse_args()
     mod = sys.modules.get("codex_cli_linker")
