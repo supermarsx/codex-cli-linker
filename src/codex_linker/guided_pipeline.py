@@ -1,3 +1,15 @@
+"""Interactive guided setup pipeline.
+
+Provides a single, linear flow that walks the user through selecting a
+provider, base URL, auth env key (and optionally capturing a secret), wire
+protocol, query params, headers, model, context window, and general policies.
+
+The goal is to offer a one‑stop, friendly path that sets ``args`` and
+``state`` consistently so downstream rendering and writing can proceed without
+additional prompts. The flow honors ``--no-emojis`` and keeps all decisions
+reversible via the hub or subsequent edits.
+"""
+
 from __future__ import annotations
 
 from typing import Dict
@@ -18,9 +30,31 @@ from .prompts.providers import _default_base_for_provider_id
 
 
 def run_guided_pipeline(state: LinkerState, args) -> None:
-    """Step-by-step guided flow to configure provider, model, and general settings.
+    """Run the step-by-step guided setup and populate ``args``/``state``.
 
-    Populates args/state in-place. Honors --no-emojis.
+    Parameters
+    - ``state``: Current :class:`LinkerState` (updated with provider/base/env).
+    - ``args``: Parsed CLI args (updated in-place with guided selections).
+
+    Sequence (high level)
+    1) Choose provider (presets/manually/existing) and set ``args.provider``.
+    2) Configure base URL (auto/default/manual) and update ``state.base_url``.
+    3) Choose env key name and optionally capture a secret into ``auth.json``.
+    4) Select wire API (chat/responses/auto based on provider).
+    5) Provide query params (manual or Azure api-version convenience).
+    6) Add HTTP headers (static CSV and/or env-sourced CSV) as overrides.
+    7) Choose model (manual/auto-detect/default fallback).
+    8) Set context window (auto/manual/skip), and max output tokens.
+    9) Set approval policy + sandbox mode.
+    10) Fine-tune reasoning effort/summary/verbosity and retry/timeout knobs.
+    11) Enable optional tools (web search) and set notify targets.
+    12) Show summary and ask to write (or write+launch) or abort.
+
+    Side effects
+    - May write the secret to ``AUTH_JSON`` via ``write_auth_json_merge``.
+    - Stashes provider-specific overrides in ``args.provider_overrides``.
+    - Sets private flags consumed by the main flow (``_guided_abort``,
+      ``_guided_action``, ``_fast_write``).
     """
     set_emojis_enabled(not getattr(args, "no_emojis", False))
     print()
