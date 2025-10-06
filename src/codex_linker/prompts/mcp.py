@@ -40,9 +40,9 @@ def manage_mcp_servers_interactive(args) -> None:
         i = prompt_choice(
             "Choose",
             [
-                "Add server ➕",
-                "Edit server ✏️",
-                "Remove server 🗑️",
+                fmt("➕ Add server"),
+                fmt("✏️  Edit server"),
+                fmt("🗑️  Remove server"),
                 fmt("🏠 Back to main menu"),
             ],
         )

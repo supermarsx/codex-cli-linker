@@ -1,4 +1,16 @@
-"""Config shaping utilities."""
+"""Config shaping utilities.
+
+This module converts runtime selections (CLI args + saved state) into a single
+Python ``dict`` that matches the Codex config schema. The resulting dict is
+serialized to TOML/JSON/YAML by the emitters. Centralizing the shaping here
+keeps the schema logic in one place so TOML/JSON/YAML stay in parity and new
+features thread through a single path.
+
+Design goals
+- No third‑party deps; take only ``state`` and parsed ``args``.
+- Prefer explicit values from CLI flags, then fall back to interactive state.
+- Avoid surprising side effects; return a dict that can be emitted directly.
+"""
 
 from __future__ import annotations
 import argparse
@@ -18,7 +30,27 @@ from .utils import resolve_provider
 
 
 def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
-    """Translate runtime selections into a config dict matching the TOML spec."""
+    """Translate runtime selections into a config dict.
+
+    Parameters
+    - ``state``: Last‑run, non‑secret selections (e.g., provider, profile).
+    - ``args``: Parsed CLI arguments driving this invocation.
+
+    Returns
+    - A ``dict`` that conforms to the Codex config schema. The structure keeps
+      TOML/JSON/YAML emitters in sync and includes:
+        - top‑level model and UI preferences
+        - an active provider entry under ``model_providers``
+        - any extra provider entries derived from overrides
+        - a ``profiles`` map with the active profile and any per‑profile edits
+
+    Notes
+    - Azure defaults to ``wire_api=responses`` unless overridden; other
+      providers use ``args.wire_api`` (default: ``chat``).
+    - ``env_key`` and legacy ``api_key_env_var`` are set for compatibility; the
+      actual secret value is never written here.
+    - CLI headers and overrides are merged into provider entries.
+    """
     # Use ``Any`` for nested values so mypy doesn't complain about deep indexing
     # within the configuration structure.
     resolved = resolve_provider(state.base_url)
@@ -91,7 +123,8 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
     prov_overrides = (getattr(args, "provider_overrides", {}) or {}).get(
         active_pid
     ) or {}
-    # Default wire API: Azure uses responses unless overridden; others use args.wire_api
+    # Default wire API: Azure uses Responses API unless overridden; others
+    # use the Chat Completions API (``chat``) unless a flag is provided.
     default_wire_api = (
         "responses" if active_pid == "azure" else getattr(args, "wire_api", "chat")
     )
@@ -194,7 +227,7 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
             "model_max_output_tokens": args.model_max_output_tokens or 0,
             "approval_policy": args.approval_policy,
         }
-    # Apply per-profile overrides (interactive)
+    # Apply per-profile overrides (interactive editor entries)
     for name, ov in pov.items():
         if not isinstance(ov, dict):
             continue
@@ -247,7 +280,8 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
     # Optional: MCP servers (top-level key mcp_servers)
     mcp = getattr(args, "mcp_servers", None) or {}
     if isinstance(mcp, dict) and mcp:
-        # Minimal normalization: ensure args list for each server; accept JSON array string
+        # Minimal normalization: ensure args list for each server; accept a
+        # JSON array string or CSV for convenience.
         for name, entry in mcp.items():
             if not isinstance(entry, dict):
                 continue
@@ -275,7 +309,7 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
                 out["startup_timeout_ms"] = int(entry["startup_timeout_ms"])  # type: ignore[index]
             cfg.setdefault("mcp_servers", {})[name] = out
         # If none valid after normalization, do not emit key
-    # TUI notifications: boolean or array of allowed types
+    # TUI notifications: boolean toggle or allow-list of types
     allowed_types = {"agent-turn-complete", "approval-requested"}
     tnt = getattr(args, "tui_notification_types", "") or ""
     types: list[str] = [s.strip() for s in tnt.split(",") if s.strip()] if tnt else []
@@ -328,7 +362,7 @@ def build_config_dict(state: LinkerState, args: argparse.Namespace) -> Dict:
                     cfg["notify"] = arr
         except Exception:
             pass
-    # HTTP headers
+    # HTTP headers (static and env-sourced)
     headers_list = getattr(args, "http_header", []) or []
     hmap: Dict[str, Any] = {}
     for item in headers_list:

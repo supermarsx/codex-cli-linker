@@ -260,8 +260,10 @@ def test_main_interactive_paths(monkeypatch, tmp_path, capsys):
     # try_auto_context_window returns >0 to set the value
     monkeypatch.setattr(cli, "try_auto_context_window", lambda base, m: 42)
 
-    # Inputs: provider id, model pick '1', approval '1', reasoning effort choose out-of-range '5' then clamped, summary '1', verbosity '2', sandbox '2', show raw 'y'
-    inputs = iter(["myprov", "1", "1", "5", "1", "2", "2", "y"])
+    # Inputs after removing early provider-id prompt:
+    # model pick '1', approval '1', reasoning effort choose out-of-range '5' then clamped,
+    # summary '1', verbosity '2', sandbox '2', show raw 'y'
+    inputs = iter(["1", "1", "5", "1", "2", "2", "y"])
     monkeypatch.setattr("builtins.input", lambda *_: next(inputs))
     monkeypatch.setattr(
         sys,
@@ -275,8 +277,9 @@ def test_main_interactive_paths(monkeypatch, tmp_path, capsys):
     )
     cli.main()
     out = capsys.readouterr().out
+    # Default profile derived from provider resolution is 'custom'
     assert (
-        "Configured profile" in out and "myprov" in out and "context window: 42" in out
+        "Configured profile" in out and "custom" in out and "context window: 42" in out
     )
 
 

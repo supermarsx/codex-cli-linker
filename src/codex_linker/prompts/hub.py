@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Interactive settings hub.
 
 The hub presents a single menu for common tasks (profiles, providers, MCP,
@@ -8,6 +6,7 @@ ensures the banner is shown at most once per session, avoiding duplicates on
 startup.
 """
 
+from __future__ import annotations
 from ..state import LinkerState
 from ..ui import c, BOLD, info, ok, warn, clear_screen, banner
 import time
