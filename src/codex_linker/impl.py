@@ -1,3 +1,15 @@
+"""Public facade that re-exports CLI building blocks.
+
+This module mirrors the original single-file surface by collecting commonly
+used symbols from submodules (args, prompts, render, utils, etc.) and exposing
+them in one place. It helps retain backwards compatibility for tests and for
+packaging modes that expect a flat namespace while the codebase remains
+modular internally.
+
+It also provides small glue helpers like ``run_doctor`` that tolerate module
+reloads during tests.
+"""
+
 from __future__ import annotations
 
 import datetime
@@ -87,7 +99,12 @@ from .updates import _log_update_sources, _report_update_status
 
 
 def run_doctor(*args, **kwargs):
-    """Proxy to :mod:`codex_linker.doctor` that tolerates module reloads."""
+    """Proxy to :mod:`codex_linker.doctor` that tolerates module reloads.
+
+    The ``doctor`` module may be imported late or reloaded during tests; this
+    function resolves it from ``sys.modules`` or imports it on demand, then
+    forwards the call.
+    """
 
     module = sys.modules.get("codex_linker.doctor")
     if module is None:
@@ -96,6 +113,8 @@ def run_doctor(*args, **kwargs):
     return module.run_doctor(*args, **kwargs)
 
 
+# Re-export a broad set of symbols to preserve the single-file style import
+# surface (e.g., tests importing from ``codex_cli_linker`` via the launcher).
 __all__ = [
     "parse_args",
     "configure_logging",
