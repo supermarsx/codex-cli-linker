@@ -1,6 +1,6 @@
 {
   "version": "0.1.3",
-  "description": "Generate Codex CLI profiles for local LLM servers",
+  "description": "CLI to link and manage third-party LLMs for Codex CLI",
   "homepage": "https://github.com/supermarsx/codex-cli-linker",
   "license": "MIT",
   "architecture": {
