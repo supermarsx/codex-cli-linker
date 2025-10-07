@@ -112,10 +112,11 @@ def _edit_mcp_entry_interactive(
         act = prompt_choice(
             "Action",
             [
-                fmt("✏️  Edit field"), 
-                fmt("💾 Save"), 
-                fmt("❎ Cancel"), 
-                fmt("🏠 Back to main menu")],
+                fmt("✏️  Edit field"),
+                fmt("💾 Save"),
+                fmt("❎ Cancel"),
+                fmt("🏠 Back to main menu"),
+            ],
         )
         if not getattr(args, "continuous", False):
             try:
