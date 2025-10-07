@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 """Cross-source update checking and caching.
 
 This module coordinates fetching release information from supported sources
 and persists a small JSON cache to reduce network usage. The public surface is
 ``check_for_updates``; helpers are re-exported for tests.
 """
+
+from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta

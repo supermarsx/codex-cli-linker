@@ -17,7 +17,12 @@ def _has_option(p: argparse.ArgumentParser, opt: str) -> bool:
 
 
 def add_mcp_args(p: argparse.ArgumentParser) -> None:
-    """Attach MCP server arguments to the parser."""
+    """Attach MCP server arguments to the parser.
+
+    Supports an interactive manager and ``--mcp-json`` which accepts a JSON
+    object mapping names to entries of the form:
+      {"command": "npx", "args": ["-y", "mcp-server"], "env": {"KEY": "VAL"}}
+    """
     if _has_option(p, "-mm"):
         return
     mcp = p.add_argument_group("MCP servers")

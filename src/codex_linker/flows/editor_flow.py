@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Interactive editor (hub) flow.
 
 Encapsulates the optional interactive hub that can:
@@ -7,7 +5,12 @@ Encapsulates the optional interactive hub that can:
 - Request a direct write/launch ("fast write")
 - Defer to the legacy guided pipeline
 - Or skip entirely when not applicable
+
+These helpers keep ``main_flow`` small and make interactive behaviors easier
+to test. They never auto-launch external apps; they only print commands.
 """
+
+from __future__ import annotations
 
 from ..prompts import (
     interactive_settings_editor,
@@ -20,8 +23,8 @@ from ..ui import info, err
 def maybe_run_interactive_editor(state, args) -> str | None:
     """Optionally invoke the interactive editor/hub and handle its actions.
 
-    Returns the action string or None if editor was not triggered. May set
-    args._fast_write when the editor requests a direct write.
+    Returns the action string or ``None`` if the editor was not triggered.
+    May set ``args._fast_write`` when the editor requests a direct write.
     """
     if getattr(args, "full_auto", False):
         return None

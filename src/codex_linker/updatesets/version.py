@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 """Version comparison helpers.
 
 Implements a tolerant semver-ish comparator that prefers numeric precedence,
 handles optional leading "v", and compares alphanumeric segments lexically.
 Used to decide if a candidate version is newer than the current one.
 """
+
+from __future__ import annotations
 
 import re
 from itertools import zip_longest

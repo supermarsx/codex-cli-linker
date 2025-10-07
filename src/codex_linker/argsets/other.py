@@ -17,7 +17,12 @@ def _has_option(p: argparse.ArgumentParser, opt: str) -> bool:
 
 
 def add_other_args(p: argparse.ArgumentParser) -> None:
-    """Attach miscellaneous arguments to the parser."""
+    """Attach miscellaneous TUI and keychain arguments to the parser.
+
+    Includes TUI style and notifications, emoji toggle, continuous display
+    mode, and key-related options (set/openai-key, api key value, env key
+    name, keychain backend selection).
+    """
     if _has_option(p, "-T"):
         return
     other = p.add_argument_group("Other")

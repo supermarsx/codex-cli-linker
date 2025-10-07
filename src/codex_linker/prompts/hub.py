@@ -46,8 +46,23 @@ def _handle_ctrlc_in_hub() -> None:
 def interactive_settings_editor(state: LinkerState, args) -> str:
     """Run the interactive settings hub.
 
-    Returns a short action string (e.g., ``"write"``) or terminates the loop
-    by returning ``"quit"``. The caller decides how to handle the result.
+    Parameters
+    - ``state``: Current :class:`LinkerState` (read/update provider/base as needed).
+    - ``args``: Parsed CLI args that the editor may update in-place (e.g.,
+      ``overwrite_profile``, ``_fast_write``, provider overrides, etc.).
+
+    Returns
+    - One of: ``"write"``, ``"overwrite"``, ``"write_and_launch"``,
+      ``"legacy"`` (guided pipeline), or ``"quit"`` to signal termination.
+
+    Behavior
+    - Owns banner display (once per session) and honors ``--no-banner`` and
+      ``--no-emojis``. In ``--continuous`` mode the screen is not auto-cleared.
+    - Menu options: manage profiles, MCP servers, providers, auto-detect local
+      providers, tweak global settings, choose actions (write/overwrite/
+      write+launch), jump to guided pipeline, or quit without writing.
+    - Side effects: may set ``args._fast_write`` on write/overwrite actions and
+      ``args.overwrite_profile`` for the overwrite option.
     """
     while True:
         if not getattr(args, "continuous", False):
@@ -199,6 +214,14 @@ def interactive_settings_editor(state: LinkerState, args) -> str:
 
 
 def _manage_global_settings_interactive(args) -> None:
+    """Edit top-level global settings inline.
+
+    Presents a numbered list of editable fields sourced from ``args`` (approval
+    policy, sandbox mode, network access, writable roots, file opener, model
+    UX preferences, history and tools knobs, wire API, ChatGPT base, Azure
+    api-version, project doc size, and notify targets). Writes changes directly
+    into ``args``.
+    """
     while True:
         print()
         print(c(fmt("⚙️ Global settings"), BOLD))

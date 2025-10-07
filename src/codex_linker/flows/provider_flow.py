@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Provider selection and auth-related flow helpers.
 
 These helpers centralize logic that was previously inline in ``main_flow``.
@@ -8,6 +6,8 @@ user unnecessarily at startup. In particular, we do not ask for a custom
 provider id at the start; the interactive hub is responsible for provider
 management.
 """
+
+from __future__ import annotations
 
 import sys
 from ..prompts import pick_base_url, prompt_choice

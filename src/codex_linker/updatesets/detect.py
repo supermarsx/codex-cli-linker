@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Install-origin detection helpers.
 
 This module provides a focused utility, :func:`detect_install_origin`, used to
@@ -12,6 +10,8 @@ Notes
 - Avoids raising for environment-specific path errors and falls back to
   "source" when uncertainty remains.
 """
+
+from __future__ import annotations
 
 import os
 import sys

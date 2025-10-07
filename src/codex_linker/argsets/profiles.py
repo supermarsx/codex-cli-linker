@@ -17,7 +17,13 @@ def _has_option(p: argparse.ArgumentParser, opt: str) -> bool:
 
 
 def add_profile_args(p: argparse.ArgumentParser) -> None:
-    """Attach profile and merge-related arguments to the parser."""
+    """Attach profile and merge-related arguments to the parser.
+
+    Includes profile naming/overwrite/merge strategies, remote defaults via
+    ``--config-url``, sandbox workspace-write tuning, notify/UI fields, and
+    experimental toggles. Also exposes approval policy, sandbox mode, and
+    editor preferences used across flows.
+    """
     if _has_option(p, "-p"):
         return
     profiles = p.add_argument_group("Profiles")

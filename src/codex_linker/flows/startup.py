@@ -1,3 +1,13 @@
+"""Startup helpers for early exits and update checks.
+
+These flows keep the main entrypoint concise by extracting:
+- Early-exit handling (version, forced update check, delete/remove)
+- Best-effort background update checks with structured logging
+
+They are parameterized for ease of testing and to decouple from concrete
+implementations (via injected callbacks).
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -28,7 +38,8 @@ def handle_early_exits(
 ) -> bool:
     """Process early-exit flags that should terminate the run.
 
-    Returns True if an early-exit path was handled and the caller should exit.
+    Returns ``True`` if an early-exit path was handled and the caller should
+    exit. Handles removal/cleanup tasks, a forced update check, and ``--version``.
     """
     # Remove/cleanup requests
     if getattr(args, "remove_config", False) or getattr(
@@ -87,7 +98,11 @@ def maybe_run_update_check(
     warn_fn=_warn_default,
     check_fn=_check_updates_default,
 ) -> None:
-    """Run a background update check unless suppressed by flags."""
+    """Run a background update check unless suppressed by flags.
+
+    Logs results and optionally emits a user-visible report depending on
+    verbosity. Network errors are tolerated and only logged.
+    """
     if getattr(args, "no_update_check", False):
         return
     try:
