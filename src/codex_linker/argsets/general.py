@@ -20,8 +20,10 @@ def _has_option(p: argparse.ArgumentParser, opt: str) -> bool:
 def add_general_args(p: argparse.ArgumentParser) -> None:
     """Attach general arguments to the parser.
 
-    The options here match the previous implementation exactly to preserve
-    behavior and compatibility with existing docs/tests.
+    Includes top‑level toggles for auto/full‑auto, logging, remote logging,
+    explicit base URL, dry‑run/version/doctor, and a trio of OpenAI shortcuts
+    (``--openai``, ``--openai-api``, ``--openai-gpt``). These flags preserve
+    prior behavior for compatibility with docs and tests.
     """
     # If '--version' is present, assume general has already been attached
     if _has_option(p, "--version"):

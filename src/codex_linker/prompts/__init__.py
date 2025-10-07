@@ -1,3 +1,10 @@
+"""Prompt helpers and interactive flows (facade).
+
+Re-exports commonly used prompt utilities and interactive flows so callers can
+import from ``codex_linker.prompts`` directly. Keep this module declarative —
+actual implementations live in the sibling modules.
+"""
+
 from __future__ import annotations
 
 from .input_utils import prompt_choice, prompt_yes_no, _safe_input  # re-export

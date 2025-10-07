@@ -1,3 +1,12 @@
+"""Low-level input helpers for interactive prompts.
+
+Provides a small toolkit for building TUI-like prompts without dependencies:
+- Optional emoji stripping via ``set_emojis_enabled`` + ``fmt``
+- Safe input wrappers that propagate Ctrl-C
+- ``prompt_choice`` with arrow-key navigation on supported terminals
+- Small parsers for CSV/JSON/env key-value inputs used by editors
+"""
+
 from __future__ import annotations
 
 import sys
@@ -40,7 +49,11 @@ _EMOJIS = {
 
 
 def set_emojis_enabled(enabled: bool) -> None:
-    """Enable or disable emojis globally for interactive prompts."""
+    """Enable or disable emojis globally for interactive prompts.
+
+    Controlled by a module-level flag so that all prompt helpers render
+    consistently. The hub sets this based on ``--no-emojis``.
+    """
     global NO_EMOJIS
     NO_EMOJIS = not enabled
 
@@ -67,6 +80,11 @@ def _safe_input(prompt: str) -> str:
 
 
 def _is_null_input(s: str) -> bool:
+    """Return True when the input represents an explicit null value.
+
+    Accepts the string ``"null"`` (case-insensitive) and ignores surrounding
+    whitespace. Used by editors to allow clearing optional fields.
+    """
     try:
         return s.strip().lower() == "null"
     except Exception:
@@ -192,6 +210,12 @@ def _arrow_choice(prompt: str, options: List[str]) -> Optional[int]:
 
 
 def prompt_choice(prompt: str, options: List[str]) -> int:
+    """Present a numbered/arrow menu and return the selected index.
+
+    Supports arrow navigation when the terminal allows raw input; otherwise
+    falls back to a numbered list. ESC attempts to select a "Back" item when
+    present, or raises KeyboardInterrupt so callers can decide.
+    """
     sel = _arrow_choice(prompt, options)
     if sel is not None:
         if isinstance(sel, int) and sel == -1:
@@ -222,6 +246,7 @@ def prompt_choice(prompt: str, options: List[str]) -> int:
 
 
 def prompt_yes_no(question: str, default: bool = True) -> bool:
+    """Prompt a yes/no question with a default, normalizing answers."""
     suffix = "[Y/n]" if default else "[y/N]"
     while True:
         s = _safe_input(f"{question} {suffix} ").strip().lower()
@@ -235,6 +260,11 @@ def prompt_yes_no(question: str, default: bool = True) -> bool:
 
 
 def _input_list_csv(prompt: str, default: Optional[List[str]] = None) -> List[str]:
+    """Prompt for a CSV list and return a list of trimmed strings.
+
+    Returns ``default`` when empty and a default is provided; otherwise an
+    empty list.
+    """
     raw = input(f"{prompt} ").strip()
     if not raw and default is not None:
         return list(default)
@@ -244,6 +274,11 @@ def _input_list_csv(prompt: str, default: Optional[List[str]] = None) -> List[st
 
 
 def _input_list_json(prompt: str, default: Optional[List[str]] = None) -> List[str]:
+    """Prompt for a JSON array and return a list of strings.
+
+    If parsing fails, returns a single-item list with the raw input (or the
+    provided default when blank).
+    """
     import json as _json
 
     raw = input(f"{prompt} ").strip()
@@ -263,6 +298,7 @@ def _input_list_json(prompt: str, default: Optional[List[str]] = None) -> List[s
 def _input_env_kv(
     prompt: str, default: Optional[Dict[str, str]] = None
 ) -> Dict[str, str]:
+    """Parse ``KEY=VAL`` CSV into a dict, returning ``default`` when blank."""
     raw = input(f"{prompt} ").strip()
     if not raw and default is not None:
         return dict(default)
@@ -280,6 +316,7 @@ def _input_env_kv(
 
 
 def _parse_brace_kv(raw: str) -> Dict[str, str]:
+    """Parse ``{key="value",...}`` or ``key="value",...`` into a dict."""
     s = (raw or "").strip()
     if not s:
         return {}
@@ -302,6 +339,7 @@ def _parse_brace_kv(raw: str) -> Dict[str, str]:
 
 
 def _print_item_with_desc(label: str, value: Any, desc: str) -> None:
+    """Print a label/value pair and an optional gray description beneath."""
     print(f"  {label}: {value}")
     if desc:
         print(c(f"     – {desc}", GRAY))

@@ -1,4 +1,12 @@
-"""CLI facade for codex-cli-linker."""
+"""CLI facade re-exporting public symbols.
+
+This thin module exists so entry points and external scripts can import a
+stable surface (``codex_linker``) while the internal implementation is split
+into smaller modules. It simply re-exports commonly used functions, helpers,
+and the main entrypoint from :mod:`codex_linker.impl`.
+
+No additional behavior should be added here — keep it as a declarative facade.
+"""
 
 from .impl import (
     parse_args,

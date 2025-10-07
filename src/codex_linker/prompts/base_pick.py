@@ -1,3 +1,13 @@
+"""Base URL and model pickers used by interactive flows.
+
+Includes:
+- ``pick_base_url``: menu-driven or auto-detect selection of an OpenAI-compatible
+  base URL (with Azure conveniences)
+- ``pick_model_interactive``: simple model chooser using ``/models``
+- ``interactive_prompts``: compact prompts for core UX settings (approval,
+  reasoning effort/summary, verbosity)
+"""
+
 from __future__ import annotations
 
 import inspect
@@ -87,6 +97,12 @@ def _call_detect_base_url(det, state: LinkerState, auto: bool) -> str:
 
 
 def pick_base_url(state: LinkerState, auto: bool) -> str:
+    """Return a base URL via auto-detect or interactive presets/custom entry.
+
+    When ``auto`` is True, delegates to ``detect_base_url`` and falls back to
+    the last saved value or LM Studio default. Otherwise presents a menu of
+    common providers plus a custom entry and an Azure resource/path helper.
+    """
     if auto:
         mod = sys.modules.get("codex_cli_linker")
         det = getattr(mod, "detect_base_url", detect_base_url)
@@ -150,6 +166,10 @@ def pick_base_url(state: LinkerState, auto: bool) -> str:
 
 
 def pick_model_interactive(base_url: str, last: Optional[str]) -> str:
+    """List models from ``base_url`` and prompt for a selection.
+
+    Highlights the ``last`` model when provided to make re-selection easy.
+    """
     mod = sys.modules.get("codex_cli_linker")
     lm = getattr(mod, "list_models", list_models)
     models = lm(base_url)
@@ -160,6 +180,10 @@ def pick_model_interactive(base_url: str, last: Optional[str]) -> str:
 
 
 def interactive_prompts(args) -> None:
+    """Prompt for core UX settings (approval, reasoning, verbosity).
+
+    Keeps choices minimal and maps free-form selections to supported values.
+    """
     # Approval policy
     ap_opts = ["untrusted", "on-failure"]
     print()

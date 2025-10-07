@@ -1,4 +1,9 @@
-"""Argument definitions: Backup and cleanup flags."""
+"""Argument definitions: Backup and cleanup flags.
+
+Provides a small group of safety-focused options for cleaning up backup files
+and removing existing configs. Deletion requires explicit confirmation to
+avoid accidental data loss.
+"""
 
 from __future__ import annotations
 
@@ -6,6 +11,14 @@ import argparse
 
 
 def add_backup_args(p: argparse.ArgumentParser) -> None:
+    """Attach backup/cleanup arguments to the parser.
+
+    Options
+    - ``--delete-all-backups``: remove all ``*.bak`` under ``CODEX_HOME``
+    - ``--confirm-delete-backups``: required to actually perform deletion
+    - ``--remove-config``: backup and remove existing config files
+    - ``--remove-config-no-bak``: remove config files without creating backups
+    """
     backups = p.add_argument_group("Backups")
     backups.add_argument(
         "-db",

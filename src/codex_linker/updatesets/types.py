@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 """Typed containers for update-check results.
 
 These dataclasses represent the per-source outcome (``SourceResult``) and the
 aggregated check across sources (``UpdateCheckResult``). They are serializable
 for simple JSON caching via ``to_cache``/``from_cache``.
 """
+
+from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import List, Optional

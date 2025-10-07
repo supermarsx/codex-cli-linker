@@ -1,3 +1,17 @@
+"""Argument parsing and normalization.
+
+This module centralizes CLI argument parsing and a few lightweight post-parse
+normalizations so the rest of the codebase can rely on a consistent shape.
+
+Key behaviors
+- Delegates option groups to argsets/ modules to keep concerns separated.
+- Tracks which options were explicitly provided via ``ns._explicit`` to help
+  downstream logic (e.g., merging defaults, applying saved state) respect
+  user intent.
+- Provides convenience parsing for ``--mcp-json``, Azure resource/path
+  synthesis, and a CSV ``--providers`` list.
+"""
+
 from __future__ import annotations
 import argparse
 import sys
@@ -5,7 +19,17 @@ from typing import List, Optional
 
 
 def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
-    """Parse command-line arguments, tracking which were explicitly provided."""
+    """Parse command-line arguments and perform light normalization.
+
+    Parameters
+    - ``argv``: Optional list of tokens (defaults to ``sys.argv[1:]``).
+
+    Returns a Namespace with additional helper fields:
+    - ``_explicit``: set of option dest names that were provided explicitly.
+    - ``_no_args``: True when invoked without any CLI arguments.
+    - ``mcp_servers``: dict parsed from ``--mcp-json`` (when present).
+    - ``providers_list``: normalized list from CSV ``--providers``.
+    """
     epilog = (
         "Shortcuts:\n"
         "  Providers: -oa/--openai, -oA/--openai-api, -og/--openai-gpt, -ls/--lmstudio, -ol/--ollama, -vl/--vllm, -tg/--tgwui, -ti/--tgi,\n"
@@ -67,6 +91,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     if getattr(ns, "providers", None):
         provs = [p.strip() for p in str(ns.providers).split(",") if p.strip()]
     ns.providers_list = provs
+    # Track explicitly provided flags/values by scanning option strings in argv
     ns._explicit = {
         a.dest
         for a in p._actions

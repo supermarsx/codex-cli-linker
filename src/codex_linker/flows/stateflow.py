@@ -1,3 +1,9 @@
+"""State selection and application flows.
+
+Contains helpers to determine where to read/write linker state (workspace vs
+home) and to load/apply saved defaults into the current args.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -8,7 +14,12 @@ from ..state import LinkerState
 
 
 def select_state_path(args, home: Path, linker_json: Path) -> tuple[Path, bool]:
-    """Determine the path to the state file, honoring workspace override and explicit path."""
+    """Return the state path and a flag indicating if it's workspace-local.
+
+    Honors ``--state-file`` and ``--workspace-state``; otherwise prefers an
+    existing workspace state if present, falling back to the default path under
+    ``CODEX_HOME``.
+    """
     state_file_override = getattr(args, "state_file", None)
     workspace_state_path = Path.cwd() / ".codex-linker.json"
     use_workspace_state = getattr(args, "workspace_state", False)

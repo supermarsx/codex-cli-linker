@@ -17,7 +17,12 @@ def _has_option(p: argparse.ArgumentParser, opt: str) -> bool:
 
 
 def add_file_mgmt_args(p: argparse.ArgumentParser) -> None:
-    """Attach file/output management arguments to the parser."""
+    """Attach file/output management arguments to the parser.
+
+    Covers diff/dry-run output, emitting JSON/YAML alongside TOML, state file
+    overrides (including per-workspace state), editor open command printing,
+    and project document read limits for context.
+    """
     if _has_option(p, "-Z"):
         return
     file_mgmt = p.add_argument_group("File management")

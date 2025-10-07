@@ -1,3 +1,10 @@
+"""Profile entry editor prompts.
+
+Contains the interactive editor for a single profile entry, allowing users to
+override provider, model, context window, and various UX/sandbox settings.
+Operates in-place on ``args.profile_overrides``.
+"""
+
 from __future__ import annotations
 
 import sys
@@ -7,6 +14,7 @@ from .input_utils import prompt_choice, _safe_input, _is_null_input, fmt
 
 
 def _edit_profile_entry_interactive(args, name: str) -> None:
+    """Edit a single profile entry named ``name`` via interactive prompts."""
     ov = dict((getattr(args, "profile_overrides", {}) or {}).get(name) or {})
     if not ov:
         ov = {

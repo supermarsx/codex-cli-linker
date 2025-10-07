@@ -27,6 +27,12 @@ from .profiles_edit import _edit_profile_entry_interactive
 
 
 def manage_profiles_interactive(args) -> None:
+    """Interactive profiles manager.
+
+    Lets users add/edit/remove profile entries and choose providers from
+    existing lists, presets (with OpenAI auth modes), or manual ids. Updates
+    ``args.profile_overrides`` in-place; writing occurs elsewhere.
+    """
     args.profile_overrides = getattr(args, "profile_overrides", {}) or {}
     while True:
         print()

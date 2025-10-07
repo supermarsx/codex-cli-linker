@@ -1,3 +1,10 @@
+"""Model selection flow.
+
+Resolves the ``state.model`` using explicit ``--model``, auto-selection via
+``--auto/--full-auto`` with ``--model-index``, or an interactive picker when
+appropriate. Also logs the selection for analytics/diagnostics.
+"""
+
 from __future__ import annotations
 
 import sys
@@ -8,7 +15,15 @@ from ..logging_utils import log_event
 
 
 def choose_model(args, state) -> None:
-    """Resolve model selection via explicit, auto, or interactive paths."""
+    """Resolve model selection via explicit, auto, or interactive paths.
+
+    - If ``--model`` provided, honor it and attempt a substring match against
+      available models when possible.
+    - If ``--auto``/``--full-auto`` and ``--model-index`` are set, pick the
+      indexed model from ``/models``.
+    - Otherwise, if not fast-write and not auto, open the interactive picker
+      except for OpenAI (skips remote model listing).
+    """
     if args.model:
         target = args.model
         chosen = target

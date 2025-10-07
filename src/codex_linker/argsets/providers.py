@@ -61,8 +61,10 @@ def _default_base_for_provider_id(pid: str) -> str:
 class SetProviderAction(_argparse.Action):
     """Argparse action for convenient provider preset flags.
 
-    When invoked it sets provider id, optionally preferred auth method, and a
-    default base URL when appropriate.
+    When invoked it:
+    - sets ``namespace.provider`` to the preset id
+    - optionally sets ``preferred_auth_method`` (e.g., chatgpt/apikey)
+    - applies a sensible default base URL when not already provided
     """
 
     def __init__(self, option_strings, dest, nargs=0, **kwargs):
@@ -94,7 +96,12 @@ def _has_option(p, opt: str) -> bool:
 
 
 def add_provider_args(p):
-    """Attach provider preset/flags to the parser."""
+    """Attach provider preset/flags to the parser.
+
+    Adds ``--provider`` and a series of convenience flags for common engines
+    (LM Studio, Ollama, vLLM, TGWUI, TGI, OpenRouter, cloud providers), along
+    with Azure helpers, header flags, wire API selection, and retry settings.
+    """
     if _has_option(p, "-P"):
         return
     providers = p.add_argument_group("Providers")

@@ -17,7 +17,12 @@ def _has_option(p: argparse.ArgumentParser, opt: str) -> bool:
 
 
 def add_model_args(p: argparse.ArgumentParser) -> None:
-    """Attach model-related arguments to the parser."""
+    """Attach model-related arguments to the parser.
+
+    Covers model id or index selection, context window/max output tokens, and
+    UX metadata such as reasoning effort/summary, verbosity, and whether to
+    hide/show agent reasoning streams.
+    """
     # If '-m' already present, assume model group is attached
     if _has_option(p, "-m"):
         return

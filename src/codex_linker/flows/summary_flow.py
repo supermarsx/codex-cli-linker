@@ -1,3 +1,10 @@
+"""Final summary and hint printing.
+
+Collects the output responsibilities at the end of a successful run so the
+main entrypoint can remain focused on flow control. Shows the target paths,
+selected profile/provider/model, and any optional editor/launch commands.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
