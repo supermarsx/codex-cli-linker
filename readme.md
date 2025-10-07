@@ -139,6 +139,10 @@ Then run it (example):
 chmod +x ./codex-cli-linker-*-x64
 ./codex-cli-linker-*-x64 --auto
 
+# Windows
+./codex-cli-linker-windows-x64.exe --auto
+```
+
 ### Convenience scripts (source or PyPI venv)
 
 - Run from source without installing:
@@ -150,10 +154,6 @@ chmod +x ./codex-cli-linker-*-x64
   - Windows (PowerShell): `scripts/pypi_venv_run.ps1 --auto`
 
 These helpers avoid polluting your global Python and reuse the venv across runs.
-
-# Windows
-./codex-cli-linker-windows-x64.exe --auto
-```
 
 ### C) PyPI (pipx or pip)
 ```bash
