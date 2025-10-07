@@ -10,3 +10,4 @@ release/
 # Local build artifacts
 dist_local/
 coverage.xml
+codex-cli-linker.spec
