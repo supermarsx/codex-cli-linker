@@ -50,13 +50,19 @@ def _edit_profile_entry_interactive(args, name: str) -> None:
         df_hist_b = getattr(args, "history_max_bytes", 0) or 0
         df_tools_ws = bool(getattr(args, "tools_web_search", False))
         items = [
-            ("Provider", ov.get("provider") or "", f"Default: {args.provider or ''}"),
+            (
+                "Provider", 
+                ov.get("provider") or "", 
+                f"Default: {args.provider or ''}"),
             (
                 "Model",
                 ov.get("model") or "",
                 f"Default: {getattr(args, 'model', '') or 'gpt-5'}",
             ),
-            ("Context window", str(ov.get("model_context_window") or 0), "Default: 0"),
+            (
+                "Context window", 
+                str(ov.get("model_context_window") or 0), 
+                "Default: 0"),
             (
                 "Max output tokens",
                 str(ov.get("model_max_output_tokens") or 0),
@@ -67,7 +73,10 @@ def _edit_profile_entry_interactive(args, name: str) -> None:
                 ov.get("approval_policy") or df_approval,
                 f"Default: {df_approval}",
             ),
-            ("File opener", ov.get("file_opener") or "", f"Default: {df_file_opener}"),
+            (
+                "File opener", 
+                ov.get("file_opener") or "", 
+                f"Default: {df_file_opener}"),
             (
                 "Reasoning effort",
                 ov.get("model_reasoning_effort") or "",
@@ -142,10 +151,10 @@ def _edit_profile_entry_interactive(args, name: str) -> None:
         act = prompt_choice(
             "Action",
             [
-                "Edit field",
-                "Edit all fields",
-                "Save",
-                "Cancel",
+                fmt("✏️  Edit field"),
+                fmt("✏️  Edit all fields"),
+                fmt("💾 Save"),
+                fmt("❎ Cancel"),
                 fmt("🏠 Back to main menu"),
             ],
         )

@@ -446,10 +446,10 @@ def manage_providers_interactive(args) -> None:
                 act = prompt_choice(
                     "Action",
                     [
-                        "✏️ Edit field",
-                        "🏷️ Rename provider id",
-                        "💾 Save",
-                        "❎ Cancel",
+                        fmt("✏️  Edit field"),
+                        fmt("🏷️ Rename provider id"),
+                        fmt("💾 Save"),
+                        fmt("❎ Cancel"),
                         fmt("🏠 Back to main menu"),
                     ],
                 )
