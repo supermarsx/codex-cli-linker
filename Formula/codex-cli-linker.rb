@@ -1,7 +1,7 @@
 class CodexCliLinker < Formula
   include Language::Python::Virtualenv
 
-  desc "CLI to link and manage third-party LLMs for Codex CLI"
+  desc "CLI tool to link and manage third-party LLMs for Codex CLI"
   homepage "https://github.com/supermarsx/codex-cli-linker"
   url "https://github.com/supermarsx/codex-cli-linker/archive/refs/tags/v0.1.3.tar.gz"
   sha256 "8777e3a88c53eb72d6a4db5a150ef1ac88aaa7e747b412a23ee5f644686bfd3a"

@@ -1,6 +1,6 @@
 # codex-cli-linker
 
-Generate a ready‑to‑run **Codex CLI** configuration for local OpenAI‑compatible servers like **LM Studio** and **Ollama**.
+Generate a ready‑to‑run **Codex CLI** configuration for OpenAI‑compatible servers like **LM Studio**, **Ollama**, and others. 
 
 This small, dependency‑free Python script:
 
