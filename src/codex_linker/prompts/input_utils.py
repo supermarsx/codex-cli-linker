@@ -28,23 +28,38 @@ from ..ui import (
 )
 
 NO_EMOJIS = False
+# Set of emoji/symbol codepoints used in prompts. Use base characters so
+# combined sequences like "⚙️" (gear + VS16) are removed by per-char filtering.
 _EMOJIS = {
-    "👤",
-    "🧰",
-    "🔌",
-    "⚙️",
-    "🚀",
-    "🧭",
+    "⏹",
+    "⚙",
+    "⛭",
+    "✅",
+    "✍",
+    "✏",
+    "✓",
+    "✗",
     "❌",
+    "❎",
+    "➕",
+    "➤",
+    "⬅",
+    "⬇",
+    "🌐",
+    "🎛",
+    "🏠",
+    "🏷",
+    "👤",
     "💾",
     "📝",
-    "⬅️",
-    "🗑️",
-    "✏️",
-    "🏠",
-    "🏷️",
-    "✅",
-    "⏹️",
+    "🔌",
+    "🔐",
+    "🔙",
+    "🗑",
+    "🚀",
+    "🧭",
+    "🧰",
+    "🪄",
 }
 
 
@@ -59,15 +74,28 @@ def set_emojis_enabled(enabled: bool) -> None:
 
 
 def fmt(text: str) -> str:
-    """Return text with emojis stripped when disabled."""
+    """Return text with emoji-aware formatting fixes.
+
+    - When emojis are enabled: collapses accidental extra spaces after emojis.
+    - When emojis are disabled: strips emojis, removes composition markers, and
+      collapses repeated spaces created by removal, then trims edges.
+    """
     if not NO_EMOJIS:
-        return text
-    out = []
+        s = str(text)
+        # Only normalize spacing if the string contains emojis/symbols we track
+        if any(ch in _EMOJIS or ch in ("\u200d", "\ufe0f") for ch in s):
+            return " ".join(s.split())
+        return s
+    out_chars = []
     for ch in text:
-        if ch in _EMOJIS:
+        # Skip emoji/symbols and common composition markers
+        if ch in _EMOJIS or ch in ("\u200d", "\ufe0f"):
             continue
-        out.append(ch)
-    return "".join(out)
+        out_chars.append(ch)
+    cleaned = "".join(out_chars)
+    # Collapse runs of whitespace to a single space and trim
+    cleaned = " ".join(cleaned.split())
+    return cleaned
 
 
 def _safe_input(prompt: str) -> str:
