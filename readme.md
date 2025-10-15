@@ -1,4 +1,4 @@
-# codex-cli-linker
+<img width="1536" height="684" alt="intro-image" src="https://github.com/user-attachments/assets/8195d53c-d0b3-4305-822d-f32a1ffd394f" />
 
 Generate a ready‑to‑run **Codex CLI** configuration for OpenAI‑compatible servers like **LM Studio**, **Ollama**, and others. 
 
