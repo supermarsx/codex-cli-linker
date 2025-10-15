@@ -6,12 +6,15 @@
   "architecture": {
     "64bit": {
       "url": "https://github.com/supermarsx/codex-cli-linker/releases/download/v0.1.3/codex-cli-linker-windows-x64.exe",
-      "hash": "A3B996A0C52F5A48A25BB2A3F319CC1C47F63F5081A362AECE64ACCE073C38CD"
+      "hash": "A3B996A0C52F5A48A25BB2A3F319CC1C47F63F5081A362AECE64ACCE073C38CD",
+      "bin": [["codex-cli-linker-windows-x64.exe", "codex-cli-linker"]]
+    },
+    "arm64": {
+      "url": "https://github.com/supermarsx/codex-cli-linker/releases/download/v0.1.3/codex-cli-linker-windows-arm64.exe",
+      "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "bin": [["codex-cli-linker-windows-arm64.exe", "codex-cli-linker"]]
     }
   },
-  "bin": [
-    ["codex-cli-linker-windows-x64.exe", "codex-cli-linker"]
-  ],
   "checkver": {
     "github": "https://github.com/supermarsx/codex-cli-linker"
   },
@@ -19,6 +22,9 @@
     "architecture": {
       "64bit": {
         "url": "https://github.com/supermarsx/codex-cli-linker/releases/download/v$version/codex-cli-linker-windows-x64.exe"
+      },
+      "arm64": {
+        "url": "https://github.com/supermarsx/codex-cli-linker/releases/download/v$version/codex-cli-linker-windows-arm64.exe"
       }
     }
   }
