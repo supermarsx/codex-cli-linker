@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.2.0
+
+### Added
+- Windows arm64 binary published alongside existing platforms (Windows x64, macOS x64/arm64, Linux x64/arm64).
+- New download button and asset listing for Windows arm64 in README and package metadata.
+- Flat-square style applied to all Shields.io badges with clearer labels (PyPI, downloads, Actions status, etc.).
+
+### Changed
+- Documentation polish: consistent badge styling, clearer CI labels, and improved scanability.
+- Version bumped to 0.2.0 in `pyproject.toml`.
+
+### Fixed
+- Minor docs inconsistencies around release badges and links.
+
+### Notes
+- See detailed release notes under `docs/release-notes/v0.2.0.md`.
+
 ## v0.1.3
 
 ### Added

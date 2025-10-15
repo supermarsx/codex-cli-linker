@@ -99,6 +99,7 @@ python3 codex-cli-linker.py --full-auto   # detect server and first model (no pr
 ### B) Standalone executable
 Download from Releases:
 - Windows x64: codex-cli-linker-windows-x64.exe
+- Windows arm64: codex-cli-linker-windows-arm64.exe
 - macOS x64:   codex-cli-linker-macos-x64
 - macOS arm64: codex-cli-linker-macos-arm64
 - Linux x64:   codex-cli-linker-linux-x64
@@ -107,6 +108,7 @@ Download from Releases:
 Direct download buttons (latest assets):
 
 <a href="https://github.com/supermarsx/codex-cli-linker/releases/latest/download/codex-cli-linker-windows-x64.exe"><img alt="Download Windows x64" src="https://img.shields.io/badge/⬇%20Windows-x64-0b5fff?logo=windows&logoColor=white&style=flat-square" /></a>
+<a href="https://github.com/supermarsx/codex-cli-linker/releases/latest/download/codex-cli-linker-windows-arm64.exe"><img alt="Download Windows arm64" src="https://img.shields.io/badge/⬇%20Windows-arm64-0b5fff?logo=windows&logoColor=white&style=flat-square" /></a>
 <a href="https://github.com/supermarsx/codex-cli-linker/releases/latest/download/codex-cli-linker-macos-x64"><img alt="Download macOS x64" src="https://img.shields.io/badge/⬇%20macOS-x64-0b5fff?logo=apple&logoColor=white&style=flat-square" /></a>
 <a href="https://github.com/supermarsx/codex-cli-linker/releases/latest/download/codex-cli-linker-linux-x64"><img alt="Download Linux x64" src="https://img.shields.io/badge/⬇%20Linux-x64-0b5fff?logo=linux&logoColor=white&style=flat-square" /></a>
 <a href="https://github.com/supermarsx/codex-cli-linker/releases/latest/download/codex-cli-linker-macos-arm64"><img alt="Download macOS arm64" src="https://img.shields.io/badge/⬇%20macOS-arm64-0b5fff?logo=apple&logoColor=white&style=flat-square" /></a>
