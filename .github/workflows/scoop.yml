@@ -33,13 +33,16 @@ jobs:
           VERSION=${TAG#v}
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          # Pin the manifest to the tag-specific asset URL
           echo "win_url=https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/codex-cli-linker-windows-x64.exe" >> "$GITHUB_OUTPUT"
+          # Use the latest download URL for fetching the binary in CI to avoid race conditions
+          echo "win_dl_url=https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/codex-cli-linker-windows-x64.exe" >> "$GITHUB_OUTPUT"
 
       - name: Wait for Windows artifact to be available
         shell: bash
         run: |
           set -euo pipefail
-          url='${{ steps.meta.outputs.win_url }}'
+          url='${{ steps.meta.outputs.win_dl_url }}'
           echo "Waiting for asset: $url"
           code=000
           for i in {1..30}; do
@@ -60,7 +63,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl -fL "${{ steps.meta.outputs.win_url }}" -o codex-cli-linker-windows-x64.exe
+          curl -fL "${{ steps.meta.outputs.win_dl_url }}" -o codex-cli-linker-windows-x64.exe
 
       - name: Compute SHA256
         id: sha
