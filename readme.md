@@ -14,34 +14,34 @@ This small, dependency‑free Python script:
 
 **General Information**
 
-[![PyPI](https://img.shields.io/pypi/v/codex-cli-linker)](https://pypi.org/project/codex-cli-linker/)
-[![PyPI Downloads](https://img.shields.io/pypi/dm/codex-cli-linker?logo=pypi)](https://pypi.org/project/codex-cli-linker/)
-[![PyPI Total Downloads](https://img.shields.io/pepy/dt/codex-cli-linker?logo=pypi)](https://pepy.tech/project/codex-cli-linker)
+[![PyPI](https://img.shields.io/pypi/v/codex-cli-linker?style=flat-square&label=PyPI)](https://pypi.org/project/codex-cli-linker/)
+[![PyPI Downloads](https://img.shields.io/pypi/dm/codex-cli-linker?logo=pypi&style=flat-square&label=PyPI%20downloads)](https://pypi.org/project/codex-cli-linker/)
+[![PyPI Total Downloads](https://img.shields.io/pepy/dt/codex-cli-linker?logo=pypi&style=flat-square&label=Total%20downloads)](https://pepy.tech/project/codex-cli-linker)
 [![Coverage](./coverage.svg)](./coverage.svg)
-[![Downloads](https://img.shields.io/github/downloads/supermarsx/codex-cli-linker/total?logo=github)](https://github.com/supermarsx/codex-cli-linker/releases)
-[![Latest Release](https://img.shields.io/github/v/release/supermarsx/codex-cli-linker?sort=semver&display_name=tag&logo=github)](https://github.com/supermarsx/codex-cli-linker/releases/latest)
-[![Stars](https://img.shields.io/github/stars/supermarsx/codex-cli-linker?logo=github)](https://github.com/supermarsx/codex-cli-linker/stargazers)
-[![Forks](https://img.shields.io/github/forks/supermarsx/codex-cli-linker?logo=github)](https://github.com/supermarsx/codex-cli-linker/network/members)
-[![Watchers](https://img.shields.io/github/watchers/supermarsx/codex-cli-linker?logo=github)](https://github.com/supermarsx/codex-cli-linker/watchers)
-[![Issues](https://img.shields.io/github/issues/supermarsx/codex-cli-linker)](https://github.com/supermarsx/codex-cli-linker/issues)
-[![Commit Activity](https://img.shields.io/github/commit-activity/m/supermarsx/codex-cli-linker)](https://github.com/supermarsx/codex-cli-linker/graphs/commit-activity)
-[![Made with Python](https://img.shields.io/badge/Made%20with-Python%203.8%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![License](https://img.shields.io/badge/license-MIT-green)](./license.md)
+[![Downloads](https://img.shields.io/github/downloads/supermarsx/codex-cli-linker/total?logo=github&style=flat-square&label=Downloads)](https://github.com/supermarsx/codex-cli-linker/releases)
+[![Latest Release](https://img.shields.io/github/v/release/supermarsx/codex-cli-linker?sort=semver&display_name=tag&logo=github&style=flat-square&label=Release)](https://github.com/supermarsx/codex-cli-linker/releases/latest)
+[![Stars](https://img.shields.io/github/stars/supermarsx/codex-cli-linker?logo=github&style=flat-square&label=Stars)](https://github.com/supermarsx/codex-cli-linker/stargazers)
+[![Forks](https://img.shields.io/github/forks/supermarsx/codex-cli-linker?logo=github&style=flat-square&label=Forks)](https://github.com/supermarsx/codex-cli-linker/network/members)
+[![Watchers](https://img.shields.io/github/watchers/supermarsx/codex-cli-linker?logo=github&style=flat-square&label=Watchers)](https://github.com/supermarsx/codex-cli-linker/watchers)
+[![Issues](https://img.shields.io/github/issues/supermarsx/codex-cli-linker?style=flat-square&label=Issues)](https://github.com/supermarsx/codex-cli-linker/issues)
+[![Commit Activity](https://img.shields.io/github/commit-activity/m/supermarsx/codex-cli-linker?style=flat-square&label=Commit%20activity)](https://github.com/supermarsx/codex-cli-linker/graphs/commit-activity)
+[![Made with Python](https://img.shields.io/badge/Made%20with-Python%203.8%2B-3776AB?logo=python&logoColor=white&style=flat-square)](https://www.python.org/)
+[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](./license.md)
 
 **CI Status**
 
-[![Version and Commit](https://github.com/supermarsx/codex-cli-linker/actions/workflows/ci.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/ci.yml?query=branch%3Amain)
-[![Lint](https://github.com/supermarsx/codex-cli-linker/actions/workflows/lint.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/lint.yml?query=branch%3Amain)
-[![Format](https://github.com/supermarsx/codex-cli-linker/actions/workflows/format.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/format.yml?query=branch%3Amain)
-[![Test](https://github.com/supermarsx/codex-cli-linker/actions/workflows/test.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/test.yml?query=branch%3Amain)
-[![Build](https://github.com/supermarsx/codex-cli-linker/actions/workflows/build.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/build.yml?query=branch%3Amain)
+[![CI](https://img.shields.io/github/actions/workflow/status/supermarsx/codex-cli-linker/ci.yml?branch=main&label=CI&logo=github&style=flat-square)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/ci.yml?query=branch%3Amain)
+[![Lint](https://img.shields.io/github/actions/workflow/status/supermarsx/codex-cli-linker/lint.yml?branch=main&label=Lint&logo=github&style=flat-square)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/lint.yml?query=branch%3Amain)
+[![Format](https://img.shields.io/github/actions/workflow/status/supermarsx/codex-cli-linker/format.yml?branch=main&label=Format&logo=github&style=flat-square)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/format.yml?query=branch%3Amain)
+[![Test](https://img.shields.io/github/actions/workflow/status/supermarsx/codex-cli-linker/test.yml?branch=main&label=Test&logo=github&style=flat-square)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/test.yml?query=branch%3Amain)
+[![Build](https://img.shields.io/github/actions/workflow/status/supermarsx/codex-cli-linker/build.yml?branch=main&label=Build&logo=github&style=flat-square)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/build.yml?query=branch%3Amain)
 
 
-[![Rolling Release](https://github.com/supermarsx/codex-cli-linker/actions/workflows/rolling.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/rolling.yml)
-[![Release](https://github.com/supermarsx/codex-cli-linker/actions/workflows/release.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/release.yml)
-[![Publish to PyPI](https://github.com/supermarsx/codex-cli-linker/actions/workflows/publish.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/publish.yml)
-[![Scoop Update](https://github.com/supermarsx/codex-cli-linker/actions/workflows/scoop.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/scoop.yml)
-[![Homebrew Update](https://github.com/supermarsx/codex-cli-linker/actions/workflows/homebrew.yml/badge.svg)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/homebrew.yml)
+[![Rolling Release](https://img.shields.io/github/actions/workflow/status/supermarsx/codex-cli-linker/rolling.yml?branch=main&label=Rolling&logo=github&style=flat-square)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/rolling.yml)
+[![Release](https://img.shields.io/github/actions/workflow/status/supermarsx/codex-cli-linker/release.yml?branch=main&label=Release&logo=github&style=flat-square)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/release.yml)
+[![Publish to PyPI](https://img.shields.io/github/actions/workflow/status/supermarsx/codex-cli-linker/publish.yml?branch=main&label=PyPI&logo=github&style=flat-square)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/publish.yml)
+[![Scoop Update](https://img.shields.io/github/actions/workflow/status/supermarsx/codex-cli-linker/scoop.yml?branch=main&label=Scoop&logo=github&style=flat-square)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/scoop.yml)
+[![Homebrew Update](https://img.shields.io/github/actions/workflow/status/supermarsx/codex-cli-linker/homebrew.yml?branch=main&label=Homebrew&logo=github&style=flat-square)](https://github.com/supermarsx/codex-cli-linker/actions/workflows/homebrew.yml)
 
 
 ## Features
@@ -106,11 +106,11 @@ Download from Releases:
 
 Direct download buttons (latest assets):
 
-<a href="https://github.com/supermarsx/codex-cli-linker/releases/latest/download/codex-cli-linker-windows-x64.exe"><img alt="Download Windows x64" src="https://img.shields.io/badge/⬇%20Windows-x64-0b5fff?logo=windows&logoColor=white" /></a>
-<a href="https://github.com/supermarsx/codex-cli-linker/releases/latest/download/codex-cli-linker-macos-x64"><img alt="Download macOS x64" src="https://img.shields.io/badge/⬇%20macOS-x64-0b5fff?logo=apple&logoColor=white" /></a>
-<a href="https://github.com/supermarsx/codex-cli-linker/releases/latest/download/codex-cli-linker-linux-x64"><img alt="Download Linux x64" src="https://img.shields.io/badge/⬇%20Linux-x64-0b5fff?logo=linux&logoColor=white" /></a>
-<a href="https://github.com/supermarsx/codex-cli-linker/releases/latest/download/codex-cli-linker-macos-arm64"><img alt="Download macOS arm64" src="https://img.shields.io/badge/⬇%20macOS-arm64-0b5fff?logo=apple&logoColor=white" /></a>
-<a href="https://github.com/supermarsx/codex-cli-linker/releases/latest/download/codex-cli-linker-linux-arm64"><img alt="Download Linux arm64" src="https://img.shields.io/badge/⬇%20Linux-arm64-0b5fff?logo=linux&logoColor=white" /></a>
+<a href="https://github.com/supermarsx/codex-cli-linker/releases/latest/download/codex-cli-linker-windows-x64.exe"><img alt="Download Windows x64" src="https://img.shields.io/badge/⬇%20Windows-x64-0b5fff?logo=windows&logoColor=white&style=flat-square" /></a>
+<a href="https://github.com/supermarsx/codex-cli-linker/releases/latest/download/codex-cli-linker-macos-x64"><img alt="Download macOS x64" src="https://img.shields.io/badge/⬇%20macOS-x64-0b5fff?logo=apple&logoColor=white&style=flat-square" /></a>
+<a href="https://github.com/supermarsx/codex-cli-linker/releases/latest/download/codex-cli-linker-linux-x64"><img alt="Download Linux x64" src="https://img.shields.io/badge/⬇%20Linux-x64-0b5fff?logo=linux&logoColor=white&style=flat-square" /></a>
+<a href="https://github.com/supermarsx/codex-cli-linker/releases/latest/download/codex-cli-linker-macos-arm64"><img alt="Download macOS arm64" src="https://img.shields.io/badge/⬇%20macOS-arm64-0b5fff?logo=apple&logoColor=white&style=flat-square" /></a>
+<a href="https://github.com/supermarsx/codex-cli-linker/releases/latest/download/codex-cli-linker-linux-arm64"><img alt="Download Linux arm64" src="https://img.shields.io/badge/⬇%20Linux-arm64-0b5fff?logo=linux&logoColor=white&style=flat-square" /></a>
 
 Or fetch via curl (latest):
 

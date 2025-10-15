@@ -84,8 +84,8 @@ The script verifies a clean working tree, validates `vX.Y.Z` format, creates an 
 - Latest: https://github.com/supermarsx/codex-cli-linker/releases/latest
 - All releases: https://github.com/supermarsx/codex-cli-linker/releases
 
-<a href="https://github.com/supermarsx/codex-cli-linker/releases/latest"><img alt="Download latest" src="https://img.shields.io/badge/⬇%20Download-Latest%20Release-0b5fff" /></a>
-<a href="https://github.com/supermarsx/codex-cli-linker/releases"><img alt="All releases" src="https://img.shields.io/badge/Releases-All-555" /></a>
+<a href="https://github.com/supermarsx/codex-cli-linker/releases/latest"><img alt="Download latest" src="https://img.shields.io/badge/⬇%20Download-Latest%20Release-0b5fff?style=flat-square" /></a>
+<a href="https://github.com/supermarsx/codex-cli-linker/releases"><img alt="All releases" src="https://img.shields.io/badge/Releases-All-555?style=flat-square" /></a>
 
 ## Development & code map
 
