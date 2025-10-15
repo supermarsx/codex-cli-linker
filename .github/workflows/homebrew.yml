@@ -31,10 +31,32 @@ jobs:
             exit 1
           fi
           VERSION=${TAG#v}
-          TARBALL_URL="https://codeload.github.com/${GITHUB_REPOSITORY}/tar.gz/refs/tags/${TAG}"
+          # Use the archive URL (stable and directly matches the formula URL)
+          TARBALL_URL="https://github.com/${GITHUB_REPOSITORY}/archive/refs/tags/${TAG}.tar.gz"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "tarball_url=${TARBALL_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for tarball to be available
+        shell: bash
+        run: |
+          set -euo pipefail
+          url='${{ steps.meta.outputs.tarball_url }}'
+          echo "Waiting for tarball: $url"
+          code=000
+          for i in {1..30}; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -L "$url" || true)
+            if [[ "$code" == "200" ]]; then
+              echo "Tarball available (HTTP $code)"
+              break
+            fi
+            echo "Attempt $i/30: not ready (HTTP $code); sleeping 10s"
+            sleep 10
+          done
+          if [[ "$code" != "200" ]]; then
+            echo "Tarball not available after waiting; aborting" >&2
+            exit 22
+          fi
 
       - name: Download source tarball
         shell: bash
