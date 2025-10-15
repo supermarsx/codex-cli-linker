@@ -30,40 +30,48 @@ jobs:
             echo "No tag found on event; aborting" >&2
             exit 1
           fi
+          # If not triggered by a tag (e.g., manual run), derive TAG from pyproject version
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            if [[ -f pyproject.toml ]]; then
+              VER=$(sed -n -E 's/^version\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"/\1/p' pyproject.toml | head -n1)
+              if [[ -n "${VER}" ]]; then TAG="v${VER}"; fi
+            fi
+          fi
           VERSION=${TAG#v}
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          # Pin the manifest to the tag-specific asset URL
-          echo "win_url=https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/codex-cli-linker-windows-x64.exe" >> "$GITHUB_OUTPUT"
-          # Use the latest download URL for fetching the binary in CI to avoid race conditions
-          echo "win_dl_url=https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/codex-cli-linker-windows-x64.exe" >> "$GITHUB_OUTPUT"
+          # Tag-specific asset URL (manifest pin)
+          echo "win_url_tag=https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/codex-cli-linker-windows-x64.exe" >> "$GITHUB_OUTPUT"
+          # Latest asset URL (CI fallback/fast path)
+          echo "win_url_latest=https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/codex-cli-linker-windows-x64.exe" >> "$GITHUB_OUTPUT"
 
-      - name: Wait for Windows artifact to be available
+      - name: Choose available Windows asset URL (latest or tag)
+        id: pick
         shell: bash
         run: |
           set -euo pipefail
-          url='${{ steps.meta.outputs.win_dl_url }}'
-          echo "Waiting for asset: $url"
-          code=000
+          latest='${{ steps.meta.outputs.win_url_latest }}'
+          tagurl='${{ steps.meta.outputs.win_url_tag }}'
+          echo "Probing latest URL: $latest"
           for i in {1..30}; do
-            code=$(curl -s -o /dev/null -w "%{http_code}" -L "$url" || true)
-            if [[ "$code" == "200" ]]; then
-              echo "Asset available (HTTP $code)"
-              break
-            fi
-            echo "Attempt $i/30: not ready (HTTP $code); sleeping 10s"
-            sleep 10
+            code=$(curl -s -o /dev/null -w "%{http_code}" -L "$latest" || true)
+            [[ "$code" == "200" ]] && { echo "selected=$latest" >> "$GITHUB_OUTPUT"; echo "Selected latest URL"; exit 0; }
+            echo "Attempt $i/30: latest not ready (HTTP $code); sleeping 5s"; sleep 5
           done
-          if [[ "$code" != "200" ]]; then
-            echo "Asset not available after waiting; aborting" >&2
-            exit 22
-          fi
+          echo "Falling back to tag URL: $tagurl"
+          for i in {1..30}; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -L "$tagurl" || true)
+            [[ "$code" == "200" ]] && { echo "selected=$tagurl" >> "$GITHUB_OUTPUT"; echo "Selected tag URL"; exit 0; }
+            echo "Attempt $i/30: tag not ready (HTTP $code); sleeping 5s"; sleep 5
+          done
+          echo "Neither latest nor tag URL became available" >&2
+          exit 22
 
       - name: Download Windows artifact
         shell: bash
         run: |
           set -euo pipefail
-          curl -fL "${{ steps.meta.outputs.win_dl_url }}" -o codex-cli-linker-windows-x64.exe
+          curl -fL "${{ steps.pick.outputs.selected }}" -o codex-cli-linker-windows-x64.exe
 
       - name: Compute SHA256
         id: sha
@@ -77,7 +85,7 @@ jobs:
         shell: bash
         env:
           VERSION: ${{ steps.meta.outputs.version }}
-          WIN_URL: ${{ steps.meta.outputs.win_url }}
+          WIN_URL: ${{ steps.meta.outputs.win_url_tag }}
           SHA256: ${{ steps.sha.outputs.sha256 }}
         run: |
           set -euo pipefail
