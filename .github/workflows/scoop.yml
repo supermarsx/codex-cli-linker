@@ -35,6 +35,27 @@ jobs:
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "win_url=https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/codex-cli-linker-windows-x64.exe" >> "$GITHUB_OUTPUT"
 
+      - name: Wait for Windows artifact to be available
+        shell: bash
+        run: |
+          set -euo pipefail
+          url='${{ steps.meta.outputs.win_url }}'
+          echo "Waiting for asset: $url"
+          code=000
+          for i in {1..30}; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -L "$url" || true)
+            if [[ "$code" == "200" ]]; then
+              echo "Asset available (HTTP $code)"
+              break
+            fi
+            echo "Attempt $i/30: not ready (HTTP $code); sleeping 10s"
+            sleep 10
+          done
+          if [[ "$code" != "200" ]]; then
+            echo "Asset not available after waiting; aborting" >&2
+            exit 22
+          fi
+
       - name: Download Windows artifact
         shell: bash
         run: |
