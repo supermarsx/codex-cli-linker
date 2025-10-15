@@ -1,4 +1,4 @@
-<img width="1536" height="684" alt="intro-image" src="https://github.com/user-attachments/assets/8195d53c-d0b3-4305-822d-f32a1ffd394f" />
+<img width="1536" height="663" alt="intro-image" src="https://github.com/user-attachments/assets/47eaae4a-fddc-4d6d-9db0-a05a8bca0458" />
 
 Generate a ready‑to‑run **Codex CLI** configuration for OpenAI‑compatible servers like **LM Studio**, **Ollama**, and others. 
 
@@ -801,3 +801,4 @@ make clean
 ## License
 
 Released under the MIT License. See [license.md](./license.md) for details.
+
