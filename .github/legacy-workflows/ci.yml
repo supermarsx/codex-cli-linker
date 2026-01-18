@@ -4,11 +4,11 @@ on:
   push:
     branches: [main]
     paths-ignore:
-      - 'coverage.svg'
+      - "coverage.svg"
   pull_request:
     branches: [main]
     paths-ignore:
-      - 'coverage.svg'
+      - "coverage.svg"
 
 permissions:
   contents: write
@@ -47,7 +47,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: "3.x"
       - name: Prevent unintended version bumps
         shell: bash
         run: |
@@ -122,7 +122,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: "3.x"
       - name: Verify pyproject version against tags
         shell: bash
         run: |
@@ -159,7 +159,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: "3.x"
       - name: Install ruff
         run: python -m pip install ruff
       - name: Ruff check
@@ -172,7 +172,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: "3.x"
       - name: Install black
         run: python -m pip install black
       - name: Black check
@@ -187,7 +187,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: "3.x"
       - name: Install test deps
         run: |
           python -m pip install pytest pytest-cov pytest-timeout coverage-badge
@@ -223,7 +223,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: "3.x"
       - name: Install build
         run: python -m pip install build
       - name: Package
