@@ -502,7 +502,6 @@ jobs:
           name: ${{ steps.tag.outputs.tag }}
           prerelease: true
           draft: false
-          make_latest: false
           files: dist_flat/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
