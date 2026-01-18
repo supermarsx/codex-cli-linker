@@ -176,7 +176,7 @@ jobs:
       - name: Install black
         run: python -m pip install black
       - name: Black check
-        run: black --check .
+        run: python -m black --check .
 
   test:
     name: Tests
