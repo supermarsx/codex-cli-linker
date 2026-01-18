@@ -254,6 +254,7 @@ jobs:
   release_build_x64:
     name: Release Build x64 (${{ matrix.os }})
     if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || github.event_name == 'workflow_dispatch'
+    needs: [lint, format, test]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -293,6 +294,7 @@ jobs:
   release_build_arm:
     name: Release Build arm64 (${{ matrix.os }})
     if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || github.event_name == 'workflow_dispatch'
+    needs: [lint, format, test]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -376,6 +378,7 @@ jobs:
   pypi_publish:
     name: Publish to PyPI
     if: github.event_name == 'release' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
+    needs: [lint, format, test]
     runs-on: ubuntu-latest
     concurrency:
       group: publish-${{ github.ref }}
@@ -469,6 +472,7 @@ jobs:
   rolling_build_x64:
     name: Rolling Build x64 (${{ matrix.os }})
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    needs: [lint, format, test]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -508,6 +512,7 @@ jobs:
   rolling_build_arm:
     name: Rolling Build arm64 (${{ matrix.os }})
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    needs: [lint, format, test]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -585,6 +590,7 @@ jobs:
   homebrew_update:
     name: Update Homebrew Formula
     if: github.event_name == 'release' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
+    needs: [lint, format, test]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -680,6 +686,7 @@ jobs:
   scoop_update:
     name: Update Scoop Manifest
     if: github.event_name == 'release' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
+    needs: [lint, format, test]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
