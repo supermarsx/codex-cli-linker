@@ -1,0 +1,823 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - "v*"
+      - "release-*"
+    paths-ignore:
+      - 'coverage.svg'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - 'coverage.svg'
+  release:
+    types: [published]
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag (vX.Y.Z) to publish; optional"
+        required: false
+        type: string
+      target:
+        description: "Publish destination: pypi or testpypi"
+        required: false
+        default: pypi
+        type: choice
+        options:
+          - pypi
+          - testpypi
+
+permissions:
+  contents: write
+
+jobs:
+  conventional_commits:
+    name: Conventional Commits
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+          requireScope: false
+          wip: false
+
+  version_bump_guard:
+    name: Guard Version Bump
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Prevent unintended version bumps
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os, subprocess, sys, re, tomllib
+
+          base_ref = os.environ.get('GITHUB_BASE_REF')
+          if not base_ref:
+              print('Not a pull_request event. Skipping.')
+              sys.exit(0)
+
+          def sh(*args):
+              r = subprocess.run(list(args), capture_output=True, text=True)
+              return r.returncode, r.stdout.strip(), r.stderr.strip()
+
+          sh('git','fetch','origin',base_ref,'--depth','1')
+
+          rc, out, err = sh('git','diff','--name-only',f'origin/{base_ref}...HEAD')
+          if rc != 0:
+              print(err)
+              sys.exit(1)
+          if 'pyproject.toml' not in out.splitlines():
+              print('pyproject.toml not changed. OK.')
+              sys.exit(0)
+
+          rc, base_py, err = sh('git','show',f'origin/{base_ref}:pyproject.toml')
+          if rc != 0:
+              print('Failed to read base pyproject.toml:', err)
+              sys.exit(1)
+          with open('pyproject.toml','rb') as f:
+              head_data = f.read()
+
+          base_ver = tomllib.loads(base_py.encode() if isinstance(base_py,str) else base_py).get('project',{}).get('version')
+          head_ver = tomllib.loads(head_data).get('project',{}).get('version')
+
+          if base_ver == head_ver:
+              print('pyproject.toml changed but version unchanged. OK.')
+              sys.exit(0)
+
+          ev_path = os.environ.get('GITHUB_EVENT_PATH')
+          with open(ev_path,'r',encoding='utf-8') as f:
+              ev = json.load(f)
+
+          title = ev.get('pull_request',{}).get('title','')
+          labels = [ (l.get('name') or '').lower() for l in ev.get('pull_request',{}).get('labels',[]) ]
+          head_ref = ev.get('pull_request',{}).get('head',{}).get('ref','')
+
+          allowed = (
+              'release' in labels or
+              head_ref.startswith(('release/','hotfix/')) or
+              re.match(r'^(chore\(release\)|release)(:|\s)', title, re.IGNORECASE)
+          )
+
+          if allowed:
+              print(f'Version bump from {base_ver} -> {head_ver} allowed for PR "{title}".')
+              sys.exit(0)
+          else:
+              print(f'Blocking version bump {base_ver} -> {head_ver}. Add label "release", use a release/hotfix branch, or title starting with "chore(release):".')
+          sys.exit(1)
+          PY
+
+  version:
+    name: Validate Version
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Verify pyproject version against tags
+        shell: bash
+        run: |
+          python - <<'PY'
+          import re, subprocess, sys, tomllib, pathlib
+          data = tomllib.loads(pathlib.Path('pyproject.toml').read_text(encoding='utf-8'))
+          version = data.get('project', {}).get('version')
+          if not version:
+              sys.exit('Missing [project].version in pyproject.toml')
+          if not re.fullmatch(r'\d+\.\d+\.\d+(?:[-+][0-9A-Za-z\.-]+)?', version):
+              sys.exit(f'Version {version!r} must match SemVer X.Y.Z (optionally with -prerelease/+build)')
+          res = subprocess.run(['git','tag','--list','v[0-9]*'], capture_output=True, text=True, check=True)
+          tags = [t.strip() for t in res.stdout.splitlines() if t.strip()]
+          def parse_num(v: str):
+              m = re.match(r'^v?(\d+)\.(\d+)\.(\d+)', v)
+              return tuple(map(int, m.groups())) if m else None
+          latest = None
+          for t in tags:
+              p = parse_num(t)
+              if p and (latest is None or p > latest):
+                  latest = p
+          if latest is not None:
+              cur = parse_num('v' + version)
+              if cur < latest:
+                  a='.'.join(map(str, latest))
+                  sys.exit(f'pyproject version {version} is lower than latest tag v{a}')
+          print('Version check passed. pyproject version is SemVer and >= latest tag.')
+          PY
+
+  lint:
+    name: Ruff Lint
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install ruff
+        run: python -m pip install ruff
+      - name: Ruff check
+        run: ruff check .
+
+  format:
+    name: Black Format
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install black
+        run: python -m pip install black
+      - name: Black check
+        run: python -m black --check .
+
+  test:
+    name: Tests
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install test deps
+        run: |
+          python -m pip install pytest pytest-cov pytest-timeout coverage-badge
+      - name: Run tests (with coverage)
+        run: |
+          pytest
+          python -m coverage xml
+      - name: Generate and commit coverage badge
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          coverage-badge -o coverage.svg -f
+          if ! git diff --quiet -- coverage.svg; then
+            git config user.name "github-actions"
+            git config user.email "github-actions@users.noreply.github.com"
+            git add coverage.svg
+            git commit -m "chore: update coverage badge [skip ci]"
+            git push
+          else
+            echo "coverage.svg unchanged; nothing to commit"
+          fi
+
+  build:
+    name: Build Matrix
+    needs: [lint, format, test]
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install build
+        run: python -m pip install build
+      - name: Package
+        run: python -m build
+
+  release_build_x64:
+    name: Release Build x64 (${{ matrix.os }})
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || github.event_name == 'workflow_dispatch'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        py: ["3.11"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Install build deps
+        run: |
+          python -m pip install --upgrade pip wheel
+          python -m pip install pyinstaller
+      - name: Build single-file binary (x64)
+        shell: bash
+        run: |
+          pyinstaller -F -n codex-cli-linker codex-cli-linker.py
+          mkdir -p release
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            cp dist/codex-cli-linker.exe "release/codex-cli-linker-windows-x64.exe"
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            cp dist/codex-cli-linker "release/codex-cli-linker-macos-x64"
+          else
+            cp dist/codex-cli-linker "release/codex-cli-linker-linux-x64"
+          fi
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ runner.os }}-x64
+          path: release/*
+          if-no-files-found: error
+
+  release_build_arm:
+    name: Release Build arm64 (${{ matrix.os }})
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || github.event_name == 'workflow_dispatch'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04-arm, macos-latest, windows-11-arm]
+        py: ["3.11"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Install build deps
+        run: |
+          python -m pip install --upgrade pip wheel
+          python -m pip install pyinstaller
+      - name: Build single-file binary (arm64)
+        shell: bash
+        run: |
+          pyinstaller -F -n codex-cli-linker codex-cli-linker.py
+          mkdir -p release
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            cp dist/codex-cli-linker.exe "release/codex-cli-linker-windows-arm64.exe"
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            cp dist/codex-cli-linker "release/codex-cli-linker-macos-arm64"
+          else
+            cp dist/codex-cli-linker "release/codex-cli-linker-linux-arm64"
+          fi
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ runner.os }}-arm64
+          path: release/*
+          if-no-files-found: error
+
+  release_publish:
+    name: Publish GitHub Release
+    needs: [release_build_x64, release_build_arm]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - name: Flatten artifacts
+        run: |
+          mkdir -p dist_flat
+          find dist -maxdepth 3 -type f -print -exec cp {} dist_flat/ \;
+      - name: Read release notes (if present)
+        id: notes
+        shell: bash
+        run: |
+          NOTES_PATH="docs/release-notes/${GITHUB_REF_NAME}.md"
+          if [ -f "$NOTES_PATH" ]; then
+            {
+              echo 'RELEASE_BODY<<EOF'
+              cat "$NOTES_PATH"
+              echo 'EOF'
+            } >> "$GITHUB_ENV"
+            echo "notes=present" >> "$GITHUB_OUTPUT"
+          else
+            echo "No release notes at $NOTES_PATH"
+            echo "notes=missing" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: dist_flat/*
+          generate_release_notes: true
+          body: ${{ env.RELEASE_BODY }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  pypi_publish:
+    name: Publish to PyPI
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
+    runs-on: ubuntu-latest
+    concurrency:
+      group: publish-${{ github.ref }}
+      cancel-in-progress: false
+    permissions:
+      id-token: write
+      contents: write
+    env:
+      HAS_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+      HAS_TEST_PYPI_TOKEN: ${{ secrets.TEST_PYPI_API_TOKEN }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip build ruff black pytest pytest-cov pytest-timeout
+      - name: Sync version from tag and commit
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          TAG_NAME="${RELEASE_TAG:-}"; [ -z "$TAG_NAME" ] && TAG_NAME="${INPUT_TAG:-}"
+          if [ -z "$TAG_NAME" ]; then
+            case "${GITHUB_REF:-}" in
+              refs/tags/*) TAG_NAME="${GITHUB_REF#refs/tags/}" ;;
+              *)
+                case "${GITHUB_REF_NAME:-}" in
+                  v*) TAG_NAME="$GITHUB_REF_NAME" ;;
+                esac ;;
+            esac
+          fi
+          if [ -z "$TAG_NAME" ]; then
+            echo "No release tag detected; skipping version sync (using pyproject version)."
+            exit 0
+          fi
+          VERSION="${TAG_NAME#v}"
+          echo "Release tag: $TAG_NAME => Version: $VERSION"
+          sed -i -E "s/^version = \".*\"$/version = \"${VERSION}\"/" pyproject.toml
+          echo "Updated pyproject.toml version to $VERSION"
+          if ! git diff --quiet; then
+            git config user.name "github-actions"
+            git config user.email "github-actions@users.noreply.github.com"
+            git add pyproject.toml
+            git commit -m "chore: bump version to ${VERSION} [skip ci]"
+            DEFAULT_BRANCH=$(git remote show origin | sed -n '/HEAD branch/s/.*: //p')
+            git push origin HEAD:"$DEFAULT_BRANCH"
+          else
+            echo "No version change to commit"
+          fi
+      - name: Lint
+        run: ruff check .
+      - name: Check formatting
+        run: black --check .
+      - name: Run tests
+        run: pytest
+      - name: Build distributions
+        run: |
+          python -m build --outdir dist
+      - name: Verify artifacts exist
+        run: |
+          test -d dist && [ -n "$(ls -A dist)" ] || { echo "dist/ is empty"; ls -la; exit 1; }
+      - name: Publish to TestPyPI (token)
+        if: ${{ inputs.target == 'testpypi' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
+          packages-dir: dist
+      - name: Publish to PyPI (Trusted Publisher via OIDC)
+        if: ${{ inputs.target != 'testpypi' && env.HAS_PYPI_TOKEN == '' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
+          packages-dir: dist
+      - name: Publish to PyPI (API token)
+        if: ${{ inputs.target != 'testpypi' && env.HAS_PYPI_TOKEN != '' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          skip-existing: true
+          packages-dir: dist
+
+  rolling_build_x64:
+    name: Rolling Build x64 (${{ matrix.os }})
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        py: ["3.11"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Install build deps
+        run: |
+          python -m pip install --upgrade pip wheel
+          python -m pip install pyinstaller
+      - name: Build single-file binary (x64)
+        shell: bash
+        run: |
+          pyinstaller -F -n codex-cli-linker codex-cli-linker.py
+          mkdir -p release
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            cp dist/codex-cli-linker.exe "release/codex-cli-linker-windows-x64.exe"
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            cp dist/codex-cli-linker "release/codex-cli-linker-macos-x64"
+          else
+            cp dist/codex-cli-linker "release/codex-cli-linker-linux-x64"
+          fi
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rolling-${{ runner.os }}-x64
+          path: release/*
+          if-no-files-found: error
+
+  rolling_build_arm:
+    name: Rolling Build arm64 (${{ matrix.os }})
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04-arm, macos-latest, windows-11-arm]
+        py: ["3.11"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Install build deps
+        run: |
+          python -m pip install --upgrade pip wheel
+          python -m pip install pyinstaller
+      - name: Build single-file binary (arm64)
+        shell: bash
+        run: |
+          pyinstaller -F -n codex-cli-linker codex-cli-linker.py
+          mkdir -p release
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            cp dist/codex-cli-linker.exe "release/codex-cli-linker-windows-arm64.exe"
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            cp dist/codex-cli-linker "release/codex-cli-linker-macos-arm64"
+          else
+            cp dist/codex-cli-linker "release/codex-cli-linker-linux-arm64"
+          fi
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rolling-${{ runner.os }}-arm64
+          path: release/*
+          if-no-files-found: error
+
+  rolling_release:
+    name: Publish Rolling Release
+    needs: [rolling_build_x64, rolling_build_arm]
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - name: Flatten artifacts
+        run: |
+          mkdir -p dist_flat
+          find dist -maxdepth 3 -type f -print -exec cp {} dist_flat/ \;
+      - name: Compute rolling tag (UTC)
+        id: tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="r-v$(date -u +%y.%m.%d)"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Using tag: ${TAG}"
+      - name: Create rolling GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.tag }}
+          prerelease: true
+          draft: false
+          make_latest: false
+          files: dist_flat/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  homebrew_update:
+    name: Update Homebrew Formula
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Determine version and tarball URL
+        id: meta
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          TAG=${RELEASE_TAG:-${GITHUB_REF_NAME}}
+          if [[ -z "${TAG}" ]]; then
+            echo "No tag found on event; aborting" >&2
+            exit 1
+          fi
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            if [[ -f pyproject.toml ]]; then
+              VER=$(sed -n -E 's/^version\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"/\1/p' pyproject.toml | head -n1)
+              if [[ -n "${VER}" ]]; then TAG="v${VER}"; fi
+            fi
+          fi
+          VERSION=${TAG#v}
+          TARBALL_URL="https://github.com/${GITHUB_REPOSITORY}/archive/refs/tags/${TAG}.tar.gz"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "tarball_url=${TARBALL_URL}" >> "$GITHUB_OUTPUT"
+      - name: Wait for tarball to be available
+        shell: bash
+        run: |
+          set -euo pipefail
+          url='${{ steps.meta.outputs.tarball_url }}'
+          echo "Waiting for tarball: $url"
+          code=000
+          for i in {1..30}; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -L "$url" || true)
+            if [[ "$code" == "200" ]]; then
+              echo "Tarball available (HTTP $code)"
+              break
+            fi
+            echo "Attempt $i/30: not ready (HTTP $code); sleeping 10s"
+            sleep 10
+          done
+          if [[ "$code" != "200" ]]; then
+            echo "Tarball not available after waiting; aborting" >&2
+            exit 22
+          fi
+      - name: Download source tarball
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL "${{ steps.meta.outputs.tarball_url }}" -o codex-cli-linker-${{ steps.meta.outputs.version }}.tar.gz
+      - name: Compute SHA256
+        id: sha
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha=$(sha256sum codex-cli-linker-${{ steps.meta.outputs.version }}.tar.gz | awk '{print $1}')
+          echo "sha256=${sha}" >> "$GITHUB_OUTPUT"
+      - name: Update Homebrew formula
+        shell: bash
+        run: |
+          set -euo pipefail
+          file="Formula/codex-cli-linker.rb"
+          new_url="https://github.com/${GITHUB_REPOSITORY}/archive/refs/tags/${{ steps.meta.outputs.tag }}.tar.gz"
+          new_sha="${{ steps.sha.outputs.sha256 }}"
+          tmp=$(mktemp)
+          awk -v url="$new_url" -v sha="$new_sha" '
+            BEGIN{u=0;s=0}
+            /^\s*url ".*"/ { gsub(/url ".*"/, "url \"" url "\""); u=1 }
+            /^\s*sha256 "[0-9a-fA-F]+"/ { gsub(/sha256 "[0-9a-fA-F]+"/, "sha256 \"" sha "\""); s=1 }
+            { print }
+            END{ if(u==0||s==0){ exit 2 } }
+          ' "$file" > "$tmp"
+          mv "$tmp" "$file"
+      - name: Commit and push
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet -- Formula/codex-cli-linker.rb; then
+            git config user.name "github-actions"
+            git config user.email "github-actions@users.noreply.github.com"
+            git add Formula/codex-cli-linker.rb
+            git commit -m "chore(homebrew): bump formula to v${{ steps.meta.outputs.version }} [skip ci]"
+            DEFAULT_BRANCH=$(git remote show origin | sed -n '/HEAD branch/s/.*: //p')
+            git push origin HEAD:"$DEFAULT_BRANCH"
+          else
+            echo "Homebrew formula unchanged; nothing to commit"
+          fi
+
+  scoop_update:
+    name: Update Scoop Manifest
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Determine version and URLs
+        id: meta
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          TAG=${RELEASE_TAG:-${GITHUB_REF_NAME}}
+          if [[ -z "${TAG}" ]]; then
+            echo "No tag found on event; aborting" >&2
+            exit 1
+          fi
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            if [[ -f pyproject.toml ]]; then
+              VER=$(sed -n -E 's/^version\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"/\1/p' pyproject.toml | head -n1)
+              if [[ -n "${VER}" ]]; then TAG="v${VER}"; fi
+            fi
+          fi
+          VERSION=${TAG#v}
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "win_url_tag=https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/codex-cli-linker-windows-x64.exe" >> "$GITHUB_OUTPUT"
+          echo "win_arm_url_tag=https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/codex-cli-linker-windows-arm64.exe" >> "$GITHUB_OUTPUT"
+          echo "win_url_latest=https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/codex-cli-linker-windows-x64.exe" >> "$GITHUB_OUTPUT"
+          echo "win_arm_url_latest=https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/codex-cli-linker-windows-arm64.exe" >> "$GITHUB_OUTPUT"
+      - name: Choose available Windows x64 asset URL (latest or tag)
+        id: pick
+        shell: bash
+        run: |
+          set -euo pipefail
+          latest='${{ steps.meta.outputs.win_url_latest }}'
+          tagurl='${{ steps.meta.outputs.win_url_tag }}'
+          echo "Probing latest URL: $latest"
+          for i in {1..30}; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -L "$latest" || true)
+            [[ "$code" == "200" ]] && { echo "selected=$latest" >> "$GITHUB_OUTPUT"; echo "Selected latest URL"; exit 0; }
+            echo "Attempt $i/30: latest not ready (HTTP $code); sleeping 5s"; sleep 5
+          done
+          echo "Falling back to tag URL: $tagurl"
+          for i in {1..30}; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -L "$tagurl" || true)
+            [[ "$code" == "200" ]] && { echo "selected=$tagurl" >> "$GITHUB_OUTPUT"; echo "Selected tag URL"; exit 0; }
+            echo "Attempt $i/30: tag not ready (HTTP $code); sleeping 5s"; sleep 5
+          done
+          echo "Neither latest nor tag URL became available" >&2
+          exit 22
+      - name: Choose available Windows arm64 asset URL (latest or tag)
+        id: pick_arm
+        shell: bash
+        run: |
+          set -euo pipefail
+          latest='${{ steps.meta.outputs.win_arm_url_latest }}'
+          tagurl='${{ steps.meta.outputs.win_arm_url_tag }}'
+          echo "Probing latest URL: $latest"
+          for i in {1..30}; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -L "$latest" || true)
+            [[ "$code" == "200" ]] && { echo "selected=$latest" >> "$GITHUB_OUTPUT"; echo "Selected latest URL"; exit 0; }
+            echo "Attempt $i/30: latest not ready (HTTP $code); sleeping 5s"; sleep 5
+          done
+          echo "Falling back to tag URL: $tagurl"
+          for i in {1..30}; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -L "$tagurl" || true)
+            [[ "$code" == "200" ]] && { echo "selected=$tagurl" >> "$GITHUB_OUTPUT"; echo "Selected tag URL"; exit 0; }
+            echo "Attempt $i/30: tag not ready (HTTP $code); sleeping 5s"; sleep 5
+          done
+          echo "Neither latest nor tag URL became available" >&2
+          exit 22
+      - name: Download Windows artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL "${{ steps.pick.outputs.selected }}" -o codex-cli-linker-windows-x64.exe
+      - name: Download Windows arm64 artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL "${{ steps.pick_arm.outputs.selected }}" -o codex-cli-linker-windows-arm64.exe
+      - name: Compute SHA256
+        id: sha
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha=$(sha256sum codex-cli-linker-windows-x64.exe | awk '{print $1}' | tr '[:lower:]' '[:upper:]')
+          echo "sha256=${sha}" >> "$GITHUB_OUTPUT"
+      - name: Compute SHA256 (arm64)
+        id: sha_arm
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha=$(sha256sum codex-cli-linker-windows-arm64.exe | awk '{print $1}' | tr '[:lower:]' '[:upper:]')
+          echo "sha256=${sha}" >> "$GITHUB_OUTPUT"
+      - name: Update Scoop manifest
+        shell: bash
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          WIN_URL: ${{ steps.meta.outputs.win_url_tag }}
+          WIN_ARM_URL: ${{ steps.meta.outputs.win_arm_url_tag }}
+          SHA256: ${{ steps.sha.outputs.sha256 }}
+          SHA256_ARM: ${{ steps.sha_arm.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          file='scoop/codex-cli-linker.json'
+          sed -i -E "s/(\"version\"\s*:\s*\")[^\"]+(\")/\1${VERSION}\2/" "$file"
+          awk -v win_url="$WIN_URL" -v win_arm_url="$WIN_ARM_URL" -v sha64="$SHA256" -v sha_arm="$SHA256_ARM" '
+            BEGIN{arch=""}
+            /"64bit"\s*:\s*{/ {arch="64bit"}
+            /"arm64"\s*:\s*{/ {arch="arm64"}
+            /}/ {if(prev ~ /"64bit"\s*:\s*{/ || prev ~ /"arm64"\s*:\s*{/ ) arch=""}
+            {
+              line=$0
+              if (arch=="64bit") {
+                gsub(/("url"\s*:\s*")([^"]+codex-cli-linker-windows-x64\.exe")/, "\\1" win_url "\\2", line)
+                gsub(/("hash"\s*:\s*")([^"]+)(")/, "\\1" sha64 "\\3", line)
+              } else if (arch=="arm64") {
+                gsub(/("url"\s*:\s*")([^"]+codex-cli-linker-windows-arm64\.exe")/, "\\1" win_arm_url "\\2", line)
+                gsub(/("hash"\s*:\s*")([^"]+)(")/, "\\1" sha_arm "\\3", line)
+              }
+              print line
+              prev=$0
+            }
+          ' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+      - name: Commit and push
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet -- scoop/codex-cli-linker.json; then
+            git config user.name "${GITHUB_ACTOR}"
+            git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+            git add scoop/codex-cli-linker.json
+            git commit -m "chore(scoop): update manifest to v${{ steps.meta.outputs.version }} [skip ci]"
+            DEFAULT_BRANCH=$(git remote show origin | sed -n '/HEAD branch/s/.*: //p')
+            git push origin HEAD:"$DEFAULT_BRANCH"
+          else
+            echo "Scoop manifest unchanged; nothing to commit"
+          fi
