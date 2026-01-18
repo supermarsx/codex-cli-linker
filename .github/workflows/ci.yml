@@ -251,9 +251,9 @@ jobs:
       - name: Package
         run: python -m build
 
-  release_build_x64:
-    name: Release Build x64 (${{ matrix.os }})
-    if: github.event_name == 'release' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || github.event_name == 'workflow_dispatch'
+  build_x64:
+    name: Build x64 (${{ matrix.os }})
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'))
     needs: [lint, format, test]
     runs-on: ${{ matrix.os }}
     strategy:
@@ -291,9 +291,9 @@ jobs:
           path: release/*
           if-no-files-found: error
 
-  release_build_arm:
-    name: Release Build arm64 (${{ matrix.os }})
-    if: github.event_name == 'release' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || github.event_name == 'workflow_dispatch'
+  build_arm:
+    name: Build arm64 (${{ matrix.os }})
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'))
     needs: [lint, format, test]
     runs-on: ${{ matrix.os }}
     strategy:
@@ -333,7 +333,7 @@ jobs:
 
   release_publish:
     name: Publish GitHub Release
-    needs: [release_build_x64, release_build_arm]
+    needs: [build_x64, build_arm]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
@@ -378,7 +378,7 @@ jobs:
   pypi_publish:
     name: Publish to PyPI
     if: github.event_name == 'release' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
-    needs: [lint, format, test, release_build_x64, release_build_arm]
+    needs: [lint, format, test, build_x64, build_arm]
     runs-on: ubuntu-latest
     concurrency:
       group: publish-${{ github.ref }}
@@ -469,89 +469,9 @@ jobs:
           skip-existing: true
           packages-dir: dist
 
-  rolling_build_x64:
-    name: Rolling Build x64 (${{ matrix.os }})
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-    needs: [lint, format, test]
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        py: ["3.11"]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.py }}
-      - name: Install build deps
-        run: |
-          python -m pip install --upgrade pip wheel
-          python -m pip install pyinstaller
-      - name: Build single-file binary (x64)
-        shell: bash
-        run: |
-          pyinstaller -F -n codex-cli-linker codex-cli-linker.py
-          mkdir -p release
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            cp dist/codex-cli-linker.exe "release/codex-cli-linker-windows-x64.exe"
-          elif [[ "${{ runner.os }}" == "macOS" ]]; then
-            cp dist/codex-cli-linker "release/codex-cli-linker-macos-x64"
-          else
-            cp dist/codex-cli-linker "release/codex-cli-linker-linux-x64"
-          fi
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: rolling-${{ runner.os }}-x64
-          path: release/*
-          if-no-files-found: error
-
-  rolling_build_arm:
-    name: Rolling Build arm64 (${{ matrix.os }})
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-    needs: [lint, format, test]
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-24.04-arm, macos-latest, windows-11-arm]
-        py: ["3.11"]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.py }}
-      - name: Install build deps
-        run: |
-          python -m pip install --upgrade pip wheel
-          python -m pip install pyinstaller
-      - name: Build single-file binary (arm64)
-        shell: bash
-        run: |
-          pyinstaller -F -n codex-cli-linker codex-cli-linker.py
-          mkdir -p release
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            cp dist/codex-cli-linker.exe "release/codex-cli-linker-windows-arm64.exe"
-          elif [[ "${{ runner.os }}" == "macOS" ]]; then
-            cp dist/codex-cli-linker "release/codex-cli-linker-macos-arm64"
-          else
-            cp dist/codex-cli-linker "release/codex-cli-linker-linux-arm64"
-          fi
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: rolling-${{ runner.os }}-arm64
-          path: release/*
-          if-no-files-found: error
-
   rolling_release:
     name: Publish Rolling Release
-    needs: [rolling_build_x64, rolling_build_arm]
+    needs: [build_x64, build_arm]
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     permissions:
@@ -590,7 +510,7 @@ jobs:
   homebrew_update:
     name: Update Homebrew Formula
     if: github.event_name == 'release' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
-    needs: [lint, format, test, release_build_x64, release_build_arm]
+    needs: [lint, format, test, build_x64, build_arm]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -686,7 +606,7 @@ jobs:
   scoop_update:
     name: Update Scoop Manifest
     if: github.event_name == 'release' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
-    needs: [lint, format, test, release_build_x64, release_build_arm]
+    needs: [lint, format, test, build_x64, build_arm]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
