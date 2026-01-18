@@ -102,7 +102,9 @@ def main():
         config_json = Path(getattr(mod, "CONFIG_JSON", home / "config.json"))
         config_yaml = Path(getattr(mod, "CONFIG_YAML", home / "config.yaml"))
         linker_json = Path(getattr(mod, "LINKER_JSON", home / "linker_config.json"))
-    if getattr(args, "remove_config", False) or getattr(args, "remove_config_no_bak", False):
+    if getattr(args, "remove_config", False) or getattr(
+        args, "remove_config_no_bak", False
+    ):
         remove_config(getattr(args, "remove_config_no_bak", False))
         return
     if args.delete_all_backups:
@@ -134,7 +136,9 @@ def main():
         return
     # Consolidate legacy config files into linker_config.json early
     # Skip during --dry-run and when using --workspace-state
-    if not getattr(args, "dry_run", False) and not getattr(args, "workspace_state", False):
+    if not getattr(args, "dry_run", False) and not getattr(
+        args, "workspace_state", False
+    ):
         try:
             migrate_configs_to_linker(
                 linker_json,
@@ -148,7 +152,9 @@ def main():
     # Startup: banner is handled by the interactive hub; avoid extra heading here
     is_tty = bool(getattr(sys.stdout, "isatty", lambda: False)())
     color_ok = not os.environ.get("NO_COLOR")
-    should_clear = is_tty and color_ok and (os.name != "nt" or getattr(args, "clear", False))
+    should_clear = (
+        is_tty and color_ok and (os.name != "nt" or getattr(args, "clear", False))
+    )
     if should_clear:
         clear_screen()
     # --yes implies non-interactive where possible
@@ -161,7 +167,9 @@ def main():
         args.auto = True
         if args.model_index is None:
             args.model_index = 0
-    configure_logging(args.verbose, args.log_file, args.log_json, args.log_remote, args.log_level)
+    configure_logging(
+        args.verbose, args.log_file, args.log_json, args.log_remote, args.log_level
+    )
     defaults = parse_args([])
     merge_config_defaults(args, defaults)
 
@@ -173,7 +181,9 @@ def main():
         key_val = args.api_key or ""
         if not key_val:
             try:
-                key_val = getpass.getpass("Enter OPENAI_API_KEY (input hidden): ").strip()
+                key_val = getpass.getpass(
+                    "Enter OPENAI_API_KEY (input hidden): "
+                ).strip()
             except Exception as exc:  # pragma: no cover
                 err(f"Could not read input: {exc}")
                 sys.exit(2)
